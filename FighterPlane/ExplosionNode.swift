@@ -2,6 +2,15 @@ import SpriteKit
 
 class ExplosionNode: SKNode {
 
+    // Cached circle texture for debris particles (avoids per-particle SKShapeNode overhead)
+    private static let debrisTexture: SKTexture = {
+        let sz: CGFloat = 6
+        let shape = SKShapeNode(circleOfRadius: sz / 2)
+        shape.fillColor = .white
+        shape.strokeColor = .clear
+        return SKView().texture(from: shape) ?? SKTexture()
+    }()
+
     enum ExplosionSize {
         case small   // bullet hit
         case medium  // enemy destroyed
@@ -91,16 +100,18 @@ class ExplosionNode: SKNode {
             .removeFromParent()
         ]))
 
-        // Debris particles
+        // Debris particles (use lightweight SKSpriteNode with cached texture)
         for _ in 0..<size.particleCount {
-            let particle = SKShapeNode(circleOfRadius: CGFloat.random(in: 1...3))
-            particle.fillColor = [
+            let particle = SKSpriteNode(texture: Self.debrisTexture)
+            let s = CGFloat.random(in: 1...3) / 3.0
+            particle.setScale(s)
+            particle.color = [
                 SKColor(red: 1.0, green: 0.5, blue: 0.0, alpha: 1.0),
                 SKColor(red: 1.0, green: 0.8, blue: 0.2, alpha: 1.0),
                 SKColor(red: 0.8, green: 0.3, blue: 0.0, alpha: 1.0),
                 SKColor(white: 0.2, alpha: 0.8)
             ].randomElement()!
-            particle.strokeColor = .clear
+            particle.colorBlendFactor = 1.0
             particle.position = .zero
             addChild(particle)
 
