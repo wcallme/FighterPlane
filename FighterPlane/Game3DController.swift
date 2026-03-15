@@ -403,10 +403,9 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     // MARK: - Terrain Height Helper
 
     private func groundHeight(x: Float, z: Float) -> Float {
-        // TODO: re-enable mission terrain height when MissionData is ready
-        // if let mission = missionData {
-        //     return ModelGenerator3D.missionTerrainHeight(terrainData: mission.terrain, x: x, z: z)
-        // }
+        if case .mission(let mission) = gameMode {
+            return ModelGenerator3D.missionTerrainHeight(terrainData: mission.terrain, x: x, z: z)
+        }
         return ModelGenerator3D.terrainHeight(x: x, z: z)
     }
 
@@ -417,11 +416,10 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     }
 
     private func manageTerrain() {
-        // TODO: re-enable when MissionData is ready
-        // if isMissionMode {
-        //     manageMissionTerrain()
-        //     return
-        // }
+        if case .mission(let mission) = gameMode {
+            manageMissionTerrain(mission: mission)
+            return
+        }
 
         let currentSlot = slotForZ(playerZ)
         let minSlot = currentSlot - chunksBehind
@@ -457,8 +455,43 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         }
     }
 
-    // TODO: re-enable when MissionData is ready
-    // private func manageMissionTerrain() { ... }
+    private func manageMissionTerrain(mission: MissionData) {
+        let currentSlot = slotForZ(playerZ)
+        // Extend range so water chunks render before/after map
+        let minSlot = currentSlot - chunksBehind - 10
+        let maxSlot = currentSlot + chunksAhead
+
+        // Remove distant chunks
+        for slot in Array(terrainChunks.keys) {
+            if slot < minSlot || slot > maxSlot {
+                terrainChunks[slot]?.removeFromParentNode()
+                terrainChunks.removeValue(forKey: slot)
+                if let trees = treeChunks[slot] {
+                    for t in trees { t.removeFromParentNode() }
+                    treeChunks.removeValue(forKey: slot)
+                }
+            }
+        }
+
+        // Generate missing chunks — uses mission heightmap (water outside bounds)
+        for slot in minSlot...maxSlot where terrainChunks[slot] == nil {
+            let zStart = Float(slot) * chunkDepth
+
+            let chunk = ModelGenerator3D.createMissionTerrainChunk(
+                terrainData: mission.terrain, waterLevel: mission.waterLevel,
+                xStart: stripXStart, zStart: zStart, chunkSize: chunkDepth
+            )
+            scene.rootNode.addChildNode(chunk)
+            terrainChunks[slot] = chunk
+
+            let trees = ModelGenerator3D.scatterMissionTrees(
+                terrainData: mission.terrain,
+                xStart: stripXStart, zStart: zStart, chunkSize: chunkDepth
+            )
+            for tree in trees { scene.rootNode.addChildNode(tree) }
+            treeChunks[slot] = trees
+        }
+    }
 
     // MARK: - Game Loop
 

@@ -1193,9 +1193,144 @@ enum ModelGenerator3D {
         return root
     }
 
-    // MARK: - Mission Terrain (TODO: re-enable when MissionData is ready)
-    /*
-    static func missionTerrainHeight(terrainData: TerrainData, x: Float, z: Float) -> Float { ... }
-    static func createMissionTerrainChunk(terrainData: TerrainData, zStartIndex: Int, zEndIndex: Int) -> SCNNode { ... }
-    */
+    // MARK: - Mission Terrain
+
+    /// Water level used for areas outside the mission map bounds
+    private static let missionWaterDepth: Float = -2.0
+
+    /// Sample mission heightmap with bilinear interpolation; return deep water outside bounds
+    static func missionTerrainHeight(terrainData: TerrainData, x: Float, z: Float) -> Float {
+        let endX = terrainData.originX + terrainData.widthX
+        let endZ = terrainData.originZ + terrainData.lengthZ
+
+        // Outside mission bounds → water
+        if z < terrainData.originZ || z > endZ || x < terrainData.originX || x > endX {
+            return missionWaterDepth
+        }
+
+        // Normalised position within heightmap
+        let u = (x - terrainData.originX) / terrainData.widthX * Float(terrainData.segmentsX)
+        let v = (z - terrainData.originZ) / terrainData.lengthZ * Float(terrainData.segmentsZ)
+
+        let ix = Int(u)
+        let iz = Int(v)
+        let fx = u - Float(ix)
+        let fz = v - Float(iz)
+
+        let maxIx = terrainData.segmentsX
+        let maxIz = terrainData.segmentsZ
+
+        let ix0 = min(ix, maxIx)
+        let ix1 = min(ix + 1, maxIx)
+        let iz0 = min(iz, maxIz)
+        let iz1 = min(iz + 1, maxIz)
+
+        // Bilinear interpolation
+        let h00 = terrainData.heightmap[iz0][ix0]
+        let h10 = terrainData.heightmap[iz0][ix1]
+        let h01 = terrainData.heightmap[iz1][ix0]
+        let h11 = terrainData.heightmap[iz1][ix1]
+
+        let h = h00 * (1 - fx) * (1 - fz) + h10 * fx * (1 - fz) + h01 * (1 - fx) * fz + h11 * fx * fz
+        return h
+    }
+
+    /// Create a terrain chunk for mission mode — uses heightmap inside bounds, water outside
+    static func createMissionTerrainChunk(terrainData: TerrainData, waterLevel: Float, xStart: Float, zStart: Float, chunkSize: Float = 100, segments: Int = 40) -> SCNNode {
+        let segW = chunkSize / Float(segments)
+        let segD = chunkSize / Float(segments)
+        let cols = segments + 1
+
+        var vertices: [SCNVector3] = []
+        var normals: [SCNVector3] = []
+        var colors: [Float] = []
+        var indices: [Int32] = []
+
+        for iz in 0...segments {
+            for ix in 0...segments {
+                let x = xStart + Float(ix) * segW
+                let z = zStart + Float(iz) * segD
+                let h = missionTerrainHeight(terrainData: terrainData, x: x, z: z)
+
+                vertices.append(SCNVector3(x, h, z))
+
+                let hL = missionTerrainHeight(terrainData: terrainData, x: x - 0.5, z: z)
+                let hR = missionTerrainHeight(terrainData: terrainData, x: x + 0.5, z: z)
+                let hD = missionTerrainHeight(terrainData: terrainData, x: x, z: z - 0.5)
+                let hU = missionTerrainHeight(terrainData: terrainData, x: x, z: z + 0.5)
+                let nx = hL - hR
+                let nz = hD - hU
+                let len = sqrt(nx * nx + 1.0 + nz * nz)
+                normals.append(SCNVector3(nx / len, 1.0 / len, nz / len))
+
+                let (r, g, b) = terrainColor(h)
+                colors.append(contentsOf: [r, g, b, 1.0])
+            }
+        }
+
+        for iz in 0..<segments {
+            for ix in 0..<segments {
+                let tl = Int32(iz * cols + ix)
+                let tr = tl + 1
+                let bl = tl + Int32(cols)
+                let br = bl + 1
+                indices.append(contentsOf: [tl, bl, tr, tr, bl, br])
+            }
+        }
+
+        let vertexSource = SCNGeometrySource(vertices: vertices)
+        let normalSource = SCNGeometrySource(normals: normals)
+
+        let colorData = Data(bytes: colors, count: colors.count * MemoryLayout<Float>.size)
+        let colorSource = SCNGeometrySource(
+            data: colorData,
+            semantic: .color,
+            vectorCount: vertices.count,
+            usesFloatComponents: true,
+            componentsPerVector: 4,
+            bytesPerComponent: MemoryLayout<Float>.size,
+            dataOffset: 0,
+            dataStride: MemoryLayout<Float>.size * 4
+        )
+
+        let indexData = Data(bytes: indices, count: indices.count * MemoryLayout<Int32>.size)
+        let element = SCNGeometryElement(
+            data: indexData,
+            primitiveType: .triangles,
+            primitiveCount: indices.count / 3,
+            bytesPerIndex: MemoryLayout<Int32>.size
+        )
+
+        let geometry = SCNGeometry(sources: [vertexSource, normalSource, colorSource], elements: [element])
+        let material = SCNMaterial()
+        material.lightingModel = .lambert
+        material.isDoubleSided = true
+        geometry.materials = [material]
+
+        let node = SCNNode(geometry: geometry)
+        node.name = "terrain"
+        return node
+    }
+
+    /// Scatter trees on a mission terrain chunk — only on land within mission bounds
+    static func scatterMissionTrees(terrainData: TerrainData, xStart: Float, zStart: Float, chunkSize: Float = 100, count: Int = 25) -> [SCNNode] {
+        var trees: [SCNNode] = []
+        let seedVal = abs(xStart * 7.3 + zStart * 13.7 + 42)
+        var rng = SeededRandom(seed: UInt64(seedVal.bitPattern))
+
+        for i in 0..<count {
+            let x = xStart + Float(rng.next(max: Int(chunkSize)))
+            let z = zStart + Float(rng.next(max: Int(chunkSize)))
+            let h = missionTerrainHeight(terrainData: terrainData, x: x, z: z)
+
+            guard h > 1.2 && h < 7.0 else { continue }
+
+            let treeHeight = 1.5 + Float(rng.next(max: 25)) / 10.0
+            let t = tree(height: treeHeight, variation: i)
+            t.position = SCNVector3(x, h, z)
+            trees.append(t)
+        }
+
+        return trees
+    }
 }
