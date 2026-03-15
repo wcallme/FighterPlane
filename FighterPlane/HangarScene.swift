@@ -165,6 +165,28 @@ class HangarScene: SKScene {
 
         addChild(levelBadge)
 
+        // Settings button (reset progress)
+        let settingsBtn = SKNode()
+        settingsBtn.name = "settingsButton"
+        settingsBtn.position = CGPoint(x: 100, y: headerY)
+        settingsBtn.zPosition = 11
+
+        let settingsBg = SKShapeNode(circleOfRadius: 13)
+        settingsBg.fillColor = SKColor(white: 0.15, alpha: 0.6)
+        settingsBg.strokeColor = SKColor(white: 0.3, alpha: 0.3)
+        settingsBg.lineWidth = 1
+        settingsBg.name = "settingsButton"
+        settingsBtn.addChild(settingsBg)
+
+        let gearLabel = SKLabelNode(fontNamed: "Menlo-Bold")
+        gearLabel.text = "\u{2699}"
+        gearLabel.fontSize = 16
+        gearLabel.fontColor = SKColor(white: 0.6, alpha: 0.8)
+        gearLabel.verticalAlignmentMode = .center
+        gearLabel.name = "settingsButton"
+        settingsBtn.addChild(gearLabel)
+        addChild(settingsBtn)
+
         // Title - center
         let title = SKLabelNode(fontNamed: "Menlo-Bold")
         title.text = "HANGAR"
@@ -747,6 +769,23 @@ class HangarScene: SKScene {
                 cyclePlane(direction: 1)
                 return
             }
+            if name == "settingsButton" {
+                showSettingsOverlay()
+                return
+            }
+            if name == "resetMissionsButton" {
+                confirmResetMissions()
+                return
+            }
+            if name == "resetConfirmYes" {
+                MissionProgress.reset()
+                dismissSettingsOverlay()
+                return
+            }
+            if name == "resetConfirmNo" || name == "settingsOverlayBg" {
+                dismissSettingsOverlay()
+                return
+            }
             if name.hasPrefix("upgrade_") {
                 let upgradeId = String(name.dropFirst("upgrade_".count))
                 handleUpgradeTap(upgradeId)
@@ -869,5 +908,184 @@ class HangarScene: SKScene {
         if let coin = childNode(withName: "coinCount") as? SKLabelNode {
             coin.text = "\(PlayerData.shared.coins)"
         }
+    }
+
+    // MARK: - Settings Overlay
+
+    private func showSettingsOverlay() {
+        guard childNode(withName: "settingsOverlay") == nil else { return }
+
+        let overlay = SKNode()
+        overlay.name = "settingsOverlay"
+        overlay.zPosition = 100
+
+        // Dim background
+        let dimBg = SKShapeNode(rectOf: CGSize(width: size.width + 4, height: size.height + 4))
+        dimBg.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        dimBg.fillColor = SKColor(white: 0, alpha: 0.6)
+        dimBg.strokeColor = .clear
+        dimBg.name = "settingsOverlayBg"
+        overlay.addChild(dimBg)
+
+        // Panel
+        let panelW: CGFloat = size.width - 60
+        let panelH: CGFloat = 200
+        let panelY = size.height / 2
+
+        let panel = SKShapeNode(rectOf: CGSize(width: panelW, height: panelH), cornerRadius: 16)
+        panel.fillColor = SKColor(red: 0.08, green: 0.09, blue: 0.14, alpha: 0.98)
+        panel.strokeColor = SKColor(red: 0.3, green: 0.5, blue: 0.35, alpha: 0.4)
+        panel.lineWidth = 1
+        panel.position = CGPoint(x: size.width / 2, y: panelY)
+        panel.glowWidth = 3
+        overlay.addChild(panel)
+
+        // Title
+        let title = SKLabelNode(fontNamed: "Menlo-Bold")
+        title.text = "SETTINGS"
+        title.fontSize = 16
+        title.fontColor = SKColor(white: 0.9, alpha: 1)
+        title.position = CGPoint(x: size.width / 2, y: panelY + 65)
+        overlay.addChild(title)
+
+        // Reset Missions button
+        let resetBtn = SKNode()
+        resetBtn.name = "resetMissionsButton"
+        resetBtn.position = CGPoint(x: size.width / 2, y: panelY + 10)
+
+        let resetBg = SKShapeNode(rectOf: CGSize(width: panelW - 40, height: 40), cornerRadius: 10)
+        resetBg.fillColor = SKColor(red: 0.35, green: 0.08, blue: 0.08, alpha: 0.9)
+        resetBg.strokeColor = SKColor(red: 0.8, green: 0.2, blue: 0.2, alpha: 0.4)
+        resetBg.lineWidth = 1
+        resetBg.name = "resetMissionsButton"
+        resetBtn.addChild(resetBg)
+
+        let resetLabel = SKLabelNode(fontNamed: "Menlo-Bold")
+        resetLabel.text = "RESET MISSION PROGRESS"
+        resetLabel.fontSize = 12
+        resetLabel.fontColor = SKColor(red: 1.0, green: 0.4, blue: 0.3, alpha: 1)
+        resetLabel.verticalAlignmentMode = .center
+        resetLabel.name = "resetMissionsButton"
+        resetBtn.addChild(resetLabel)
+        overlay.addChild(resetBtn)
+
+        // Close button
+        let closeBtn = SKNode()
+        closeBtn.name = "settingsOverlayBg"
+        closeBtn.position = CGPoint(x: size.width / 2, y: panelY - 55)
+
+        let closeBg = SKShapeNode(rectOf: CGSize(width: panelW - 40, height: 36), cornerRadius: 10)
+        closeBg.fillColor = SKColor(white: 0.15, alpha: 0.8)
+        closeBg.strokeColor = SKColor(white: 0.3, alpha: 0.3)
+        closeBg.lineWidth = 1
+        closeBg.name = "settingsOverlayBg"
+        closeBtn.addChild(closeBg)
+
+        let closeLabel = SKLabelNode(fontNamed: "Menlo-Bold")
+        closeLabel.text = "CLOSE"
+        closeLabel.fontSize = 12
+        closeLabel.fontColor = SKColor(white: 0.7, alpha: 0.9)
+        closeLabel.verticalAlignmentMode = .center
+        closeLabel.name = "settingsOverlayBg"
+        closeBtn.addChild(closeLabel)
+        overlay.addChild(closeBtn)
+
+        overlay.alpha = 0
+        addChild(overlay)
+        overlay.run(.fadeIn(withDuration: 0.15))
+    }
+
+    private func confirmResetMissions() {
+        guard let overlay = childNode(withName: "settingsOverlay") else { return }
+
+        // Remove existing panel content and show confirmation
+        overlay.children.filter { $0.name != "settingsOverlayBg" || $0 is SKShapeNode }.forEach {
+            if $0.name != "settingsOverlayBg" { $0.removeFromParent() }
+        }
+
+        // Keep dim bg, re-add fresh
+        let dimBg = SKShapeNode(rectOf: CGSize(width: size.width + 4, height: size.height + 4))
+        dimBg.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        dimBg.fillColor = SKColor(white: 0, alpha: 0.6)
+        dimBg.strokeColor = .clear
+        dimBg.name = "settingsOverlayBg"
+
+        // Clear overlay and rebuild
+        overlay.removeAllChildren()
+        overlay.addChild(dimBg)
+
+        let panelW: CGFloat = size.width - 60
+        let panelY = size.height / 2
+
+        let panel = SKShapeNode(rectOf: CGSize(width: panelW, height: 160), cornerRadius: 16)
+        panel.fillColor = SKColor(red: 0.08, green: 0.09, blue: 0.14, alpha: 0.98)
+        panel.strokeColor = SKColor(red: 0.7, green: 0.2, blue: 0.2, alpha: 0.4)
+        panel.lineWidth = 1
+        panel.position = CGPoint(x: size.width / 2, y: panelY)
+        panel.glowWidth = 3
+        overlay.addChild(panel)
+
+        let title = SKLabelNode(fontNamed: "Menlo-Bold")
+        title.text = "RESET ALL PROGRESS?"
+        title.fontSize = 14
+        title.fontColor = SKColor(red: 1.0, green: 0.4, blue: 0.3, alpha: 1)
+        title.position = CGPoint(x: size.width / 2, y: panelY + 40)
+        overlay.addChild(title)
+
+        let sub = SKLabelNode(fontNamed: "Menlo")
+        sub.text = "This cannot be undone"
+        sub.fontSize = 10
+        sub.fontColor = SKColor(white: 0.5, alpha: 0.8)
+        sub.position = CGPoint(x: size.width / 2, y: panelY + 15)
+        overlay.addChild(sub)
+
+        let btnW: CGFloat = (panelW - 60) / 2
+
+        // Yes button
+        let yesBtn = SKNode()
+        yesBtn.name = "resetConfirmYes"
+        yesBtn.position = CGPoint(x: size.width / 2 - btnW / 2 - 10, y: panelY - 30)
+
+        let yesBg = SKShapeNode(rectOf: CGSize(width: btnW, height: 36), cornerRadius: 10)
+        yesBg.fillColor = SKColor(red: 0.6, green: 0.1, blue: 0.1, alpha: 0.9)
+        yesBg.strokeColor = SKColor(red: 0.8, green: 0.2, blue: 0.2, alpha: 0.5)
+        yesBg.lineWidth = 1
+        yesBg.name = "resetConfirmYes"
+        yesBtn.addChild(yesBg)
+
+        let yesLabel = SKLabelNode(fontNamed: "Menlo-Bold")
+        yesLabel.text = "RESET"
+        yesLabel.fontSize = 12
+        yesLabel.fontColor = SKColor(red: 1.0, green: 0.3, blue: 0.3, alpha: 1)
+        yesLabel.verticalAlignmentMode = .center
+        yesLabel.name = "resetConfirmYes"
+        yesBtn.addChild(yesLabel)
+        overlay.addChild(yesBtn)
+
+        // No button
+        let noBtn = SKNode()
+        noBtn.name = "resetConfirmNo"
+        noBtn.position = CGPoint(x: size.width / 2 + btnW / 2 + 10, y: panelY - 30)
+
+        let noBg = SKShapeNode(rectOf: CGSize(width: btnW, height: 36), cornerRadius: 10)
+        noBg.fillColor = SKColor(white: 0.15, alpha: 0.8)
+        noBg.strokeColor = SKColor(white: 0.3, alpha: 0.3)
+        noBg.lineWidth = 1
+        noBg.name = "resetConfirmNo"
+        noBtn.addChild(noBg)
+
+        let noLabel = SKLabelNode(fontNamed: "Menlo-Bold")
+        noLabel.text = "CANCEL"
+        noLabel.fontSize = 12
+        noLabel.fontColor = SKColor(white: 0.7, alpha: 0.9)
+        noLabel.verticalAlignmentMode = .center
+        noLabel.name = "resetConfirmNo"
+        noBtn.addChild(noLabel)
+        overlay.addChild(noBtn)
+    }
+
+    private func dismissSettingsOverlay() {
+        guard let overlay = childNode(withName: "settingsOverlay") else { return }
+        overlay.run(.sequence([.fadeOut(withDuration: 0.15), .removeFromParent()]))
     }
 }
