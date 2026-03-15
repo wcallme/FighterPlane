@@ -1328,7 +1328,9 @@ class Editor {
     }
 
     saveToLocalStorage() {
-        if (!this.missionId) return;
+        if (!this.missionId) {
+            this.missionId = 'm_' + Date.now();
+        }
         const data = this.buildMissionJSON();
         MissionStorage.saveData(this.missionId, data);
 
