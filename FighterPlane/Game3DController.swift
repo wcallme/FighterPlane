@@ -98,6 +98,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     private var missionEnemiesDestroyed: Int = 0
     private var missionEnemyTotal: Int = 0
     private var spawnedMissionIndices: Set<Int> = []
+    private var missionVictoryTimer: Float = 0
 
     // MARK: - Data Structs
 
@@ -482,7 +483,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             scene.isPaused = false
         }
 
-        guard gameState == .playing else {
+        guard gameState == .playing || gameState == .missionVictory else {
             if input.shouldRestart {
                 DispatchQueue.main.async {
                     NavigationManager.shared.isInGame = false
@@ -514,13 +515,21 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
         let floatDt = Float(dt)
 
+        let isVictoryCruise = gameState == .missionVictory
+
         GameManager.shared.update(deltaTime: dt)
 
-        // Update player from joystick angle
-        updatePlayer(dt: floatDt)
+        // Update player — auto-fly straight during victory cruise
+        if isVictoryCruise {
+            updatePlayerAutoCruise(dt: floatDt)
+        } else {
+            updatePlayer(dt: floatDt)
+        }
 
         // Update trajectory indicator
-        updateTrajectory()
+        if !isVictoryCruise {
+            updateTrajectory()
+        }
 
         // Update camera to track player from the side
         updateCamera(dt: floatDt)
@@ -530,6 +539,15 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
         // Terrain management
         manageTerrain()
+
+        // Victory cruise — count down then show results
+        if isVictoryCruise {
+            missionVictoryTimer -= floatDt
+            if missionVictoryTimer <= 0 {
+                showMissionVictoryScreen()
+            }
+            return
+        }
 
         // Spawn enemies
         spawnEnemies(time: time)
@@ -678,6 +696,66 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         }
 
         // Apply: heading set directly each frame, roll on child node
+        let headingY: Float = facingRight ? 0 : .pi
+        playerNode.eulerAngles = SCNVector3(smoothPitch, headingY, 0)
+        playerRollNode.eulerAngles = SCNVector3(0, 0, currentFlipRoll)
+    }
+
+    /// Auto-fly the plane straight ahead during victory cruise (no player input).
+    /// Gently levels out toward horizontal if diving/climbing.
+    private func updatePlayerAutoCruise(dt: Float) {
+        let speedMult = Float(PlayerData.shared.speedMultiplier)
+
+        // Gently level out toward 0° (horizontal flight)
+        let levelRate: Float = 1.5
+        var diff = -playerAngle  // target is 0
+        while diff > .pi { diff -= 2 * .pi }
+        while diff < -.pi { diff += 2 * .pi }
+        playerAngle += diff * min(1.0, levelRate * dt)
+
+        // Move forward
+        let speed = playerSpeed * speedMult
+        playerZ += cos(playerAngle) * speed * dt
+        playerY += sin(playerAngle) * speed * dt
+
+        // Altitude clamping (same as normal play)
+        let groundH = groundHeight(x: 0, z: playerZ)
+        let groundMin = max(minAltitude, groundH + 1.5)
+        if playerY < groundMin {
+            playerY = groundMin
+            if playerAngle < -0.1 { playerAngle = 0.1 }
+        }
+        playerY = min(maxAltitude, playerY)
+
+        playerNode.position = SCNVector3(0, playerY, playerZ)
+
+        // Reuse existing visual rotation logic
+        let facingRight = cos(playerAngle) >= 0
+        if facingRight != lastFacingRight {
+            lastFacingRight = facingRight
+            if abs(currentFlipRoll) < 0.01 {
+                currentFlipRoll = .pi
+            } else if currentFlipRoll > 0 {
+                currentFlipRoll -= .pi
+            } else {
+                currentFlipRoll += .pi
+            }
+        }
+        currentFlipRoll *= max(0, 1.0 - 7.0 * dt)
+        if abs(currentFlipRoll) < 0.001 { currentFlipRoll = 0 }
+
+        let targetPitch: Float
+        if facingRight {
+            targetPitch = -playerAngle
+        } else {
+            targetPitch = -atan2(sin(playerAngle), -cos(playerAngle))
+        }
+        do {
+            var pdiff = targetPitch - smoothPitch
+            while pdiff > .pi  { pdiff -= 2 * .pi }
+            while pdiff < -.pi { pdiff += 2 * .pi }
+            smoothPitch += pdiff * min(1.0, 8.0 * dt)
+        }
         let headingY: Float = facingRight ? 0 : .pi
         playerNode.eulerAngles = SCNVector3(smoothPitch, headingY, 0)
         playerRollNode.eulerAngles = SCNVector3(0, 0, currentFlipRoll)
@@ -1360,15 +1438,23 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
     private func missionComplete() {
         guard gameState == .playing else { return }
-        gameState = .gameOver
-        GameManager.shared.endGame()
+        gameState = .missionVictory
+        missionVictoryTimer = 3.0
 
-        // Record mission progress
+        // Record mission progress immediately
         let allMissions = MissionLoader.loadAll()
         if case .mission(let data) = gameMode,
            let idx = allMissions.firstIndex(where: { $0.name == data.name }) {
             MissionProgress.complete(levelIndex: idx)
         }
+
+        // Hide combat HUD elements during cruise
+        hud.hideControlsDuringVictory()
+    }
+
+    private func showMissionVictoryScreen() {
+        gameState = .gameOver
+        GameManager.shared.endGame()
 
         let manager = GameManager.shared
         hud.showMissionComplete(

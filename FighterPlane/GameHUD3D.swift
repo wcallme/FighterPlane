@@ -489,6 +489,16 @@ class GameHUD3D: SKScene {
         ]))
     }
 
+    func hideControlsDuringVictory() {
+        fireButton.run(.fadeAlpha(to: 0, duration: 0.5))
+        bombButton.run(.fadeAlpha(to: 0, duration: 0.5))
+        joystickBase.run(.fadeAlpha(to: 0, duration: 0.5))
+        joystickKnob.run(.fadeAlpha(to: 0, duration: 0.5))
+        pauseButton.run(.fadeAlpha(to: 0, duration: 0.5))
+        healthBarBg.run(.fadeAlpha(to: 0, duration: 0.5))
+        healthBarFill.run(.fadeAlpha(to: 0, duration: 0.5))
+    }
+
     func showMissionComplete(score: Int, enemies: Int, coins: Int, gems: Int) {
         let overlay = SKNode()
         overlay.zPosition = 50
