@@ -32,11 +32,12 @@ enum ModelGenerator3D {
             root.addChildNode(child.clone())
         }
 
-        // Ensure all materials are double-sided
+        // Ensure all materials are double-sided and disable subdivision
         root.enumerateChildNodes { node, _ in
             node.geometry?.materials.forEach { material in
                 material.isDoubleSided = true
             }
+            node.geometry?.subdivisionLevel = 0
         }
 
         // Compute bounding box
@@ -71,11 +72,12 @@ enum ModelGenerator3D {
             container.addChildNode(child.clone())
         }
 
-        // Ensure all materials are double-sided (prevents invisible faces)
+        // Ensure all materials are double-sided and disable subdivision (prevents OSD_MAX_VALENCE errors)
         container.enumerateChildNodes { node, _ in
             node.geometry?.materials.forEach { material in
                 material.isDoubleSided = true
             }
+            node.geometry?.subdivisionLevel = 0
         }
 
         // Compute bounding box of the loaded model
