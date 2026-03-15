@@ -158,9 +158,19 @@ enum ModelGenerator3D {
         return emitter
     }
 
+    // Enemy model template cache — clone instead of rebuilding geometry each spawn
+    private static var enemyModelTemplates: [String: SCNNode] = [:]
+
+    private static func cachedEnemy(_ key: String, builder: () -> SCNNode) -> SCNNode {
+        if let template = enemyModelTemplates[key] { return template.clone() }
+        let template = builder()
+        enemyModelTemplates[key] = template
+        return template.clone()
+    }
+
     // MARK: - Enemy Plane
 
-    static func enemyPlane() -> SCNNode {
+    static func enemyPlane() -> SCNNode { cachedEnemy("enemyPlane") {
         let root = SCNNode()
         root.name = "enemyPlane"
 
@@ -195,11 +205,11 @@ enum ModelGenerator3D {
         root.eulerAngles.y = .pi
 
         return root
-    }
+    }}
 
     // MARK: - Ground Enemies
 
-    static func tank() -> SCNNode {
+    static func tank() -> SCNNode { cachedEnemy("tank") {
         let root = SCNNode()
         root.name = "tank"
 
@@ -235,9 +245,9 @@ enum ModelGenerator3D {
         root.addChildNode(barrelNode)
 
         return root
-    }
+    }}
 
-    static func aaGun() -> SCNNode {
+    static func aaGun() -> SCNNode { cachedEnemy("aaGun") {
         let root = SCNNode()
         root.name = "aaGun"
 
@@ -266,9 +276,9 @@ enum ModelGenerator3D {
         }
 
         return root
-    }
+    }}
 
-    static func building() -> SCNNode {
+    static func building() -> SCNNode { cachedEnemy("building") {
         let root = SCNNode()
         root.name = "building"
 
@@ -287,11 +297,11 @@ enum ModelGenerator3D {
         root.addChildNode(roofNode)
 
         return root
-    }
+    }}
 
     // MARK: - SAM Launcher
 
-    static func samLauncher() -> SCNNode {
+    static func samLauncher() -> SCNNode { cachedEnemy("samLauncher") {
         let root = SCNNode()
         root.name = "samLauncher"
 
@@ -343,9 +353,9 @@ enum ModelGenerator3D {
         root.addChildNode(strutNode)
 
         return root
-    }
+    }}
 
-    static func samMissile() -> SCNNode {
+    static func samMissile() -> SCNNode { cachedEnemy("samMissile") {
         let root = SCNNode()
         root.name = "samMissile"
 
@@ -403,7 +413,7 @@ enum ModelGenerator3D {
         root.addParticleSystem(trail)
 
         return root
-    }
+    }}
 
     // MARK: - Trees
 
@@ -449,13 +459,22 @@ enum ModelGenerator3D {
 
     // MARK: - Projectiles
 
+    // Bullet template cache — geometry is expensive, clone is cheap
+    private static var bulletTemplates: [String: SCNNode] = [:]
+
     static func playerBullet(weaponId: String = "basic_gun") -> SCNNode {
-        switch weaponId {
-        case "cannon": return cannonBullet3D()
-        case "machine_gun": return machineGunBullet3D()
-        case "autocannon": return autocannonBullet3D()
-        default: return basicBullet3D()
+        if let template = bulletTemplates[weaponId] {
+            return template.clone()
         }
+        let template: SCNNode
+        switch weaponId {
+        case "cannon": template = cannonBullet3D()
+        case "machine_gun": template = machineGunBullet3D()
+        case "autocannon": template = autocannonBullet3D()
+        default: template = basicBullet3D()
+        }
+        bulletTemplates[weaponId] = template
+        return template.clone()
     }
 
     /// Basic gun — dark tracer, slightly thicker than before
@@ -563,7 +582,12 @@ enum ModelGenerator3D {
         return root
     }
 
+    private static var enemyBulletTemplate: SCNNode?
+
     static func enemyBullet() -> SCNNode {
+        if let template = enemyBulletTemplate {
+            return template.clone()
+        }
         // Long thin red tracer — slightly thicker
         let stick = SCNCylinder(radius: 0.033, height: 2.0)
         stick.firstMaterial?.diffuse.contents = UIColor(red: 1.0, green: 0.25, blue: 0.15, alpha: 1)
@@ -571,7 +595,8 @@ enum ModelGenerator3D {
         stick.firstMaterial?.lightingModel = .constant
         let node = SCNNode(geometry: stick)
         node.name = "enemyBullet"
-        return node
+        enemyBulletTemplate = node
+        return node.clone()
     }
 
     static func bomb3D(weaponId: String = "bomb") -> SCNNode {
@@ -1055,7 +1080,7 @@ enum ModelGenerator3D {
 
     // MARK: - New Enemy Models (Mission)
 
-    static func truck() -> SCNNode {
+    static func truck() -> SCNNode { cachedEnemy("truck") {
         let root = SCNNode()
         root.name = "truck"
 
@@ -1098,9 +1123,9 @@ enum ModelGenerator3D {
         }
 
         return root
-    }
+    }}
 
-    static func radioTower() -> SCNNode {
+    static func radioTower() -> SCNNode { cachedEnemy("radioTower") {
         let root = SCNNode()
         root.name = "radioTower"
 
@@ -1149,7 +1174,7 @@ enum ModelGenerator3D {
         root.addChildNode(lightNode)
 
         return root
-    }
+    }}
 
     static func rock(scale: Float = 1.0) -> SCNNode {
         let root = SCNNode()
