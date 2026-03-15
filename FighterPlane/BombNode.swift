@@ -9,14 +9,14 @@ class BombNode: SKNode {
     private var hasExploded = false
     private let weaponId: String
 
-    // Physics: velocity inherited from the plane at drop time
-    private var velocityX: CGFloat        // lateral speed (from player banking)
-    private var velocityY: CGFloat        // forward speed (from plane flying forward)
-    private let deceleration: CGFloat     // how fast forward momentum bleeds off
+    // Inherited momentum from the plane's velocity vector at drop time.
+    // These define the direction and magnitude of the parabolic arc.
+    //   momentumX = lateral banking speed (left/right)
+    //   momentumY = forward flight speed (always positive — plane flies north)
+    private let momentumX: CGFloat
+    private let momentumY: CGFloat
 
-    // Track total node displacement so shadow can stay ground-relative
-    private var nodeDisplacementX: CGFloat = 0
-    private var nodeDisplacementY: CGFloat = 0
+    // Ground-relative shadow starting offset
     private let initialShadowPos: CGPoint
 
     // Animation state
@@ -31,18 +31,18 @@ class BombNode: SKNode {
          playerVelocityX: CGFloat = 0, scrollSpeed: CGFloat = 120) {
         self.weaponId = weaponId
 
-        // Bomb inherits the plane's velocity:
-        // - Forward: the plane moves at scrollSpeed relative to the ground.
-        //   In screen space the plane is stationary, so the bomb's visible
-        //   forward velocity is the portion that exceeds the camera/scroll.
-        //   We give it a kick so it visibly drifts upward before arcing down.
-        // - Lateral: whatever horizontal speed the player has at drop time.
-        self.velocityX = playerVelocityX * 0.8
-        self.velocityY = scrollSpeed * 1.0
-
-        // Deceleration pulls the bomb from forward velocity to negative (falling back).
-        // Tuned so the bomb peaks around 40% through the fall, then curves down.
-        self.deceleration = scrollSpeed * 2.5
+        // The plane's world-space velocity vector at drop time:
+        //   forward = scrollSpeed (the plane is always flying north at this speed)
+        //   lateral = playerVelocityX (banking left/right)
+        //
+        // The bomb inherits this full velocity vector. In real physics, a bomb
+        // released from a plane flying at 45° upward-right continues in that
+        // direction before gravity curves it into a parabolic arc downward.
+        //
+        // We display this as a visible arc on screen: the bomb drifts in the
+        // plane's heading direction, peaks, then falls to the impact point.
+        self.momentumX = playerVelocityX
+        self.momentumY = scrollSpeed
 
         bombSprite = SKSpriteNode(texture: SpriteGenerator.bomb(weaponId: weaponId))
         shadowSprite = SKSpriteNode(texture: SpriteGenerator.bombShadow())
@@ -53,14 +53,12 @@ class BombNode: SKNode {
 
         name = "bomb"
 
-        // Shadow starts at the ground offset (will be kept ground-relative in update)
         shadowSprite.position = groundOffset
         shadowSprite.zPosition = ZLayer.shadows.rawValue
         shadowSprite.setScale(0.4)
         shadowSprite.alpha = 0.3
         addChild(shadowSprite)
 
-        // Bomb starts at plane position (local origin), flipped so nose points downward
         bombSprite.position = .zero
         bombSprite.zPosition = ZLayer.bombs.rawValue
         bombSprite.yScale = -1.0
@@ -120,41 +118,47 @@ class BombNode: SKNode {
         guard !hasExploded else { return }
 
         elapsed += deltaTime
-        let dt = CGFloat(deltaTime)
 
-        // === PHYSICS: move bomb node with inherited momentum ===
-        // The bomb physically drifts forward (up on screen) then arcs backward
-        // as it decelerates and gravity takes over.
-        let dx = velocityX * dt
-        let dy = velocityY * dt
-        position.x += dx
-        position.y += dy
-        nodeDisplacementX += dx
-        nodeDisplacementY += dy
+        let t = CGFloat(Swift.min(elapsed / fallDuration, 1.0))
+        let easedT = t * t  // quadratic ease-in (gravity acceleration)
 
-        // Decelerate forward velocity (drag + no engine = bomb slows down)
-        velocityY -= deceleration * dt
-
-        // Lateral velocity decays with drag
-        velocityX *= max(0, 1.0 - 3.0 * dt)
-
-        // === SHADOW: stays on the ground, independent of bomb node movement ===
-        // Undo node displacement so the shadow remains ground-relative,
-        // then apply ground scroll for how far the terrain has moved.
+        // === SHADOW: stays on the ground, scrolls with terrain ===
         shadowSprite.position = CGPoint(
-            x: initialShadowPos.x - nodeDisplacementX,
-            y: initialShadowPos.y - scrollSpeed * CGFloat(elapsed) - nodeDisplacementY
+            x: initialShadowPos.x,
+            y: initialShadowPos.y - scrollSpeed * CGFloat(elapsed)
         )
 
-        let t = Swift.min(elapsed / fallDuration, 1.0)
-        let easedT = t * t // quadratic ease-in (gravity acceleration)
+        // === BOMB SPRITE: parabolic arc from drop point to impact ===
+        //
+        // Real projectile physics: an object dropped from a moving vehicle
+        // inherits the vehicle's velocity vector. It follows a parabolic
+        // trajectory — drifting in the vehicle's direction before gravity
+        // curves it back down.
+        //
+        // We compute this as:
+        //   base = linear interpolation from origin (drop) to shadow (impact)
+        //   arc  = parabolic hump in the direction of the plane's heading
+        //
+        // The arc uses 4*t*(1-t) which peaks at 1.0 when t=0.5, creating
+        // a smooth bulge that departs from the linear path mid-fall then
+        // converges back to the impact point at t=1.
 
-        // === BOMB SPRITE: converges from node origin toward shadow (falling to ground) ===
-        // At t=0 the bomb is at the node position (riding momentum).
-        // At t=1 the bomb is at the shadow position (hit the ground).
+        // Linear path from drop point (0,0) to shadow (impact)
+        let baseX = shadowSprite.position.x * easedT
+        let baseY = shadowSprite.position.y * easedT
+
+        // Parabolic arc: peaks at t=0.5 with value 1.0, zero at t=0 and t=1
+        let arcFactor = 4.0 * t * (1.0 - t)
+
+        // Arc magnitude scales with momentum — faster plane = bigger arc.
+        // Forward (Y) arc: the plane's forward speed creates upward drift.
+        // Lateral (X) arc: banking creates sideways drift.
+        let forwardArc = momentumY * CGFloat(fallDuration) * 0.35 * arcFactor
+        let lateralArc = momentumX * CGFloat(fallDuration) * 0.2 * arcFactor
+
         bombSprite.position = CGPoint(
-            x: shadowSprite.position.x * easedT,
-            y: shadowSprite.position.y * easedT
+            x: baseX + lateralArc,
+            y: baseY + forwardArc
         )
 
         // Bomb shrinks as it "falls away" from camera (preserve vertical flip)
@@ -167,7 +171,7 @@ class BombNode: SKNode {
         shadowSprite.alpha = 0.3 + 0.4 * easedT
 
         // Per-type falling animations
-        updateBombAnimation(deltaTime: deltaTime, t: t, easedT: easedT)
+        updateBombAnimation(deltaTime: deltaTime, t: Double(t), easedT: Double(easedT))
 
         if t >= 1.0 {
             explode()
@@ -192,9 +196,11 @@ class BombNode: SKNode {
             bombSprite.position.x += jitter * CGFloat(deltaTime)
 
         default:
-            // Bomb pitches nose-down as momentum gives way to gravity
+            // Bomb tilts to follow its arc direction.
+            // Early: tilted in the momentum direction (riding the arc).
+            // Late: pitched nose-down as gravity dominates.
             let noseDown = CGFloat(easedT) * 0.5
-            let lateralTilt = velocityX * 0.001
+            let lateralTilt = momentumX * 0.0008 * CGFloat(1.0 - easedT)
             bombSprite.zRotation = noseDown + lateralTilt
         }
     }
