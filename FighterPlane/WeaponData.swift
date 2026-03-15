@@ -120,12 +120,20 @@ enum WeaponCatalog {
         description: "Lock-on missiles seek air targets."
     )
 
+    static let ecmJammer = WeaponInfo(
+        id: "ecm_jammer", name: "ECM Jammer", category: .special,
+        gemCost: 200, damage: 0, fireRate: 42.5,
+        blastRadius: 0, bulletCount: 0, bulletSpread: 0,
+        projectileSpeed: 0, isHoming: false,
+        description: "Jams enemy missiles for 5.5s. 37s recharge."
+    )
+
     // --- All weapons ---
 
     static let all: [WeaponInfo] = [
         basicGun, cannon, machineGun, autocannon,
         bomb, miningBomb, heavyBomb, clusterWarhead,
-        decoyFlare, missileLauncher
+        decoyFlare, missileLauncher, ecmJammer
     ]
 
     static let guns: [WeaponInfo] = all.filter { $0.isGun }
