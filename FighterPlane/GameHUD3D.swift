@@ -12,6 +12,8 @@ class GameHUD3D: SKScene {
         var shouldDropBomb = false
         var shouldRestart = false
         var shouldExitToMenu = false
+        var shouldRetryMission = false
+        var shouldNextMission = false
         var isGamePaused = false
     }
 
@@ -25,6 +27,8 @@ class GameHUD3D: SKScene {
         _state.shouldDropBomb = false
         _state.shouldRestart = false
         _state.shouldExitToMenu = false
+        _state.shouldRetryMission = false
+        _state.shouldNextMission = false
         _lock.unlock()
         return snapshot
     }
@@ -57,10 +61,22 @@ class GameHUD3D: SKScene {
         get { _lock.lock(); defer { _lock.unlock() }; return _state.shouldExitToMenu }
         set { _lock.lock(); _state.shouldExitToMenu = newValue; _lock.unlock() }
     }
+    var shouldRetryMission: Bool {
+        get { _lock.lock(); defer { _lock.unlock() }; return _state.shouldRetryMission }
+        set { _lock.lock(); _state.shouldRetryMission = newValue; _lock.unlock() }
+    }
+    var shouldNextMission: Bool {
+        get { _lock.lock(); defer { _lock.unlock() }; return _state.shouldNextMission }
+        set { _lock.lock(); _state.shouldNextMission = newValue; _lock.unlock() }
+    }
     var isGamePaused: Bool {
         get { _lock.lock(); defer { _lock.unlock() }; return _state.isGamePaused }
         set { _lock.lock(); _state.isGamePaused = newValue; _lock.unlock() }
     }
+
+    // Mission mode state
+    private(set) var isMissionMode = false
+    private var hasNextMission = false
 
     // HUD elements
     private var joystickBase: SKShapeNode!
@@ -81,6 +97,10 @@ class GameHUD3D: SKScene {
 
     private var gameOverOverlay: SKNode?
     private var canRestart = false
+
+    // Mission HUD
+    private var missionLabel: SKLabelNode?
+    private var enemyCountLabel: SKLabelNode?
 
     // Touch tracking
     private var joystickTouch: UITouch?
@@ -345,6 +365,47 @@ class GameHUD3D: SKScene {
         addChild(scoreIcon)
     }
 
+    // MARK: - Mission Setup
+
+    func setupMissionHUD(missionName: String, enemyTotal: Int, hasNext: Bool) {
+        isMissionMode = true
+        hasNextMission = hasNext
+
+        // Mission name label (top center, above health bar)
+        let ml = SKLabelNode(fontNamed: "Menlo-Bold")
+        ml.text = missionName.uppercased()
+        ml.fontSize = 10
+        ml.fontColor = SKColor(red: 0.95, green: 0.75, blue: 0.15, alpha: 0.9)
+        ml.position = CGPoint(x: size.width / 2, y: size.height - safeTop + 6)
+        ml.zPosition = 10
+        addChild(ml)
+        missionLabel = ml
+
+        // Enemy counter (left side, below pause button)
+        let ecl = SKLabelNode(fontNamed: "Menlo-Bold")
+        ecl.text = "0 / \(enemyTotal)"
+        ecl.fontSize = 12
+        ecl.fontColor = .white
+        ecl.horizontalAlignmentMode = .left
+        ecl.position = CGPoint(x: safeLeft + 16, y: size.height - safeTop - 40)
+        ecl.zPosition = 10
+        addChild(ecl)
+        enemyCountLabel = ecl
+
+        let ecIcon = SKLabelNode(fontNamed: "Menlo-Bold")
+        ecIcon.text = "ENEMIES"
+        ecIcon.fontSize = 8
+        ecIcon.fontColor = SKColor(white: 0.7, alpha: 0.8)
+        ecIcon.horizontalAlignmentMode = .left
+        ecIcon.position = CGPoint(x: safeLeft + 16, y: size.height - safeTop - 27)
+        ecIcon.zPosition = 10
+        addChild(ecIcon)
+    }
+
+    func updateEnemyCount(destroyed: Int, total: Int) {
+        enemyCountLabel?.text = "\(destroyed) / \(total)"
+    }
+
     // MARK: - Updates from Game
 
     func updateHealth(current: Int, maximum: Int) {
@@ -428,53 +489,130 @@ class GameHUD3D: SKScene {
         ]))
     }
 
-    func showMissionComplete(score: Int, enemies: Int) {
+    func showMissionComplete(score: Int, enemies: Int, coins: Int, gems: Int) {
         let overlay = SKNode()
         overlay.zPosition = 50
 
-        let bg = SKShapeNode(rectOf: size)
-        bg.fillColor = SKColor(white: 0, alpha: 0.6)
+        let bg = SKShapeNode(rectOf: CGSize(width: size.width * 2, height: size.height * 2))
+        bg.fillColor = SKColor(white: 0, alpha: 0.65)
         bg.strokeColor = .clear
         bg.position = CGPoint(x: size.width / 2, y: size.height / 2)
         overlay.addChild(bg)
 
+        let cx = size.width / 2
+        var y = size.height / 2 + 80
+
         let title = SKLabelNode(fontNamed: "Menlo-Bold")
         title.text = "MISSION COMPLETE"
-        title.fontSize = 32
-        title.fontColor = SKColor(red: 0.2, green: 0.9, blue: 0.3, alpha: 1)
-        title.position = CGPoint(x: size.width / 2, y: size.height / 2 + 50)
+        title.fontSize = 28
+        title.fontColor = SKColor(red: 0.2, green: 0.95, blue: 0.3, alpha: 1)
+        title.position = CGPoint(x: cx, y: y)
         overlay.addChild(title)
 
+        y -= 35
         let scoreLbl = SKLabelNode(fontNamed: "Menlo")
         scoreLbl.text = "Score: \(score)"
-        scoreLbl.fontSize = 22
+        scoreLbl.fontSize = 20
         scoreLbl.fontColor = SKColor(white: 0.9, alpha: 1)
-        scoreLbl.position = CGPoint(x: size.width / 2, y: size.height / 2 + 10)
+        scoreLbl.position = CGPoint(x: cx, y: y)
         overlay.addChild(scoreLbl)
 
+        y -= 25
         let enemyLbl = SKLabelNode(fontNamed: "Menlo")
         enemyLbl.text = "Enemies Destroyed: \(enemies)"
-        enemyLbl.fontSize = 14
+        enemyLbl.fontSize = 13
         enemyLbl.fontColor = SKColor(white: 0.7, alpha: 1)
-        enemyLbl.position = CGPoint(x: size.width / 2, y: size.height / 2 - 15)
+        enemyLbl.position = CGPoint(x: cx, y: y)
         overlay.addChild(enemyLbl)
 
-        let tapLbl = SKLabelNode(fontNamed: "Menlo-Bold")
-        tapLbl.text = "Tap to Continue"
-        tapLbl.fontSize = 18
-        tapLbl.fontColor = SKColor(white: 0.8, alpha: 1)
-        tapLbl.position = CGPoint(x: size.width / 2, y: size.height / 2 - 55)
-        tapLbl.run(.repeatForever(.sequence([
-            .fadeAlpha(to: 0.4, duration: 0.6),
-            .fadeAlpha(to: 1.0, duration: 0.6)
-        ])))
-        overlay.addChild(tapLbl)
+        y -= 25
+        let rewardsLbl = SKLabelNode(fontNamed: "Menlo-Bold")
+        rewardsLbl.text = "+\(coins) coins  +\(gems) gems"
+        rewardsLbl.fontSize = 14
+        rewardsLbl.fontColor = SKColor(red: 0.9, green: 0.8, blue: 0.2, alpha: 1)
+        rewardsLbl.position = CGPoint(x: cx, y: y)
+        overlay.addChild(rewardsLbl)
+
+        // Next Mission button (if available)
+        y -= 45
+        if hasNextMission {
+            let nextBtn = createMenuButton(text: "NEXT MISSION", color: SKColor(red: 0.10, green: 0.45, blue: 0.12, alpha: 0.95))
+            nextBtn.position = CGPoint(x: cx, y: y)
+            nextBtn.name = "nextMissionBtn"
+            overlay.addChild(nextBtn)
+            y -= 55
+        }
+
+        // Exit to Menu button
+        let exitBtn = createMenuButton(text: "BACK TO MENU", color: SKColor(red: 0.2, green: 0.2, blue: 0.3, alpha: 0.95))
+        exitBtn.position = CGPoint(x: cx, y: y)
+        exitBtn.name = "exitBtn"
+        overlay.addChild(exitBtn)
 
         addChild(overlay)
         gameOverOverlay = overlay
 
         run(.sequence([
-            .wait(forDuration: 1.5),
+            .wait(forDuration: 1.0),
+            .run { [weak self] in self?.canRestart = true }
+        ]))
+    }
+
+    func showMissionFailed(score: Int, enemies: Int, total: Int) {
+        let overlay = SKNode()
+        overlay.zPosition = 50
+
+        let bg = SKShapeNode(rectOf: CGSize(width: size.width * 2, height: size.height * 2))
+        bg.fillColor = SKColor(white: 0, alpha: 0.65)
+        bg.strokeColor = .clear
+        bg.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        overlay.addChild(bg)
+
+        let cx = size.width / 2
+        var y = size.height / 2 + 70
+
+        let title = SKLabelNode(fontNamed: "Menlo-Bold")
+        title.text = "MISSION FAILED"
+        title.fontSize = 30
+        title.fontColor = SKColor(red: 1.0, green: 0.3, blue: 0.2, alpha: 1)
+        title.position = CGPoint(x: cx, y: y)
+        overlay.addChild(title)
+
+        y -= 35
+        let scoreLbl = SKLabelNode(fontNamed: "Menlo")
+        scoreLbl.text = "Score: \(score)"
+        scoreLbl.fontSize = 20
+        scoreLbl.fontColor = SKColor(white: 0.9, alpha: 1)
+        scoreLbl.position = CGPoint(x: cx, y: y)
+        overlay.addChild(scoreLbl)
+
+        y -= 25
+        let progressLbl = SKLabelNode(fontNamed: "Menlo")
+        progressLbl.text = "Enemies: \(enemies) / \(total)"
+        progressLbl.fontSize = 13
+        progressLbl.fontColor = SKColor(white: 0.6, alpha: 1)
+        progressLbl.position = CGPoint(x: cx, y: y)
+        overlay.addChild(progressLbl)
+
+        // Retry button
+        y -= 45
+        let retryBtn = createMenuButton(text: "RETRY", color: SKColor(red: 0.50, green: 0.35, blue: 0.08, alpha: 0.95))
+        retryBtn.position = CGPoint(x: cx, y: y)
+        retryBtn.name = "retryBtn"
+        overlay.addChild(retryBtn)
+
+        // Exit button
+        y -= 55
+        let exitBtn = createMenuButton(text: "BACK TO MENU", color: SKColor(red: 0.2, green: 0.2, blue: 0.3, alpha: 0.95))
+        exitBtn.position = CGPoint(x: cx, y: y)
+        exitBtn.name = "exitBtn"
+        overlay.addChild(exitBtn)
+
+        addChild(overlay)
+        gameOverOverlay = overlay
+
+        run(.sequence([
+            .wait(forDuration: 1.0),
             .run { [weak self] in self?.canRestart = true }
         ]))
     }
@@ -486,8 +624,29 @@ class GameHUD3D: SKScene {
             let loc = touch.location(in: self)
             let tappedNodes = nodes(at: loc)
 
-            // Game over tap
+            // Game over / mission end tap
             if gameOverOverlay != nil && canRestart {
+                if isMissionMode {
+                    // Mission mode: check which button was tapped
+                    let tapped = nodes(at: loc)
+                    for n in tapped {
+                        let btnName = n.name ?? n.parent?.name ?? ""
+                        if btnName == "retryBtn" {
+                            shouldRetryMission = true
+                            return
+                        }
+                        if btnName == "nextMissionBtn" {
+                            shouldNextMission = true
+                            return
+                        }
+                        if btnName == "exitBtn" {
+                            shouldExitToMenu = true
+                            return
+                        }
+                    }
+                    return // absorb touch even if no button hit
+                }
+                // Infinite mode: tap anywhere to exit
                 shouldRestart = true
                 return
             }

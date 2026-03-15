@@ -6,11 +6,30 @@ class MissionSelectScene: SKScene {
     private var safeBottom: CGFloat = 34
     private var missions: [MissionData] = []
 
+    // Scrolling
+    private var scrollContainer = SKNode()
+    private var scrollOffset: CGFloat = 0
+    private var maxScrollOffset: CGFloat = 0
+    private var scrollTouch: UITouch?
+    private var lastTouchY: CGFloat = 0
+    private var scrollVelocity: CGFloat = 0
+    private var isDragging = false
+    private var dragStartY: CGFloat = 0
+    private var dragStartOffset: CGFloat = 0
+
+    // Layout
+    private let rowHeight: CGFloat = 70
+    private var listTopY: CGFloat = 0
+    private var listBottomY: CGFloat = 0
+
     override func didMove(to view: SKView) {
         backgroundColor = SKColor(red: 0.06, green: 0.07, blue: 0.11, alpha: 1.0)
         safeTop = SafeArea.top
         safeBottom = SafeArea.bottom
         missions = MissionLoader.loadAll()
+
+        listTopY = size.height - safeTop - 90
+        listBottomY = safeBottom + 20
 
         setupBackground()
         setupHeader()
@@ -72,6 +91,17 @@ class MissionSelectScene: SKScene {
         title.zPosition = 20
         addChild(title)
 
+        // Progress label
+        let completedCount = min(MissionProgress.completedLevel, missions.count)
+        let progressLabel = SKLabelNode(fontNamed: "Menlo")
+        progressLabel.text = "\(completedCount)/\(missions.count)"
+        progressLabel.fontSize = 12
+        progressLabel.fontColor = SKColor(white: 0.5, alpha: 0.8)
+        progressLabel.horizontalAlignmentMode = .right
+        progressLabel.position = CGPoint(x: size.width - 30, y: headerY - 4)
+        progressLabel.zPosition = 20
+        addChild(progressLabel)
+
         // Divider
         let divider = SKShapeNode(rectOf: CGSize(width: size.width - 40, height: 1))
         divider.fillColor = SKColor(red: 0.8, green: 0.6, blue: 0.1, alpha: 0.3)
@@ -90,24 +120,42 @@ class MissionSelectScene: SKScene {
             return
         }
 
-        let startY = size.height - safeTop - 100
-        let rowHeight: CGFloat = 70
+        scrollContainer.name = "scrollContainer"
+        scrollContainer.zPosition = 10
+        addChild(scrollContainer)
+
         let rowWidth: CGFloat = size.width - 40
+        let visibleHeight = listTopY - listBottomY
+        let contentHeight = CGFloat(missions.count) * rowHeight
+
+        // Calculate max scroll (0 = top, positive = scrolled down)
+        maxScrollOffset = max(0, contentHeight - visibleHeight)
 
         for (index, mission) in missions.enumerated() {
             let unlocked = MissionProgress.isUnlocked(index: index)
             let completed = index < MissionProgress.completedLevel
-            let y = startY - CGFloat(index) * rowHeight
+            let y = listTopY - CGFloat(index) * rowHeight - rowHeight / 2
             let row = createMissionRow(mission: mission, index: index, width: rowWidth, unlocked: unlocked, completed: completed)
             row.position = CGPoint(x: size.width / 2, y: y)
-            addChild(row)
+            scrollContainer.addChild(row)
         }
+
+        // Clip mask — hide rows outside visible area
+        let cropNode = SKCropNode()
+        cropNode.zPosition = 10
+        let mask = SKShapeNode(rectOf: CGSize(width: size.width, height: visibleHeight + 10))
+        mask.fillColor = .white
+        mask.position = CGPoint(x: size.width / 2, y: listBottomY + visibleHeight / 2)
+        cropNode.maskNode = mask
+
+        scrollContainer.removeFromParent()
+        cropNode.addChild(scrollContainer)
+        addChild(cropNode)
     }
 
     private func createMissionRow(mission: MissionData, index: Int, width: CGFloat, unlocked: Bool, completed: Bool) -> SKNode {
         let node = SKNode()
         node.name = unlocked ? "mission_\(index)" : "locked_\(index)"
-        node.zPosition = 10
 
         // Row background
         let bg = SKShapeNode(rectOf: CGSize(width: width, height: 56), cornerRadius: 10)
@@ -143,18 +191,18 @@ class MissionSelectScene: SKScene {
         nameLabel.fontColor = unlocked ? SKColor(white: 0.85, alpha: 1) : SKColor(white: 0.35, alpha: 0.6)
         nameLabel.horizontalAlignmentMode = .left
         nameLabel.verticalAlignmentMode = .center
-        nameLabel.position = CGPoint(x: -width / 2 + 55, y: completed ? 0 : 5)
+        nameLabel.position = CGPoint(x: -width / 2 + 55, y: 5)
         node.addChild(nameLabel)
 
-        if unlocked && !completed {
-            // Enemy count subtitle
-            let sub = SKLabelNode(fontNamed: "Menlo")
+        // Subtitle — enemy count for unlocked, description for completed
+        let sub = SKLabelNode(fontNamed: "Menlo")
+        sub.fontSize = 9
+        sub.fontColor = SKColor(white: 0.5, alpha: 0.8)
+        sub.horizontalAlignmentMode = .left
+        sub.verticalAlignmentMode = .center
+        sub.position = CGPoint(x: -width / 2 + 55, y: -10)
+        if unlocked {
             sub.text = "\(mission.enemies.count) enemies"
-            sub.fontSize = 9
-            sub.fontColor = SKColor(white: 0.5, alpha: 0.8)
-            sub.horizontalAlignmentMode = .left
-            sub.verticalAlignmentMode = .center
-            sub.position = CGPoint(x: -width / 2 + 55, y: -10)
             node.addChild(sub)
         }
 
@@ -217,20 +265,82 @@ class MissionSelectScene: SKScene {
         addChild(sub)
     }
 
+    // MARK: - Scrolling
+
+    private func clampScroll() {
+        scrollOffset = max(0, min(maxScrollOffset, scrollOffset))
+        scrollContainer.position.y = scrollOffset
+    }
+
+    override func update(_ currentTime: TimeInterval) {
+        guard !isDragging && abs(scrollVelocity) > 0.5 else { return }
+        scrollOffset += scrollVelocity
+        scrollVelocity *= 0.92 // friction
+        if abs(scrollVelocity) < 0.5 { scrollVelocity = 0 }
+        clampScroll()
+    }
+
     // MARK: - Touch Handling
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = touches.first else { return }
         let location = touch.location(in: self)
-        let tappedNodes = nodes(at: location)
 
+        // Check header buttons first (not scrollable)
+        let tappedNodes = nodes(at: location)
         for node in tappedNodes {
             let name = node.name ?? node.parent?.name ?? node.parent?.parent?.name ?? ""
-
             if name == "backButton" {
                 goBack()
                 return
             }
+        }
+
+        // Start scroll tracking
+        scrollTouch = touch
+        lastTouchY = location.y
+        dragStartY = location.y
+        dragStartOffset = scrollOffset
+        isDragging = true
+        scrollVelocity = 0
+    }
+
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard let touch = touches.first, touch == scrollTouch else { return }
+        let location = touch.location(in: self)
+        let dy = location.y - lastTouchY
+        scrollOffset -= dy // scroll up when dragging down
+        lastTouchY = location.y
+        scrollVelocity = -dy
+        clampScroll()
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard let touch = touches.first, touch == scrollTouch else { return }
+        let location = touch.location(in: self)
+        isDragging = false
+        scrollTouch = nil
+
+        // If the finger barely moved, treat as a tap
+        let totalDrag = abs(location.y - dragStartY)
+        if totalDrag < 10 {
+            scrollVelocity = 0
+            handleTap(at: location)
+        }
+    }
+
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        isDragging = false
+        scrollTouch = nil
+    }
+
+    private func handleTap(at location: CGPoint) {
+        // Convert to scroll container coordinates
+        let containerLoc = CGPoint(x: location.x, y: location.y - scrollContainer.position.y)
+        let tappedNodes = scrollContainer.nodes(at: containerLoc)
+
+        for node in tappedNodes {
+            let name = node.name ?? node.parent?.name ?? node.parent?.parent?.name ?? ""
 
             if name.hasPrefix("mission_") {
                 if let index = Int(String(name.dropFirst("mission_".count))) {
@@ -240,6 +350,8 @@ class MissionSelectScene: SKScene {
             }
         }
     }
+
+    // MARK: - Actions
 
     private func goBack() {
         let hangar = HangarScene(size: size)

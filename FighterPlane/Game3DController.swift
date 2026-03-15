@@ -165,9 +165,13 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         setupScene()
         GameManager.shared.resetSession()
 
-        // Mission mode: set enemy total for win condition
+        // Mission mode: set enemy total for win condition and setup mission HUD
         if case .mission(let mission) = mode {
             missionEnemyTotal = mission.enemies.count
+            let allMissions = MissionLoader.loadAll()
+            let currentIdx = allMissions.firstIndex(where: { $0.name == mission.name })
+            let hasNext = currentIdx != nil && currentIdx! + 1 < allMissions.count
+            hud.setupMissionHUD(missionName: mission.name, enemyTotal: missionEnemyTotal, hasNext: hasNext)
         }
     }
 
@@ -482,6 +486,16 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             if input.shouldRestart {
                 DispatchQueue.main.async {
                     NavigationManager.shared.isInGame = false
+                }
+            }
+            if input.shouldRetryMission {
+                DispatchQueue.main.async {
+                    NavigationManager.shared.retryMission()
+                }
+            }
+            if input.shouldNextMission {
+                DispatchQueue.main.async {
+                    NavigationManager.shared.nextMission()
                 }
             }
             return
@@ -1337,6 +1351,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
         if isMissionMode {
             missionEnemiesDestroyed += 1
+            hud.updateEnemyCount(destroyed: missionEnemiesDestroyed, total: missionEnemyTotal)
             if missionEnemiesDestroyed >= missionEnemyTotal && missionEnemyTotal > 0 {
                 missionComplete()
             }
@@ -1355,9 +1370,12 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             MissionProgress.complete(levelIndex: idx)
         }
 
+        let manager = GameManager.shared
         hud.showMissionComplete(
-            score: GameManager.shared.currentScore,
-            enemies: missionEnemiesDestroyed
+            score: manager.currentScore,
+            enemies: missionEnemiesDestroyed,
+            coins: manager.currentCoins,
+            gems: manager.currentScore / 100
         )
     }
 
@@ -1524,13 +1542,21 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         scene.rootNode.addChildNode(explosion)
         playerNode.removeFromParentNode()
 
-        let manager = GameManager.shared
-        let earnedGems = manager.currentScore / 100
-        hud.showGameOver(
-            score: manager.currentScore,
-            highScore: manager.highScore,
-            coins: manager.currentCoins,
-            gems: earnedGems
-        )
+        if isMissionMode {
+            hud.showMissionFailed(
+                score: GameManager.shared.currentScore,
+                enemies: missionEnemiesDestroyed,
+                total: missionEnemyTotal
+            )
+        } else {
+            let manager = GameManager.shared
+            let earnedGems = manager.currentScore / 100
+            hud.showGameOver(
+                score: manager.currentScore,
+                highScore: manager.highScore,
+                coins: manager.currentCoins,
+                gems: earnedGems
+            )
+        }
     }
 }
