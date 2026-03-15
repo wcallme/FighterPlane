@@ -734,6 +734,11 @@ class HangarScene: SKScene {
                 openArmory()
                 return
             }
+            if name == "missionsButton" {
+                animateButtonPress(named: "missionsButton")
+                openMissions()
+                return
+            }
             if name == "planeLeft" {
                 cyclePlane(direction: -1)
                 return
@@ -767,7 +772,14 @@ class HangarScene: SKScene {
     // MARK: - Actions
 
     private func startGame() {
+        NavigationManager.shared.gameMode = .infiniteBattle
         NavigationManager.shared.isInGame = true
+    }
+
+    private func openMissions() {
+        let missionScene = MissionSelectScene(size: size)
+        missionScene.scaleMode = scaleMode
+        view?.presentScene(missionScene, transition: .push(with: .left, duration: 0.3))
     }
 
     private func openArmory() {
