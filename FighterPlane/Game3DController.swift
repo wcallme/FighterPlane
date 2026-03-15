@@ -31,7 +31,6 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     private let playerRollNode = SCNNode()        // child node for roll
     private var lastFacingRight = true
     private var isInvincible = false
-    private var canShoot = true
     private var shootCooldownTimer: TimeInterval = 0
     private var bombCooldownTimers: [TimeInterval] = []
 
@@ -62,8 +61,19 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     private let trajectorySamples = 18
     private let bombGravity: Float = 15.0
 
-    // Gun aiming guide
-    private let gunGuideNode = SCNNode()
+    // Cached trajectory material (avoid per-frame allocation)
+    private let trajectoryMaterial: SCNMaterial = {
+        let mat = SCNMaterial()
+        mat.diffuse.contents = UIColor.white
+        mat.emission.contents = UIColor(white: 1.0, alpha: 0.15)
+        mat.lightingModel = .constant
+        mat.isDoubleSided = true
+        mat.writesToDepthBuffer = false
+        mat.readsFromDepthBuffer = true
+        mat.transparencyMode = .aOne
+        mat.blendMode = .alpha
+        return mat
+    }()
 
     // SAM Missiles
     private var activeSAMs: [SAMMissile3D] = []
@@ -297,73 +307,6 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         trajectoryNode.geometry = buildTrajectoryRibbon(points: points)
     }
 
-    private func updateGunGuide() {
-        // Gun guide removed
-    }
-
-    private func buildGunGuideGeometry(points: [SCNVector3]) -> SCNGeometry? {
-        guard points.count >= 2 else { return nil }
-
-        var vertices: [SCNVector3] = []
-        var colors: [Float] = []
-        var indices: [Int32] = []
-
-        for i in 0..<points.count {
-            let t = Float(i) / Float(points.count - 1)
-            let p = points[i]
-
-            // Thin ribbon in X direction (perpendicular to Y-Z travel plane)
-            let width: Float = 0.06
-            vertices.append(SCNVector3(p.x - width, p.y, p.z))
-            vertices.append(SCNVector3(p.x + width, p.y, p.z))
-
-            // Fade from visible to invisible along length
-            let alpha = max(Float(0), 0.35 * (1.0 - t))
-            colors.append(contentsOf: [1, 1, 1, alpha])
-            colors.append(contentsOf: [1, 1, 1, alpha])
-        }
-
-        for i in 0..<(points.count - 1) {
-            let base = Int32(i * 2)
-            indices.append(contentsOf: [base, base + 1, base + 2, base + 2, base + 1, base + 3])
-        }
-
-        let vertexSource = SCNGeometrySource(vertices: vertices)
-        let colorData = Data(bytes: colors, count: colors.count * MemoryLayout<Float>.size)
-        let colorSource = SCNGeometrySource(
-            data: colorData,
-            semantic: .color,
-            vectorCount: vertices.count,
-            usesFloatComponents: true,
-            componentsPerVector: 4,
-            bytesPerComponent: MemoryLayout<Float>.size,
-            dataOffset: 0,
-            dataStride: MemoryLayout<Float>.size * 4
-        )
-
-        let indexData = Data(bytes: indices, count: indices.count * MemoryLayout<Int32>.size)
-        let element = SCNGeometryElement(
-            data: indexData,
-            primitiveType: .triangles,
-            primitiveCount: indices.count / 3,
-            bytesPerIndex: MemoryLayout<Int32>.size
-        )
-
-        let geometry = SCNGeometry(sources: [vertexSource, colorSource], elements: [element])
-        let material = SCNMaterial()
-        material.diffuse.contents = UIColor.white
-        material.emission.contents = UIColor(white: 1.0, alpha: 0.4)
-        material.lightingModel = .constant
-        material.isDoubleSided = true
-        material.writesToDepthBuffer = false
-        material.readsFromDepthBuffer = true
-        material.transparencyMode = .aOne
-        material.blendMode = .alpha
-        geometry.materials = [material]
-
-        return geometry
-    }
-
     private func buildTrajectoryRibbon(points: [SCNVector3]) -> SCNGeometry? {
         guard points.count >= 2 else { return nil }
 
@@ -442,16 +385,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         )
 
         let geometry = SCNGeometry(sources: [vertexSource, colorSource], elements: [element])
-        let material = SCNMaterial()
-        material.diffuse.contents = UIColor.white
-        material.emission.contents = UIColor(white: 1.0, alpha: 0.15)
-        material.lightingModel = .constant
-        material.isDoubleSided = true
-        material.writesToDepthBuffer = false
-        material.readsFromDepthBuffer = true
-        material.transparencyMode = .aOne
-        material.blendMode = .alpha
-        geometry.materials = [material]
+        geometry.materials = [trajectoryMaterial]
 
         return geometry
     }
@@ -523,9 +457,11 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     // MARK: - Game Loop
 
     func renderer(_ renderer: SCNSceneRenderer, updateAtTime time: TimeInterval) {
+        // Consume all HUD input atomically to avoid races (#5, #32)
+        let input = hud.consumeInputState()
+
         // Handle exit to menu (from pause menu or game over)
-        if hud.shouldExitToMenu {
-            hud.shouldExitToMenu = false
+        if input.shouldExitToMenu {
             DispatchQueue.main.async {
                 NavigationManager.shared.isInGame = false
             }
@@ -533,7 +469,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         }
 
         // Handle pause — also pause SCNActions so animations freeze
-        if hud.isGamePaused {
+        if input.isGamePaused {
             if !scene.isPaused { scene.isPaused = true }
             lastUpdateTime = 0 // Reset so dt doesn't spike on resume
             return
@@ -542,10 +478,8 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         }
 
         guard gameState == .playing else {
-            if hud.shouldRestart {
-                hud.shouldRestart = false
+            if input.shouldRestart {
                 DispatchQueue.main.async {
-                    // NavigationManager.shared.activeMission = nil
                     NavigationManager.shared.isInGame = false
                 }
             }
@@ -570,9 +504,8 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         // Update player from joystick angle
         updatePlayer(dt: floatDt)
 
-        // Update trajectory indicators
+        // Update trajectory indicator
         updateTrajectory()
-        updateGunGuide()
 
         // Update camera to track player from the side
         updateCamera(dt: floatDt)
@@ -587,13 +520,15 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         spawnEnemies(time: time)
 
         // Fire when button is held
-        if hud.isFiring {
+        if input.isFiring {
             fireGun()
         }
 
-        // Drop bomb
-        if hud.shouldDropBomb {
-            hud.shouldDropBomb = false
+        // Process staggered bullet spawns on the render thread (#1)
+        processPendingBullets(time: time)
+
+        // Drop bomb (already consumed from input snapshot, no race)
+        if input.shouldDropBomb {
             dropBomb()
         }
 
@@ -613,11 +548,8 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         checkCollisions()
 
         // Weapon cooldown timers
-        if !canShoot {
+        if shootCooldownTimer > 0 {
             shootCooldownTimer -= dt
-            if shootCooldownTimer <= 0 {
-                canShoot = true
-            }
         }
         for si in bombCooldownTimers.indices {
             if bombCooldownTimers[si] > 0 {
@@ -761,69 +693,78 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
     // MARK: - Shooting
 
+    // Pending staggered gun fires (render-thread safe)
+    private var pendingGunFires: [(gun: WeaponInfo, gunIndex: Int, fireAt: TimeInterval)] = []
+
     private func fireGun() {
-        guard canShoot else { return }
-        canShoot = false
+        guard shootCooldownTimer <= 0 else { return }
 
         GameManager.shared.shotsFired += 1
 
-        let speedMult = Float(PlayerData.shared.speedMultiplier)
-        let baseSpeed = playerSpeed * speedMult * 5.0 / 60.0
-
-        // Fire equipped guns with 0.1s stagger between each gun
+        // Queue staggered fires on the render thread (no DispatchQueue.main needed)
         for (gunIndex, gun) in equippedGuns.enumerated() {
-            let delay = Double(gunIndex) * 0.1
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-                guard let self = self else { return }
-
-                let bulletCount = gun.bulletCount
-                let spread = gun.bulletSpread
-                let speed = Float(gun.projectileSpeed) / 60.0 * speedMult * 0.60
-
-                // Slight X offset per gun to simulate multiple barrel positions
-                let gunSpacing: Float = self.equippedGuns.count > 1 ? 0.8 : 0
-                let xOffset = (Float(gunIndex) - Float(self.equippedGuns.count - 1) / 2.0) * gunSpacing
-
-                for i in 0..<bulletCount {
-                    let bullet = ModelGenerator3D.playerBullet(weaponId: gun.id)
-
-                    let spawnOffset: Float = 1.5
-                    bullet.position = SCNVector3(
-                        xOffset,
-                        self.playerY + sin(self.playerAngle) * spawnOffset,
-                        self.playerZ + cos(self.playerAngle) * spawnOffset
-                    )
-
-                    var angle = self.playerAngle
-                    if bulletCount > 1 {
-                        let offset = Float(i) - Float(bulletCount - 1) / 2.0
-                        angle += offset * Float(spread)
-                    } else if spread > 0 {
-                        angle += Float.random(in: -Float(spread)...Float(spread))
-                    }
-                    // Slight random jitter (1-3 degrees) so bullets don't follow identical paths
-                    let jitterDeg = Float.random(in: -3.0...3.0)
-                    angle += jitterDeg * .pi / 180.0
-
-                    let vz = cos(angle) * speed
-                    let vy = sin(angle) * speed
-
-                    bullet.eulerAngles.x = (.pi / 2) - angle
-
-                    self.scene.rootNode.addChildNode(bullet)
-                    self.playerBullets.append(Bullet3D(
-                        node: bullet,
-                        velocity: SCNVector3(0, vy, vz),
-                        damage: gun.damage
-                    ))
-                }
-            }
+            let fireAt = lastUpdateTime + Double(gunIndex) * 0.1
+            pendingGunFires.append((gun: gun, gunIndex: gunIndex, fireAt: fireAt))
         }
 
         // Use fastest fire rate among equipped guns
         let fastestFireRate = equippedGuns.map(\.fireRate).min() ?? equippedGun.fireRate
         shootCooldownTimer = fastestFireRate
+    }
+
+    /// Called from the render loop to process staggered bullet spawns on the render thread
+    private func processPendingBullets(time: TimeInterval) {
+        guard !pendingGunFires.isEmpty else { return }
+
+        let speedMult = Float(PlayerData.shared.speedMultiplier)
+
+        pendingGunFires.removeAll { entry in
+            guard time >= entry.fireAt else { return false }
+
+            let gun = entry.gun
+            let gunIndex = entry.gunIndex
+            let bulletCount = gun.bulletCount
+            let spread = gun.bulletSpread
+            let speed = Float(gun.projectileSpeed) / 60.0 * speedMult * 0.60
+
+            let gunSpacing: Float = equippedGuns.count > 1 ? 0.8 : 0
+            let xOffset = (Float(gunIndex) - Float(equippedGuns.count - 1) / 2.0) * gunSpacing
+
+            for i in 0..<bulletCount {
+                let bullet = ModelGenerator3D.playerBullet(weaponId: gun.id)
+
+                let spawnOffset: Float = 1.5
+                bullet.position = SCNVector3(
+                    xOffset,
+                    playerY + sin(playerAngle) * spawnOffset,
+                    playerZ + cos(playerAngle) * spawnOffset
+                )
+
+                var angle = playerAngle
+                if bulletCount > 1 {
+                    let offset = Float(i) - Float(bulletCount - 1) / 2.0
+                    angle += offset * Float(spread)
+                } else if spread > 0 {
+                    angle += Float.random(in: -Float(spread)...Float(spread))
+                }
+                let jitterDeg = Float.random(in: -3.0...3.0)
+                angle += jitterDeg * .pi / 180.0
+
+                let vz = cos(angle) * speed
+                let vy = sin(angle) * speed
+
+                bullet.eulerAngles.x = (.pi / 2) - angle
+
+                scene.rootNode.addChildNode(bullet)
+                playerBullets.append(Bullet3D(
+                    node: bullet,
+                    velocity: SCNVector3(0, vy, vz),
+                    damage: gun.damage
+                ))
+            }
+
+            return true // Remove processed entry
+        }
     }
 
     // MARK: - Bombing
