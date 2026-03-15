@@ -22,11 +22,11 @@ enum GameConfig {
     static let fighterScore = 300
 
     // Enemy health
-    static let tankHealth = 1
-    static let aaGunHealth = 1
-    static let buildingHealth = 2
+    static let tankHealth = 5
+    static let aaGunHealth = 4
+    static let buildingHealth = 6
     static let fighterHealth = 2
-    static let samLauncherHealth = 2
+    static let samLauncherHealth = 5
 
     // Damage
     static let bulletDamage = 1
@@ -43,6 +43,12 @@ enum GameConfig {
 
     // Scoring
     static let samLauncherScore = 250
+    static let truckScore = 50
+    static let radioTowerScore = 200
+
+    // Enemy health (new types)
+    static let truckHealth = 4
+    static let radioTowerHealth = 8
 }
 
 enum PhysicsCategory {
@@ -70,12 +76,14 @@ enum ZLayer: CGFloat {
     case hud = 100
 }
 
-enum EnemyType {
+enum EnemyType: String {
     case tank
     case aaGun
     case building
     case fighter
     case samLauncher
+    case truck
+    case radioTower
 
     var health: Int {
         switch self {
@@ -84,6 +92,8 @@ enum EnemyType {
         case .building: return GameConfig.buildingHealth
         case .fighter: return GameConfig.fighterHealth
         case .samLauncher: return GameConfig.samLauncherHealth
+        case .truck: return GameConfig.truckHealth
+        case .radioTower: return GameConfig.radioTowerHealth
         }
     }
 
@@ -94,12 +104,14 @@ enum EnemyType {
         case .building: return GameConfig.buildingScore
         case .fighter: return GameConfig.fighterScore
         case .samLauncher: return GameConfig.samLauncherScore
+        case .truck: return GameConfig.truckScore
+        case .radioTower: return GameConfig.radioTowerScore
         }
     }
 
     var isGround: Bool {
         switch self {
-        case .tank, .aaGun, .building, .samLauncher: return true
+        case .tank, .aaGun, .building, .samLauncher, .truck, .radioTower: return true
         case .fighter: return false
         }
     }
@@ -110,7 +122,17 @@ enum EnemyType {
         case .aaGun: return GameConfig.aaGunFireRange
         case .samLauncher: return GameConfig.samFireRange
         case .fighter: return GameConfig.fighterFireRange
-        case .building: return 0 // buildings don't fire
+        case .building, .truck, .radioTower: return 0
+        }
+    }
+
+    var fireRate: TimeInterval {
+        switch self {
+        case .tank: return 3.0
+        case .aaGun: return 1.5
+        case .samLauncher: return 5.0
+        case .fighter: return 2.5
+        case .building, .truck, .radioTower: return 0
         }
     }
 }
@@ -119,4 +141,18 @@ enum GameState {
     case playing
     case paused
     case gameOver
+}
+
+enum SafeArea {
+    static var insets: UIEdgeInsets {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first else {
+            return UIEdgeInsets(top: 59, left: 0, bottom: 34, right: 0)
+        }
+        return window.safeAreaInsets
+    }
+    static var top: CGFloat { insets.top }
+    static var bottom: CGFloat { insets.bottom }
+    static var left: CGFloat { insets.left }
+    static var right: CGFloat { insets.right }
 }

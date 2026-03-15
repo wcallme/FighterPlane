@@ -3,7 +3,115 @@ import UIKit
 
 enum ModelGenerator3D {
 
-    // MARK: - Player Plane
+    // MARK: - Player Plane (Selection)
+
+    static func selectedPlayerPlane() -> SCNNode {
+        let planeId = PlayerData.shared.selectedPlaneId
+        if planeId == "default" {
+            return playerPlane()
+        }
+        return loadUSDZPlane(named: planeId) ?? playerPlane()
+    }
+
+    /// Load a plane model for hangar/UI display (no game orientation correction)
+    static func hangarPlane(forId planeId: String) -> SCNNode {
+        if planeId == "default" {
+            return playerPlane()
+        }
+        return loadHangarUSDZPlane(named: planeId) ?? playerPlane()
+    }
+
+    private static func loadHangarUSDZPlane(named name: String) -> SCNNode? {
+        guard let url = Bundle.main.url(forResource: name, withExtension: "usdz") else { return nil }
+        guard let scene = try? SCNScene(url: url) else { return nil }
+
+        let root = SCNNode()
+        root.name = "hangarModel"
+
+        for child in scene.rootNode.childNodes {
+            root.addChildNode(child.clone())
+        }
+
+        // Ensure all materials are double-sided
+        root.enumerateChildNodes { node, _ in
+            node.geometry?.materials.forEach { material in
+                material.isDoubleSided = true
+            }
+        }
+
+        // Compute bounding box
+        let (minBound, maxBound) = root.boundingBox
+        let maxDim = max(maxBound.x - minBound.x, maxBound.y - minBound.y, maxBound.z - minBound.z)
+        guard maxDim > 0 else { return nil }
+
+        // Center the model
+        let centerX = (minBound.x + maxBound.x) / 2
+        let centerY = (minBound.y + maxBound.y) / 2
+        let centerZ = (minBound.z + maxBound.z) / 2
+        root.pivot = SCNMatrix4MakeTranslation(centerX, centerY, centerZ)
+
+        // Scale to a display-friendly size
+        let targetSize: Float = 4.0
+        let scaleFactor = targetSize / maxDim
+        root.scale = SCNVector3(scaleFactor, scaleFactor, scaleFactor)
+
+        return root
+    }
+
+    private static func loadUSDZPlane(named name: String) -> SCNNode? {
+        guard let url = Bundle.main.url(forResource: name, withExtension: "usdz") else { return nil }
+        guard let scene = try? SCNScene(url: url) else { return nil }
+
+        let root = SCNNode()
+        root.name = "player"
+
+        // Use a container so orientation correction stays separate from game transforms
+        let container = SCNNode()
+        for child in scene.rootNode.childNodes {
+            container.addChildNode(child.clone())
+        }
+
+        // Ensure all materials are double-sided (prevents invisible faces)
+        container.enumerateChildNodes { node, _ in
+            node.geometry?.materials.forEach { material in
+                material.isDoubleSided = true
+            }
+        }
+
+        // Compute bounding box of the loaded model
+        let (minBound, maxBound) = container.boundingBox
+        let modelWidth = maxBound.x - minBound.x
+        let modelHeight = maxBound.y - minBound.y
+        let modelLength = maxBound.z - minBound.z
+        let maxDim = max(modelWidth, modelLength, modelHeight)
+        guard maxDim > 0 else { return nil }
+
+        // Center the model at origin
+        let centerX = (minBound.x + maxBound.x) / 2
+        let centerY = (minBound.y + maxBound.y) / 2
+        let centerZ = (minBound.z + maxBound.z) / 2
+        container.pivot = SCNMatrix4MakeTranslation(centerX, centerY, centerZ)
+
+        // Rotate +90° around Y so nose faces right (+Z in game).
+        container.eulerAngles.y = .pi / 2
+
+        // Scale to match game size (default plane wingspan is 5.5 units)
+        let targetSize: Float = 5.5
+        let scaleFactor = targetSize / maxDim
+        root.scale = SCNVector3(scaleFactor, scaleFactor, scaleFactor)
+
+        root.addChildNode(container)
+
+        // Afterburner trail at the rear of the jet
+        // Model is scaled to ~5.5 units; tail is roughly half that behind center
+        let trail = afterburnerTrail(scale: 1.0)
+        trail.position = SCNVector3(0, 0, -targetSize * 0.45)
+        root.addChildNode(trail)
+
+        return root
+    }
+
+    // MARK: - Player Plane (Default)
 
     static func playerPlane() -> SCNNode {
         let root = SCNNode()
@@ -70,9 +178,64 @@ enum ModelGenerator3D {
             propNode.position = SCNVector3(x, 0, 0.7)
             propNode.runAction(.repeatForever(.rotateBy(x: 0, y: 0, z: .pi * 2, duration: 0.08)))
             root.addChildNode(propNode)
+
+            // Afterburner trail behind each engine
+            let trail = afterburnerTrail(scale: 0.7)
+            trail.position = SCNVector3(x, 0, -0.1)
+            root.addChildNode(trail)
         }
 
         return root
+    }
+
+    // MARK: - Afterburner Trail
+
+    /// Creates a subtle afterburner/exhaust particle trail node
+    static func afterburnerTrail(scale: Float = 1.0) -> SCNNode {
+        let emitter = SCNNode()
+
+        let trail = SCNParticleSystem()
+        trail.particleSize = CGFloat(0.12 * scale)
+        trail.particleSizeVariation = CGFloat(0.04 * scale)
+        trail.birthRate = CGFloat(25 * scale)
+        trail.particleLifeSpan = 0.35
+        trail.particleLifeSpanVariation = 0.1
+        trail.emissionDuration = .greatestFiniteMagnitude
+        trail.spreadingAngle = 8
+        trail.particleColor = UIColor(red: 0.6, green: 0.75, blue: 1.0, alpha: 0.35)
+        trail.particleColorVariation = SCNVector4(0.15, 0.1, 0, 0.1)
+        trail.isAffectedByGravity = false
+        trail.particleVelocity = CGFloat(0.3 * scale)
+        trail.emitterShape = SCNSphere(radius: CGFloat(0.04 * scale))
+        trail.blendMode = .additive
+        trail.isLightingEnabled = false
+
+        // Fade out over lifetime
+        let opacityController = SCNParticlePropertyController(
+            animation: {
+                let anim = CAKeyframeAnimation()
+                anim.values = [0.4, 0.2, 0.0]
+                anim.keyTimes = [0, 0.5, 1.0]
+                anim.duration = 1.0
+                return anim
+            }()
+        )
+        trail.propertyControllers = [.opacity: opacityController]
+
+        // Shrink slightly over lifetime
+        let sizeController = SCNParticlePropertyController(
+            animation: {
+                let anim = CAKeyframeAnimation()
+                anim.values = [1.0, 1.4, 0.6]
+                anim.keyTimes = [0, 0.3, 1.0]
+                anim.duration = 1.0
+                return anim
+            }()
+        )
+        trail.propertyControllers?[.size] = sizeController
+
+        emitter.addParticleSystem(trail)
+        return emitter
     }
 
     // MARK: - Enemy Plane
@@ -102,6 +265,11 @@ enum ModelGenerator3D {
         let cockpitNode = SCNNode(geometry: cockpit)
         cockpitNode.position = SCNVector3(0, 0.25, 0.3)
         root.addChildNode(cockpitNode)
+
+        // Afterburner trail at tail
+        let trail = afterburnerTrail(scale: 0.8)
+        trail.position = SCNVector3(0, 0, -1.2)
+        root.addChildNode(trail)
 
         // Rotate to face -Z (toward player)
         root.eulerAngles.y = .pi
@@ -361,46 +529,376 @@ enum ModelGenerator3D {
 
     // MARK: - Projectiles
 
-    static func playerBullet() -> SCNNode {
-        // Very thin, long black line — like a tracer streak
-        let stick = SCNCylinder(radius: 0.01, height: 2.5)
-        stick.firstMaterial?.diffuse.contents = UIColor.black
+    static func playerBullet(weaponId: String = "basic_gun") -> SCNNode {
+        switch weaponId {
+        case "cannon": return cannonBullet3D()
+        case "machine_gun": return machineGunBullet3D()
+        case "autocannon": return autocannonBullet3D()
+        default: return basicBullet3D()
+        }
+    }
+
+    /// Basic gun — dark tracer, slightly thicker than before
+    /// Note: Child nodes have NO euler rotation — fireGun() sets root orientation.
+    private static func basicBullet3D() -> SCNNode {
+        let root = SCNNode()
+        root.name = "playerBullet"
+
+        let stick = SCNCylinder(radius: 0.028, height: 2.5)
+        stick.firstMaterial?.diffuse.contents = UIColor(red: 0.10, green: 0.10, blue: 0.10, alpha: 1)
         stick.firstMaterial?.lightingModel = .constant
-        let node = SCNNode(geometry: stick)
-        // Rotate so the stick points along Z (direction of travel)
-        node.eulerAngles.x = .pi / 2
-        node.name = "playerBullet"
-        return node
+        let stickNode = SCNNode(geometry: stick)
+        root.addChildNode(stickNode)
+
+        // Subtle metallic edge highlight
+        let highlight = SCNCylinder(radius: 0.034, height: 2.5)
+        highlight.firstMaterial?.diffuse.contents = UIColor(white: 0.35, alpha: 0.3)
+        highlight.firstMaterial?.lightingModel = .constant
+        highlight.firstMaterial?.transparency = 0.3
+        let hlNode = SCNNode(geometry: highlight)
+        root.addChildNode(hlNode)
+
+        return root
+    }
+
+    /// Cannon — thick heavy slug with warm orange glow
+    private static func cannonBullet3D() -> SCNNode {
+        let root = SCNNode()
+        root.name = "playerBullet"
+
+        // Dark heavy core
+        let stick = SCNCylinder(radius: 0.05, height: 2.8)
+        stick.firstMaterial?.diffuse.contents = UIColor(red: 0.12, green: 0.12, blue: 0.12, alpha: 1)
+        stick.firstMaterial?.lightingModel = .constant
+        let stickNode = SCNNode(geometry: stick)
+        root.addChildNode(stickNode)
+
+        // Warm orange glow halo
+        let glow = SCNCylinder(radius: 0.085, height: 2.8)
+        glow.firstMaterial?.diffuse.contents = UIColor(red: 1.0, green: 0.7, blue: 0.2, alpha: 0.2)
+        glow.firstMaterial?.emission.contents = UIColor(red: 1.0, green: 0.6, blue: 0.15, alpha: 0.15)
+        glow.firstMaterial?.lightingModel = .constant
+        glow.firstMaterial?.transparency = 0.25
+        let glowNode = SCNNode(geometry: glow)
+        root.addChildNode(glowNode)
+
+        return root
+    }
+
+    /// Machine gun — medium tracer with golden-amber glow trail
+    private static func machineGunBullet3D() -> SCNNode {
+        let root = SCNNode()
+        root.name = "playerBullet"
+
+        // Amber tracer core
+        let stick = SCNCylinder(radius: 0.07, height: 2.4)
+        stick.firstMaterial?.diffuse.contents = UIColor(red: 0.85, green: 0.65, blue: 0.1, alpha: 1)
+        stick.firstMaterial?.emission.contents = UIColor(red: 0.6, green: 0.45, blue: 0.05, alpha: 0.5)
+        stick.firstMaterial?.lightingModel = .constant
+        let stickNode = SCNNode(geometry: stick)
+        root.addChildNode(stickNode)
+
+        // Golden glow envelope
+        let glow = SCNCylinder(radius: 0.12, height: 2.4)
+        glow.firstMaterial?.diffuse.contents = UIColor(red: 1.0, green: 0.85, blue: 0.3, alpha: 0.15)
+        glow.firstMaterial?.emission.contents = UIColor(red: 0.8, green: 0.65, blue: 0.1, alpha: 0.1)
+        glow.firstMaterial?.lightingModel = .constant
+        glow.firstMaterial?.transparency = 0.2
+        let glowNode = SCNNode(geometry: glow)
+        root.addChildNode(glowNode)
+
+        return root
+    }
+
+    /// Autocannon — thick golden tracers, bright and aggressive
+    private static func autocannonBullet3D() -> SCNNode {
+        let root = SCNNode()
+        root.name = "playerBullet"
+
+        // Dark steel core
+        let stick = SCNCylinder(radius: 0.045, height: 2.5)
+        stick.firstMaterial?.diffuse.contents = UIColor(red: 0.15, green: 0.15, blue: 0.12, alpha: 1)
+        stick.firstMaterial?.lightingModel = .constant
+        let stickNode = SCNNode(geometry: stick)
+        root.addChildNode(stickNode)
+
+        // Bright golden glow
+        let glow = SCNCylinder(radius: 0.075, height: 2.5)
+        glow.firstMaterial?.diffuse.contents = UIColor(red: 1.0, green: 0.8, blue: 0.15, alpha: 0.25)
+        glow.firstMaterial?.emission.contents = UIColor(red: 1.0, green: 0.75, blue: 0.1, alpha: 0.3)
+        glow.firstMaterial?.lightingModel = .constant
+        glow.firstMaterial?.transparency = 0.3
+        let glowNode = SCNNode(geometry: glow)
+        root.addChildNode(glowNode)
+
+        // Hot tip sphere — offset along Y (cylinder axis), fireGun rotates to match travel
+        let tip = SCNSphere(radius: 0.06)
+        tip.firstMaterial?.diffuse.contents = UIColor(red: 1.0, green: 1.0, blue: 0.7, alpha: 1)
+        tip.firstMaterial?.emission.contents = UIColor(red: 1.0, green: 0.9, blue: 0.4, alpha: 0.8)
+        tip.firstMaterial?.lightingModel = .constant
+        let tipNode = SCNNode(geometry: tip)
+        tipNode.position = SCNVector3(0, 1.25, 0) // at the leading edge along cylinder Y axis
+        root.addChildNode(tipNode)
+
+        return root
     }
 
     static func enemyBullet() -> SCNNode {
-        let sphere = SCNSphere(radius: 0.1)
-        sphere.firstMaterial?.diffuse.contents = UIColor(red: 1.0, green: 0.3, blue: 0.2, alpha: 1)
-        sphere.firstMaterial?.emission.contents = UIColor(red: 1.0, green: 0.2, blue: 0.1, alpha: 0.5)
-        let node = SCNNode(geometry: sphere)
+        // Long thin red tracer — slightly thicker
+        let stick = SCNCylinder(radius: 0.033, height: 2.0)
+        stick.firstMaterial?.diffuse.contents = UIColor(red: 1.0, green: 0.25, blue: 0.15, alpha: 1)
+        stick.firstMaterial?.emission.contents = UIColor(red: 1.0, green: 0.2, blue: 0.1, alpha: 0.6)
+        stick.firstMaterial?.lightingModel = .constant
+        let node = SCNNode(geometry: stick)
         node.name = "enemyBullet"
         return node
     }
 
-    static func bomb3D() -> SCNNode {
+    static func bomb3D(weaponId: String = "bomb") -> SCNNode {
+        switch weaponId {
+        case "mining_bomb": return miningBomb3D()
+        case "heavy_bomb": return heavyBomb3D()
+        case "cluster_bomb": return clusterBomb3D()
+        default: return standardBomb3D()
+        }
+    }
+
+    /// Classic iron bomb — bulbous pear body, rounded nose, dramatic 4-fin flared tail
+    private static func standardBomb3D() -> SCNNode {
         let root = SCNNode()
         root.name = "bomb3D"
 
-        let body = SCNCapsule(capRadius: 0.15, height: 0.5)
-        body.firstMaterial?.diffuse.contents = UIColor(red: 0.15, green: 0.15, blue: 0.15, alpha: 1)
-        let bodyNode = SCNNode(geometry: body)
-        root.addChildNode(bodyNode)
+        // Bulbous pear body — sphere for the fat front + capsule for rear taper
+        let bulb = SCNSphere(radius: 0.18)
+        bulb.firstMaterial?.diffuse.contents = UIColor(red: 0.18, green: 0.18, blue: 0.18, alpha: 1)
+        bulb.firstMaterial?.specular.contents = UIColor(white: 0.3, alpha: 1)
+        let bulbNode = SCNNode(geometry: bulb)
+        bulbNode.position = SCNVector3(0, -0.08, 0)
+        root.addChildNode(bulbNode)
 
-        // Fins
-        let fin = SCNBox(width: 0.35, height: 0.02, length: 0.15, chamferRadius: 0.01)
-        fin.firstMaterial?.diffuse.contents = UIColor(red: 0.25, green: 0.25, blue: 0.25, alpha: 1)
-        let fin1 = SCNNode(geometry: fin)
-        fin1.position = SCNVector3(0, 0.2, 0)
-        root.addChildNode(fin1)
-        let fin2 = SCNNode(geometry: fin)
-        fin2.eulerAngles.y = .pi / 2
-        fin2.position = SCNVector3(0, 0.2, 0)
-        root.addChildNode(fin2)
+        // Rear taper
+        let taper = SCNCapsule(capRadius: 0.12, height: 0.35)
+        taper.firstMaterial?.diffuse.contents = UIColor(red: 0.18, green: 0.18, blue: 0.18, alpha: 1)
+        taper.firstMaterial?.specular.contents = UIColor(white: 0.3, alpha: 1)
+        let taperNode = SCNNode(geometry: taper)
+        taperNode.position = SCNVector3(0, 0.10, 0)
+        root.addChildNode(taperNode)
+
+        // Rounded nose cap
+        let noseCap = SCNSphere(radius: 0.10)
+        noseCap.firstMaterial?.diffuse.contents = UIColor(red: 0.28, green: 0.26, blue: 0.24, alpha: 1)
+        noseCap.firstMaterial?.specular.contents = UIColor(white: 0.4, alpha: 1)
+        let noseNode = SCNNode(geometry: noseCap)
+        noseNode.position = SCNVector3(0, -0.26, 0)
+        root.addChildNode(noseNode)
+
+        // Fuze nub
+        let fuze = SCNCylinder(radius: 0.025, height: 0.05)
+        fuze.firstMaterial?.diffuse.contents = UIColor(white: 0.42, alpha: 1)
+        fuze.firstMaterial?.metalness.contents = 0.6
+        let fuzeNode = SCNNode(geometry: fuze)
+        fuzeNode.position = SCNVector3(0, -0.32, 0)
+        root.addChildNode(fuzeNode)
+
+        // Tail shroud — narrow neck before fins
+        let shroud = SCNCylinder(radius: 0.08, height: 0.10)
+        shroud.firstMaterial?.diffuse.contents = UIColor(red: 0.20, green: 0.20, blue: 0.20, alpha: 1)
+        let shroudNode = SCNNode(geometry: shroud)
+        shroudNode.position = SCNVector3(0, 0.30, 0)
+        root.addChildNode(shroudNode)
+
+        // 4 dramatic flared tail fins
+        for angle: Float in [0, .pi / 2, .pi, .pi * 1.5] {
+            let fin = SCNBox(width: 0.36, height: 0.02, length: 0.20, chamferRadius: 0.005)
+            fin.firstMaterial?.diffuse.contents = UIColor(red: 0.25, green: 0.25, blue: 0.23, alpha: 1)
+            let finNode = SCNNode(geometry: fin)
+            finNode.position = SCNVector3(cos(angle) * 0.04, 0.38, sin(angle) * 0.04)
+            finNode.eulerAngles.y = angle
+            // Slight outward cant for flared look
+            finNode.eulerAngles.z = 0.15
+            root.addChildNode(finNode)
+        }
+
+        // Tail ring
+        let ring = SCNTorus(ringRadius: 0.09, pipeRadius: 0.012)
+        ring.firstMaterial?.diffuse.contents = UIColor(white: 0.32, alpha: 1)
+        let ringNode = SCNNode(geometry: ring)
+        ringNode.position = SCNVector3(0, 0.32, 0)
+        root.addChildNode(ringNode)
+
+        return root
+    }
+
+    /// Mining bomb — bronze drill-tipped penetrator with pear body and flared fins
+    private static func miningBomb3D() -> SCNNode {
+        let root = SCNNode()
+        root.name = "bomb3D"
+
+        // Pear body — bronze
+        let bulb = SCNSphere(radius: 0.16)
+        bulb.firstMaterial?.diffuse.contents = UIColor(red: 0.55, green: 0.38, blue: 0.12, alpha: 1)
+        bulb.firstMaterial?.specular.contents = UIColor(red: 0.8, green: 0.6, blue: 0.2, alpha: 1)
+        bulb.firstMaterial?.metalness.contents = 0.6
+        let bulbNode = SCNNode(geometry: bulb)
+        bulbNode.position = SCNVector3(0, -0.02, 0)
+        root.addChildNode(bulbNode)
+
+        // Rear taper
+        let taper = SCNCapsule(capRadius: 0.10, height: 0.30)
+        taper.firstMaterial?.diffuse.contents = UIColor(red: 0.50, green: 0.35, blue: 0.12, alpha: 1)
+        taper.firstMaterial?.specular.contents = UIColor(red: 0.7, green: 0.5, blue: 0.2, alpha: 1)
+        let taperNode = SCNNode(geometry: taper)
+        taperNode.position = SCNVector3(0, 0.12, 0)
+        root.addChildNode(taperNode)
+
+        // Drill tip — sharp cone
+        let drillTip = SCNCone(topRadius: 0, bottomRadius: 0.12, height: 0.22)
+        drillTip.firstMaterial?.diffuse.contents = UIColor(red: 0.70, green: 0.50, blue: 0.15, alpha: 1)
+        drillTip.firstMaterial?.specular.contents = UIColor(red: 0.9, green: 0.7, blue: 0.3, alpha: 1)
+        drillTip.firstMaterial?.metalness.contents = 0.8
+        let tipNode = SCNNode(geometry: drillTip)
+        tipNode.position = SCNVector3(0, -0.28, 0)
+        root.addChildNode(tipNode)
+
+        // Spiral groove rings
+        for i in 0..<4 {
+            let ring = SCNTorus(ringRadius: CGFloat(0.14 - Float(i) * 0.008), pipeRadius: 0.008)
+            ring.firstMaterial?.diffuse.contents = UIColor(red: 0.40, green: 0.28, blue: 0.08, alpha: 1)
+            let ringNode = SCNNode(geometry: ring)
+            ringNode.position = SCNVector3(0, Float(i) * 0.08 - 0.10, 0)
+            root.addChildNode(ringNode)
+        }
+
+        // Flared tail fins
+        for angle: Float in [0, .pi / 2, .pi, .pi * 1.5] {
+            let fin = SCNBox(width: 0.28, height: 0.015, length: 0.14, chamferRadius: 0.003)
+            fin.firstMaterial?.diffuse.contents = UIColor(red: 0.45, green: 0.32, blue: 0.12, alpha: 1)
+            let finNode = SCNNode(geometry: fin)
+            finNode.position = SCNVector3(cos(angle) * 0.03, 0.30, sin(angle) * 0.03)
+            finNode.eulerAngles.y = angle
+            finNode.eulerAngles.z = 0.12
+            root.addChildNode(finNode)
+        }
+
+        return root
+    }
+
+    /// Heavy bomb — massive fat pear body with red warning bands and huge flared fins
+    private static func heavyBomb3D() -> SCNNode {
+        let root = SCNNode()
+        root.name = "bomb3D"
+
+        // Massive pear bulb
+        let bulb = SCNSphere(radius: 0.26)
+        bulb.firstMaterial?.diffuse.contents = UIColor(red: 0.16, green: 0.16, blue: 0.16, alpha: 1)
+        bulb.firstMaterial?.specular.contents = UIColor(white: 0.25, alpha: 1)
+        let bulbNode = SCNNode(geometry: bulb)
+        bulbNode.position = SCNVector3(0, -0.08, 0)
+        root.addChildNode(bulbNode)
+
+        // Rear taper
+        let taper = SCNCapsule(capRadius: 0.16, height: 0.40)
+        taper.firstMaterial?.diffuse.contents = UIColor(red: 0.16, green: 0.16, blue: 0.16, alpha: 1)
+        let taperNode = SCNNode(geometry: taper)
+        taperNode.position = SCNVector3(0, 0.14, 0)
+        root.addChildNode(taperNode)
+
+        // Rounded nose cap
+        let noseCap = SCNSphere(radius: 0.16)
+        noseCap.firstMaterial?.diffuse.contents = UIColor(red: 0.24, green: 0.22, blue: 0.20, alpha: 1)
+        noseCap.firstMaterial?.specular.contents = UIColor(white: 0.35, alpha: 1)
+        let noseNode = SCNNode(geometry: noseCap)
+        noseNode.position = SCNVector3(0, -0.32, 0)
+        root.addChildNode(noseNode)
+
+        // Fuze nub
+        let fuze = SCNCylinder(radius: 0.04, height: 0.06)
+        fuze.firstMaterial?.diffuse.contents = UIColor(white: 0.45, alpha: 1)
+        fuze.firstMaterial?.metalness.contents = 0.7
+        let fuzeNode = SCNNode(geometry: fuze)
+        fuzeNode.position = SCNVector3(0, -0.40, 0)
+        root.addChildNode(fuzeNode)
+
+        // Red warning bands
+        let band1 = SCNTorus(ringRadius: 0.24, pipeRadius: 0.018)
+        band1.firstMaterial?.diffuse.contents = UIColor(red: 0.78, green: 0.12, blue: 0.08, alpha: 1)
+        band1.firstMaterial?.emission.contents = UIColor(red: 0.3, green: 0.05, blue: 0.02, alpha: 0.3)
+        let bandNode1 = SCNNode(geometry: band1)
+        bandNode1.position = SCNVector3(0, -0.12, 0)
+        root.addChildNode(bandNode1)
+
+        let band2 = SCNTorus(ringRadius: 0.22, pipeRadius: 0.012)
+        band2.firstMaterial?.diffuse.contents = UIColor(red: 0.70, green: 0.10, blue: 0.06, alpha: 1)
+        let bandNode2 = SCNNode(geometry: band2)
+        bandNode2.position = SCNVector3(0, 0.06, 0)
+        root.addChildNode(bandNode2)
+
+        // Wide tail shroud
+        let shroud = SCNCylinder(radius: 0.12, height: 0.12)
+        shroud.firstMaterial?.diffuse.contents = UIColor(red: 0.18, green: 0.18, blue: 0.18, alpha: 1)
+        let shroudNode = SCNNode(geometry: shroud)
+        shroudNode.position = SCNVector3(0, 0.36, 0)
+        root.addChildNode(shroudNode)
+
+        // Huge flared tail fins
+        for angle: Float in [0, .pi / 2, .pi, .pi * 1.5] {
+            let fin = SCNBox(width: 0.48, height: 0.025, length: 0.24, chamferRadius: 0.005)
+            fin.firstMaterial?.diffuse.contents = UIColor(red: 0.24, green: 0.24, blue: 0.22, alpha: 1)
+            let finNode = SCNNode(geometry: fin)
+            finNode.position = SCNVector3(cos(angle) * 0.05, 0.44, sin(angle) * 0.05)
+            finNode.eulerAngles.y = angle
+            finNode.eulerAngles.z = 0.18
+            root.addChildNode(finNode)
+        }
+
+        // Tail ring
+        let ring = SCNTorus(ringRadius: 0.13, pipeRadius: 0.015)
+        ring.firstMaterial?.diffuse.contents = UIColor(white: 0.28, alpha: 1)
+        let ringNode = SCNNode(geometry: ring)
+        ringNode.position = SCNVector3(0, 0.38, 0)
+        root.addChildNode(ringNode)
+
+        return root
+    }
+
+    /// Cluster bomblet — small stubby pear, olive green with yellow band and mini fins
+    private static func clusterBomb3D() -> SCNNode {
+        let root = SCNNode()
+        root.name = "bomb3D"
+
+        // Small pear body
+        let bulb = SCNSphere(radius: 0.10)
+        bulb.firstMaterial?.diffuse.contents = UIColor(red: 0.28, green: 0.34, blue: 0.18, alpha: 1)
+        bulb.firstMaterial?.specular.contents = UIColor(white: 0.3, alpha: 1)
+        let bulbNode = SCNNode(geometry: bulb)
+        bulbNode.position = SCNVector3(0, -0.04, 0)
+        root.addChildNode(bulbNode)
+
+        // Rear taper
+        let taper = SCNCapsule(capRadius: 0.06, height: 0.18)
+        taper.firstMaterial?.diffuse.contents = UIColor(red: 0.26, green: 0.30, blue: 0.16, alpha: 1)
+        let taperNode = SCNNode(geometry: taper)
+        taperNode.position = SCNVector3(0, 0.06, 0)
+        root.addChildNode(taperNode)
+
+        // Yellow identification band
+        let band = SCNTorus(ringRadius: 0.095, pipeRadius: 0.012)
+        band.firstMaterial?.diffuse.contents = UIColor(red: 0.92, green: 0.82, blue: 0.18, alpha: 1)
+        band.firstMaterial?.emission.contents = UIColor(red: 0.4, green: 0.35, blue: 0.05, alpha: 0.2)
+        let bandNode = SCNNode(geometry: band)
+        bandNode.position = SCNVector3(0, -0.04, 0)
+        root.addChildNode(bandNode)
+
+        // Small flared tail fins
+        for angle: Float in [0, .pi / 2, .pi, .pi * 1.5] {
+            let fin = SCNBox(width: 0.18, height: 0.012, length: 0.10, chamferRadius: 0.003)
+            fin.firstMaterial?.diffuse.contents = UIColor(red: 0.22, green: 0.26, blue: 0.14, alpha: 1)
+            let finNode = SCNNode(geometry: fin)
+            finNode.position = SCNVector3(cos(angle) * 0.02, 0.16, sin(angle) * 0.02)
+            finNode.eulerAngles.y = angle
+            finNode.eulerAngles.z = 0.12
+            root.addChildNode(finNode)
+        }
 
         return root
     }
@@ -414,6 +912,41 @@ enum ModelGenerator3D {
         node.eulerAngles.x = -.pi / 2 // lay flat
         node.name = "bombShadow"
         return node
+    }
+
+    // MARK: - Health Bar
+
+    static func healthBar(width: Float = 1.8) -> SCNNode {
+        let root = SCNNode()
+        root.name = "healthBar"
+
+        // Background (dark)
+        let bgPlane = SCNPlane(width: CGFloat(width), height: 0.2)
+        bgPlane.firstMaterial?.diffuse.contents = UIColor(white: 0.15, alpha: 0.8)
+        bgPlane.firstMaterial?.lightingModel = .constant
+        bgPlane.firstMaterial?.isDoubleSided = true
+        let bgNode = SCNNode(geometry: bgPlane)
+        bgNode.name = "healthBarBg"
+        root.addChildNode(bgNode)
+
+        // Fill (green)
+        let fillPlane = SCNPlane(width: CGFloat(width - 0.05), height: 0.14)
+        fillPlane.firstMaterial?.diffuse.contents = UIColor(red: 0.2, green: 0.8, blue: 0.2, alpha: 1)
+        fillPlane.firstMaterial?.lightingModel = .constant
+        fillPlane.firstMaterial?.isDoubleSided = true
+        let fillNode = SCNNode(geometry: fillPlane)
+        fillNode.name = "healthBarFill"
+        root.addChildNode(fillNode)
+
+        // Always face the camera
+        let billboard = SCNBillboardConstraint()
+        billboard.freeAxes = .all
+        root.constraints = [billboard]
+
+        // Hidden until first damage
+        root.isHidden = true
+
+        return root
     }
 
     // MARK: - Explosion
@@ -599,4 +1132,124 @@ enum ModelGenerator3D {
 
         return trees
     }
+
+    // MARK: - New Enemy Models (Mission)
+
+    static func truck() -> SCNNode {
+        let root = SCNNode()
+        root.name = "truck"
+
+        // Cab
+        let cab = SCNBox(width: 0.9, height: 0.5, length: 0.7, chamferRadius: 0.04)
+        cab.firstMaterial?.diffuse.contents = UIColor(red: 0.45, green: 0.42, blue: 0.35, alpha: 1)
+        let cabNode = SCNNode(geometry: cab)
+        cabNode.position = SCNVector3(0, 0.4, 0.4)
+        root.addChildNode(cabNode)
+
+        // Windshield
+        let windshield = SCNBox(width: 0.7, height: 0.25, length: 0.02, chamferRadius: 0.01)
+        windshield.firstMaterial?.diffuse.contents = UIColor(red: 0.5, green: 0.7, blue: 0.9, alpha: 0.8)
+        let wsNode = SCNNode(geometry: windshield)
+        wsNode.position = SCNVector3(0, 0.55, 0.75)
+        root.addChildNode(wsNode)
+
+        // Cargo bed
+        let bed = SCNBox(width: 1.0, height: 0.15, length: 1.4, chamferRadius: 0.02)
+        bed.firstMaterial?.diffuse.contents = UIColor(red: 0.42, green: 0.40, blue: 0.33, alpha: 1)
+        let bedNode = SCNNode(geometry: bed)
+        bedNode.position = SCNVector3(0, 0.22, -0.35)
+        root.addChildNode(bedNode)
+
+        // Cargo (covered tarp)
+        let cargo = SCNBox(width: 0.85, height: 0.45, length: 1.2, chamferRadius: 0.06)
+        cargo.firstMaterial?.diffuse.contents = UIColor(red: 0.38, green: 0.45, blue: 0.32, alpha: 1)
+        let cargoNode = SCNNode(geometry: cargo)
+        cargoNode.position = SCNVector3(0, 0.52, -0.35)
+        root.addChildNode(cargoNode)
+
+        // Wheels
+        for (x, z): (Float, Float) in [(-0.45, 0.35), (0.45, 0.35), (-0.45, -0.55), (0.45, -0.55)] {
+            let wheel = SCNCylinder(radius: 0.14, height: 0.1)
+            wheel.firstMaterial?.diffuse.contents = UIColor(red: 0.18, green: 0.18, blue: 0.18, alpha: 1)
+            let wheelNode = SCNNode(geometry: wheel)
+            wheelNode.eulerAngles.z = .pi / 2
+            wheelNode.position = SCNVector3(x, 0.1, z)
+            root.addChildNode(wheelNode)
+        }
+
+        return root
+    }
+
+    static func radioTower() -> SCNNode {
+        let root = SCNNode()
+        root.name = "radioTower"
+
+        // Main mast
+        let mast = SCNCylinder(radius: 0.06, height: 3.5)
+        mast.firstMaterial?.diffuse.contents = UIColor(red: 0.6, green: 0.6, blue: 0.58, alpha: 1)
+        let mastNode = SCNNode(geometry: mast)
+        mastNode.position = SCNVector3(0, 1.75, 0)
+        root.addChildNode(mastNode)
+
+        // Support struts (tripod legs)
+        for angle: Float in [0, 2.094, 4.189] { // 0, 2π/3, 4π/3
+            let strut = SCNCylinder(radius: 0.03, height: 2.0)
+            strut.firstMaterial?.diffuse.contents = UIColor(red: 0.5, green: 0.5, blue: 0.48, alpha: 1)
+            let strutNode = SCNNode(geometry: strut)
+            strutNode.position = SCNVector3(cos(angle) * 0.4, 0.8, sin(angle) * 0.4)
+            strutNode.eulerAngles = SCNVector3(sin(angle) * 0.3, 0, -cos(angle) * 0.3)
+            root.addChildNode(strutNode)
+        }
+
+        // Antenna dish
+        let dish = SCNCylinder(radius: 0.25, height: 0.05)
+        dish.firstMaterial?.diffuse.contents = UIColor(red: 0.7, green: 0.7, blue: 0.68, alpha: 1)
+        let dishNode = SCNNode(geometry: dish)
+        dishNode.position = SCNVector3(0, 3.2, 0)
+        root.addChildNode(dishNode)
+
+        // Top antenna spike
+        let spike = SCNCylinder(radius: 0.02, height: 0.6)
+        spike.firstMaterial?.diffuse.contents = UIColor(red: 0.8, green: 0.2, blue: 0.15, alpha: 1)
+        let spikeNode = SCNNode(geometry: spike)
+        spikeNode.position = SCNVector3(0, 3.55, 0)
+        root.addChildNode(spikeNode)
+
+        // Blinking light at top
+        let light = SCNSphere(radius: 0.05)
+        light.firstMaterial?.diffuse.contents = UIColor.red
+        light.firstMaterial?.emission.contents = UIColor(red: 1, green: 0, blue: 0, alpha: 1)
+        let lightNode = SCNNode(geometry: light)
+        lightNode.position = SCNVector3(0, 3.85, 0)
+        let blink = SCNAction.sequence([
+            .fadeOut(duration: 0.5),
+            .fadeIn(duration: 0.5),
+        ])
+        lightNode.runAction(.repeatForever(blink))
+        root.addChildNode(lightNode)
+
+        return root
+    }
+
+    static func rock(scale: Float = 1.0) -> SCNNode {
+        let root = SCNNode()
+        root.name = "rock"
+
+        // Irregular rock shape from deformed sphere
+        let rockGeo = SCNSphere(radius: CGFloat(0.5 * scale))
+        rockGeo.segmentCount = 8
+        rockGeo.firstMaterial?.diffuse.contents = UIColor(red: 0.48, green: 0.46, blue: 0.42, alpha: 1)
+        let rockNode = SCNNode(geometry: rockGeo)
+        rockNode.scale = SCNVector3(1.0, 0.6, 0.85)
+        rockNode.position = SCNVector3(0, 0.2 * scale, 0)
+        root.addChildNode(rockNode)
+
+        return root
+    }
+
+    // MARK: - Mission Terrain (TODO: re-enable when MissionData is ready)
+    /*
+    static func missionTerrainHeight(terrainData: TerrainData, x: Float, z: Float) -> Float { ... }
+    static func createMissionTerrainChunk(terrainData: TerrainData, zStartIndex: Int, zEndIndex: Int) -> SCNNode { ... }
+    */
 }

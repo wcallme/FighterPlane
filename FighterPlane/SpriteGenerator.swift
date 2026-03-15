@@ -144,19 +144,324 @@ enum SpriteGenerator {
 
     // MARK: - Projectiles
 
-    static func bomb() -> SKTexture {
-        renderTexture(size: CGSize(width: 10, height: 18)) { ctx in
-            ctx.setFillColor(rgb(0.15, 0.15, 0.15))
-            ctx.fillEllipse(in: CGRect(x: 0, y: 0, width: 10, height: 14))
+    // MARK: - Bomb Sprites (per-type)
 
-            // Fins
-            ctx.setFillColor(rgb(0.25, 0.25, 0.25))
-            let finPath = CGMutablePath()
-            finPath.move(to: CGPoint(x: 0, y: 12))
-            finPath.addLine(to: CGPoint(x: 5, y: 18))
-            finPath.addLine(to: CGPoint(x: 10, y: 12))
-            finPath.closeSubpath()
-            ctx.addPath(finPath)
+    static func bomb(weaponId: String = "bomb") -> SKTexture {
+        switch weaponId {
+        case "mining_bomb": return miningBombSprite()
+        case "heavy_bomb": return heavyBombSprite()
+        case "cluster_bomb": return clusterBombSprite()
+        default: return standardBombSprite()
+        }
+    }
+
+    /// Classic iron bomb — fat bulbous pear body, rounded nose, dramatic flared 3-blade tail
+    private static func standardBombSprite() -> SKTexture {
+        renderTexture(size: CGSize(width: 20, height: 32)) { ctx in
+            let cx: CGFloat = 10
+
+            // Bulbous pear-shaped body (fat front, tapers to rear)
+            ctx.setFillColor(rgb(0.18, 0.18, 0.18))
+            // Front bulge — wide
+            ctx.fillEllipse(in: CGRect(x: 2, y: 0, width: 16, height: 20))
+            // Rear taper — narrower ellipse overlaps
+            ctx.fillEllipse(in: CGRect(x: 4, y: 12, width: 12, height: 12))
+
+            // 3D body highlight — left-lit crescent
+            ctx.setFillColor(UIColor(white: 0.32, alpha: 0.45).cgColor)
+            ctx.fillEllipse(in: CGRect(x: 3, y: 1, width: 7, height: 16))
+
+            // Subtle dark shadow on right
+            ctx.setFillColor(UIColor(white: 0.08, alpha: 0.3).cgColor)
+            ctx.fillEllipse(in: CGRect(x: 12, y: 3, width: 5, height: 14))
+
+            // Rounded nose cap
+            ctx.setFillColor(rgb(0.28, 0.26, 0.24))
+            ctx.fillEllipse(in: CGRect(x: 5, y: 0, width: 10, height: 7))
+
+            // Fuze nub
+            ctx.setFillColor(UIColor(white: 0.42, alpha: 0.9).cgColor)
+            ctx.fillEllipse(in: CGRect(x: cx - 1.5, y: 0, width: 3, height: 3))
+
+            // Rivets along centerline
+            ctx.setFillColor(UIColor(white: 0.38, alpha: 0.5).cgColor)
+            for y: CGFloat in [6, 10, 14] {
+                ctx.fillEllipse(in: CGRect(x: cx - 1, y: y, width: 2, height: 2))
+            }
+
+            // Tail neck — narrow section before fins
+            ctx.setFillColor(rgb(0.20, 0.20, 0.20))
+            ctx.fill(CGRect(x: 6, y: 18, width: 8, height: 4))
+
+            // Tail fin assembly — 3 dramatic flared blades (like reference image)
+            // Left fin blade — thick, flared outward
+            ctx.setFillColor(rgb(0.25, 0.25, 0.23))
+            let lFin = CGMutablePath()
+            lFin.move(to: CGPoint(x: 6, y: 19))
+            lFin.addLine(to: CGPoint(x: 1, y: 29))
+            lFin.addLine(to: CGPoint(x: 0, y: 31))
+            lFin.addLine(to: CGPoint(x: 4, y: 28))
+            lFin.addLine(to: CGPoint(x: 7, y: 23))
+            lFin.closeSubpath()
+            ctx.addPath(lFin)
+            ctx.fillPath()
+
+            // Right fin blade
+            ctx.setFillColor(rgb(0.28, 0.28, 0.26))
+            let rFin = CGMutablePath()
+            rFin.move(to: CGPoint(x: 14, y: 19))
+            rFin.addLine(to: CGPoint(x: 19, y: 29))
+            rFin.addLine(to: CGPoint(x: 20, y: 31))
+            rFin.addLine(to: CGPoint(x: 16, y: 28))
+            rFin.addLine(to: CGPoint(x: 13, y: 23))
+            rFin.closeSubpath()
+            ctx.addPath(rFin)
+            ctx.fillPath()
+
+            // Center fin blade — taller, narrower
+            ctx.setFillColor(rgb(0.22, 0.22, 0.22))
+            let cFin = CGMutablePath()
+            cFin.move(to: CGPoint(x: cx - 2, y: 20))
+            cFin.addLine(to: CGPoint(x: cx - 1, y: 32))
+            cFin.addLine(to: CGPoint(x: cx + 1, y: 32))
+            cFin.addLine(to: CGPoint(x: cx + 2, y: 20))
+            cFin.closeSubpath()
+            ctx.addPath(cFin)
+            ctx.fillPath()
+
+            // Fin edge highlights
+            ctx.setStrokeColor(UIColor(white: 0.35, alpha: 0.4).cgColor)
+            ctx.setLineWidth(0.5)
+            ctx.move(to: CGPoint(x: 6, y: 19))
+            ctx.addLine(to: CGPoint(x: 0, y: 31))
+            ctx.strokePath()
+            ctx.move(to: CGPoint(x: 14, y: 19))
+            ctx.addLine(to: CGPoint(x: 20, y: 31))
+            ctx.strokePath()
+        }
+    }
+
+    /// Mining bomb — bronze drill-nose penetrator, pear body with angular tail blades
+    private static func miningBombSprite() -> SKTexture {
+        renderTexture(size: CGSize(width: 18, height: 34)) { ctx in
+            let cx: CGFloat = 9
+
+            // Drill tip — sharp pointed nose
+            ctx.setFillColor(rgb(0.70, 0.50, 0.15))
+            let tip = CGMutablePath()
+            tip.move(to: CGPoint(x: cx - 5, y: 8))
+            tip.addLine(to: CGPoint(x: cx, y: 0))
+            tip.addLine(to: CGPoint(x: cx + 5, y: 8))
+            tip.closeSubpath()
+            ctx.addPath(tip)
+            ctx.fillPath()
+
+            // Drill highlight
+            ctx.setFillColor(UIColor(red: 0.90, green: 0.70, blue: 0.30, alpha: 0.5).cgColor)
+            let tipHL = CGMutablePath()
+            tipHL.move(to: CGPoint(x: cx - 2, y: 7))
+            tipHL.addLine(to: CGPoint(x: cx, y: 1))
+            tipHL.addLine(to: CGPoint(x: cx + 1, y: 7))
+            tipHL.closeSubpath()
+            ctx.addPath(tipHL)
+            ctx.fillPath()
+
+            // Bulbous pear body — copper/bronze
+            ctx.setFillColor(rgb(0.55, 0.38, 0.12))
+            ctx.fillEllipse(in: CGRect(x: 1, y: 5, width: 16, height: 18))
+            ctx.fillEllipse(in: CGRect(x: 3, y: 16, width: 12, height: 8))
+
+            // 3D left highlight
+            ctx.setFillColor(UIColor(red: 0.75, green: 0.55, blue: 0.22, alpha: 0.4).cgColor)
+            ctx.fillEllipse(in: CGRect(x: 2, y: 6, width: 6, height: 14))
+
+            // Spiral grooves (drill threading)
+            ctx.setStrokeColor(UIColor(red: 0.38, green: 0.26, blue: 0.08, alpha: 0.6).cgColor)
+            ctx.setLineWidth(1.0)
+            for y in stride(from: CGFloat(9), to: 20, by: 3.5) {
+                ctx.move(to: CGPoint(x: 2, y: y))
+                ctx.addQuadCurve(to: CGPoint(x: 16, y: y + 2), control: CGPoint(x: 9, y: y - 2))
+                ctx.strokePath()
+            }
+
+            // Tail neck
+            ctx.setFillColor(rgb(0.38, 0.28, 0.10))
+            ctx.fill(CGRect(x: 5, y: 21, width: 8, height: 4))
+
+            // Angular tail blades — flared like reference
+            ctx.setFillColor(rgb(0.48, 0.35, 0.12))
+            // Left fin
+            let lFin = CGMutablePath()
+            lFin.move(to: CGPoint(x: 5, y: 22))
+            lFin.addLine(to: CGPoint(x: 0, y: 32))
+            lFin.addLine(to: CGPoint(x: 3, y: 30))
+            lFin.addLine(to: CGPoint(x: 6, y: 25))
+            lFin.closeSubpath()
+            ctx.addPath(lFin)
+            ctx.fillPath()
+            // Right fin
+            let rFin = CGMutablePath()
+            rFin.move(to: CGPoint(x: 13, y: 22))
+            rFin.addLine(to: CGPoint(x: 18, y: 32))
+            rFin.addLine(to: CGPoint(x: 15, y: 30))
+            rFin.addLine(to: CGPoint(x: 12, y: 25))
+            rFin.closeSubpath()
+            ctx.addPath(rFin)
+            ctx.fillPath()
+            // Center fin
+            ctx.setFillColor(rgb(0.42, 0.30, 0.10))
+            let cFin = CGMutablePath()
+            cFin.move(to: CGPoint(x: cx - 1.5, y: 23))
+            cFin.addLine(to: CGPoint(x: cx, y: 34))
+            cFin.addLine(to: CGPoint(x: cx + 1.5, y: 23))
+            cFin.closeSubpath()
+            ctx.addPath(cFin)
+            ctx.fillPath()
+        }
+    }
+
+    /// Heavy bomb — massive fat pear body, red warning bands, huge flared tail fins
+    private static func heavyBombSprite() -> SKTexture {
+        renderTexture(size: CGSize(width: 26, height: 40)) { ctx in
+            let cx: CGFloat = 13
+
+            // Massive pear-shaped body — very fat
+            ctx.setFillColor(rgb(0.16, 0.16, 0.16))
+            ctx.fillEllipse(in: CGRect(x: 1, y: 0, width: 24, height: 26))
+            ctx.fillEllipse(in: CGRect(x: 4, y: 18, width: 18, height: 10))
+
+            // 3D highlight crescent
+            ctx.setFillColor(UIColor(white: 0.28, alpha: 0.4).cgColor)
+            ctx.fillEllipse(in: CGRect(x: 3, y: 1, width: 10, height: 20))
+
+            // Dark shadow side
+            ctx.setFillColor(UIColor(white: 0.06, alpha: 0.3).cgColor)
+            ctx.fillEllipse(in: CGRect(x: 16, y: 4, width: 7, height: 16))
+
+            // Rounded nose cap
+            ctx.setFillColor(rgb(0.24, 0.22, 0.20))
+            ctx.fillEllipse(in: CGRect(x: 6, y: 0, width: 14, height: 10))
+
+            // Fuze nub
+            ctx.setFillColor(UIColor(white: 0.45, alpha: 0.9).cgColor)
+            ctx.fillEllipse(in: CGRect(x: cx - 2, y: 0, width: 4, height: 4))
+
+            // Red warning band — thick
+            ctx.setFillColor(UIColor(red: 0.78, green: 0.12, blue: 0.08, alpha: 0.85).cgColor)
+            ctx.fill(CGRect(x: 2, y: 8, width: 22, height: 3))
+
+            // Second red band
+            ctx.setFillColor(UIColor(red: 0.70, green: 0.10, blue: 0.06, alpha: 0.65).cgColor)
+            ctx.fill(CGRect(x: 4, y: 15, width: 18, height: 2))
+
+            // Tail neck — wide
+            ctx.setFillColor(rgb(0.18, 0.18, 0.18))
+            ctx.fill(CGRect(x: 7, y: 24, width: 12, height: 5))
+
+            // Massive flared tail fin assembly — 3 thick blades
+            // Left fin — big dramatic sweep
+            ctx.setFillColor(rgb(0.24, 0.24, 0.22))
+            let lFin = CGMutablePath()
+            lFin.move(to: CGPoint(x: 7, y: 25))
+            lFin.addLine(to: CGPoint(x: 0, y: 37))
+            lFin.addLine(to: CGPoint(x: 1, y: 39))
+            lFin.addLine(to: CGPoint(x: 5, y: 35))
+            lFin.addLine(to: CGPoint(x: 9, y: 28))
+            lFin.closeSubpath()
+            ctx.addPath(lFin)
+            ctx.fillPath()
+
+            // Right fin
+            ctx.setFillColor(rgb(0.27, 0.27, 0.25))
+            let rFin = CGMutablePath()
+            rFin.move(to: CGPoint(x: 19, y: 25))
+            rFin.addLine(to: CGPoint(x: 26, y: 37))
+            rFin.addLine(to: CGPoint(x: 25, y: 39))
+            rFin.addLine(to: CGPoint(x: 21, y: 35))
+            rFin.addLine(to: CGPoint(x: 17, y: 28))
+            rFin.closeSubpath()
+            ctx.addPath(rFin)
+            ctx.fillPath()
+
+            // Center fin — tall blade
+            ctx.setFillColor(rgb(0.20, 0.20, 0.20))
+            let cFin = CGMutablePath()
+            cFin.move(to: CGPoint(x: cx - 2.5, y: 26))
+            cFin.addLine(to: CGPoint(x: cx - 1, y: 40))
+            cFin.addLine(to: CGPoint(x: cx + 1, y: 40))
+            cFin.addLine(to: CGPoint(x: cx + 2.5, y: 26))
+            cFin.closeSubpath()
+            ctx.addPath(cFin)
+            ctx.fillPath()
+
+            // Fin edge highlights
+            ctx.setStrokeColor(UIColor(white: 0.32, alpha: 0.35).cgColor)
+            ctx.setLineWidth(0.8)
+            ctx.move(to: CGPoint(x: 7, y: 25))
+            ctx.addLine(to: CGPoint(x: 1, y: 39))
+            ctx.strokePath()
+            ctx.move(to: CGPoint(x: 19, y: 25))
+            ctx.addLine(to: CGPoint(x: 25, y: 39))
+            ctx.strokePath()
+
+            // Tail ring
+            ctx.setStrokeColor(UIColor(white: 0.30, alpha: 0.5).cgColor)
+            ctx.setLineWidth(1.5)
+            ctx.strokeEllipse(in: CGRect(x: 7, y: 27, width: 12, height: 4))
+        }
+    }
+
+    /// Cluster bomblet — small stubby pear with flared mini-fins, olive with yellow band
+    private static func clusterBombSprite() -> SKTexture {
+        renderTexture(size: CGSize(width: 14, height: 22)) { ctx in
+            let cx: CGFloat = 7
+
+            // Small stubby pear body — olive green
+            ctx.setFillColor(rgb(0.28, 0.34, 0.18))
+            ctx.fillEllipse(in: CGRect(x: 1, y: 0, width: 12, height: 14))
+            ctx.fillEllipse(in: CGRect(x: 3, y: 10, width: 8, height: 5))
+
+            // 3D highlight
+            ctx.setFillColor(UIColor(red: 0.38, green: 0.46, blue: 0.26, alpha: 0.4).cgColor)
+            ctx.fillEllipse(in: CGRect(x: 2, y: 1, width: 5, height: 10))
+
+            // Yellow identification band
+            ctx.setFillColor(UIColor(red: 0.92, green: 0.82, blue: 0.18, alpha: 0.85).cgColor)
+            ctx.fill(CGRect(x: 2, y: 5, width: 10, height: 2))
+
+            // Tail neck
+            ctx.setFillColor(rgb(0.24, 0.28, 0.16))
+            ctx.fill(CGRect(x: 4, y: 13, width: 6, height: 3))
+
+            // Flared mini tail fins — proportionally dramatic like reference
+            ctx.setFillColor(rgb(0.22, 0.26, 0.14))
+            // Left fin
+            let lFin = CGMutablePath()
+            lFin.move(to: CGPoint(x: 4, y: 14))
+            lFin.addLine(to: CGPoint(x: 0, y: 20))
+            lFin.addLine(to: CGPoint(x: 1, y: 21))
+            lFin.addLine(to: CGPoint(x: 5, y: 17))
+            lFin.closeSubpath()
+            ctx.addPath(lFin)
+            ctx.fillPath()
+            // Right fin
+            ctx.setFillColor(rgb(0.26, 0.30, 0.16))
+            let rFin = CGMutablePath()
+            rFin.move(to: CGPoint(x: 10, y: 14))
+            rFin.addLine(to: CGPoint(x: 14, y: 20))
+            rFin.addLine(to: CGPoint(x: 13, y: 21))
+            rFin.addLine(to: CGPoint(x: 9, y: 17))
+            rFin.closeSubpath()
+            ctx.addPath(rFin)
+            ctx.fillPath()
+            // Center fin
+            ctx.setFillColor(rgb(0.20, 0.24, 0.12))
+            let cFin = CGMutablePath()
+            cFin.move(to: CGPoint(x: cx - 1, y: 15))
+            cFin.addLine(to: CGPoint(x: cx, y: 22))
+            cFin.addLine(to: CGPoint(x: cx + 1, y: 15))
+            cFin.closeSubpath()
+            ctx.addPath(cFin)
             ctx.fillPath()
         }
     }
@@ -168,10 +473,86 @@ enum SpriteGenerator {
         }
     }
 
-    static func bullet() -> SKTexture {
-        renderTexture(size: CGSize(width: 2, height: 20)) { ctx in
-            ctx.setFillColor(UIColor.black.cgColor)
-            ctx.fill(CGRect(x: 0, y: 0, width: 2, height: 20))
+    static func bullet(weaponId: String = "basic_gun") -> SKTexture {
+        switch weaponId {
+        case "cannon": return cannonBulletSprite()
+        case "machine_gun": return machineGunBulletSprite()
+        case "autocannon": return autocannonBulletSprite()
+        default: return basicBulletSprite()
+        }
+    }
+
+    /// Basic gun — dark tracer, slightly thicker than original
+    private static func basicBulletSprite() -> SKTexture {
+        renderTexture(size: CGSize(width: 4, height: 22)) { ctx in
+            // Dark core
+            ctx.setFillColor(rgb(0.10, 0.10, 0.10))
+            ctx.fill(CGRect(x: 1, y: 0, width: 2, height: 22))
+            // Slight metallic edge highlights
+            ctx.setFillColor(UIColor(white: 0.35, alpha: 0.4).cgColor)
+            ctx.fill(CGRect(x: 0, y: 0, width: 1, height: 22))
+            ctx.fill(CGRect(x: 3, y: 0, width: 1, height: 22))
+            // Bright tip
+            ctx.setFillColor(UIColor(white: 0.8, alpha: 0.6).cgColor)
+            ctx.fillEllipse(in: CGRect(x: 0, y: 0, width: 4, height: 4))
+        }
+    }
+
+    /// Cannon — thick, heavy slug with orange muzzle flash glow
+    private static func cannonBulletSprite() -> SKTexture {
+        renderTexture(size: CGSize(width: 6, height: 24)) { ctx in
+            // Outer glow
+            ctx.setFillColor(UIColor(red: 1.0, green: 0.7, blue: 0.2, alpha: 0.25).cgColor)
+            ctx.fill(CGRect(x: 0, y: 0, width: 6, height: 24))
+            // Dark core
+            ctx.setFillColor(rgb(0.12, 0.12, 0.12))
+            ctx.fill(CGRect(x: 1, y: 1, width: 4, height: 22))
+            // Metallic highlight
+            ctx.setFillColor(UIColor(white: 0.4, alpha: 0.5).cgColor)
+            ctx.fill(CGRect(x: 1, y: 1, width: 2, height: 22))
+            // Hot tip
+            ctx.setFillColor(UIColor(red: 1.0, green: 0.8, blue: 0.3, alpha: 0.7).cgColor)
+            ctx.fillEllipse(in: CGRect(x: 0, y: 0, width: 6, height: 6))
+        }
+    }
+
+    /// Machine gun — medium tracer with golden-amber glow trail
+    private static func machineGunBulletSprite() -> SKTexture {
+        renderTexture(size: CGSize(width: 10, height: 24)) { ctx in
+            // Golden glow halo
+            ctx.setFillColor(UIColor(red: 1.0, green: 0.85, blue: 0.3, alpha: 0.25).cgColor)
+            ctx.fill(CGRect(x: 0, y: 0, width: 10, height: 24))
+            // Amber tracer core
+            ctx.setFillColor(UIColor(red: 0.85, green: 0.65, blue: 0.1, alpha: 0.9).cgColor)
+            ctx.fill(CGRect(x: 2, y: 0, width: 6, height: 24))
+            // Bright center line
+            ctx.setFillColor(UIColor(red: 1.0, green: 0.95, blue: 0.6, alpha: 0.8).cgColor)
+            ctx.fill(CGRect(x: 4, y: 0, width: 2, height: 24))
+            // Hot leading edge
+            ctx.setFillColor(UIColor(red: 1.0, green: 1.0, blue: 0.8, alpha: 0.9).cgColor)
+            ctx.fillEllipse(in: CGRect(x: 2, y: 0, width: 6, height: 6))
+        }
+    }
+
+    /// Autocannon — twin heavy golden tracers, bright and aggressive
+    private static func autocannonBulletSprite() -> SKTexture {
+        renderTexture(size: CGSize(width: 6, height: 22)) { ctx in
+            // Wide golden glow
+            ctx.setFillColor(UIColor(red: 1.0, green: 0.8, blue: 0.15, alpha: 0.3).cgColor)
+            ctx.fill(CGRect(x: 0, y: 0, width: 6, height: 22))
+            // Dark steel core
+            ctx.setFillColor(rgb(0.15, 0.15, 0.12))
+            ctx.fill(CGRect(x: 1, y: 0, width: 4, height: 22))
+            // Golden hot edges
+            ctx.setFillColor(UIColor(red: 1.0, green: 0.75, blue: 0.1, alpha: 0.7).cgColor)
+            ctx.fill(CGRect(x: 0, y: 0, width: 1, height: 22))
+            ctx.fill(CGRect(x: 5, y: 0, width: 1, height: 22))
+            // Bright golden center
+            ctx.setFillColor(UIColor(red: 1.0, green: 0.9, blue: 0.4, alpha: 0.6).cgColor)
+            ctx.fill(CGRect(x: 2, y: 0, width: 2, height: 22))
+            // Incandescent tip
+            ctx.setFillColor(UIColor(red: 1.0, green: 1.0, blue: 0.7, alpha: 0.95).cgColor)
+            ctx.fillEllipse(in: CGRect(x: 0, y: 0, width: 6, height: 6))
         }
     }
 
@@ -362,41 +743,92 @@ enum SpriteGenerator {
             ctx.fill(CGRect(x: cx - 12, y: cy + 6, width: 6, height: 8))
 
         case "bomb":
-            // Classic bomb shape
-            ctx.fillEllipse(in: CGRect(x: cx - 10, y: cy - 10, width: 20, height: 28))
-            let finPath = CGMutablePath()
-            finPath.move(to: CGPoint(x: cx - 10, y: cy + 14))
-            finPath.addLine(to: CGPoint(x: cx, y: cy + 22))
-            finPath.addLine(to: CGPoint(x: cx + 10, y: cy + 14))
-            finPath.closeSubpath()
-            ctx.addPath(finPath)
-            ctx.fillPath()
+            // Classic pear bomb with flared tail fins
+            ctx.fillEllipse(in: CGRect(x: cx - 10, y: cy - 14, width: 20, height: 22))
+            ctx.fillEllipse(in: CGRect(x: cx - 7, y: cy + 4, width: 14, height: 6))
+            // Flared tail fins
+            let bFinL = CGMutablePath()
+            bFinL.move(to: CGPoint(x: cx - 6, y: cy + 6))
+            bFinL.addLine(to: CGPoint(x: cx - 12, y: cy + 18))
+            bFinL.addLine(to: CGPoint(x: cx - 4, y: cy + 12))
+            bFinL.closeSubpath()
+            ctx.addPath(bFinL); ctx.fillPath()
+            let bFinR = CGMutablePath()
+            bFinR.move(to: CGPoint(x: cx + 6, y: cy + 6))
+            bFinR.addLine(to: CGPoint(x: cx + 12, y: cy + 18))
+            bFinR.addLine(to: CGPoint(x: cx + 4, y: cy + 12))
+            bFinR.closeSubpath()
+            ctx.addPath(bFinR); ctx.fillPath()
+            let bFinC = CGMutablePath()
+            bFinC.move(to: CGPoint(x: cx - 1.5, y: cy + 8))
+            bFinC.addLine(to: CGPoint(x: cx, y: cy + 20))
+            bFinC.addLine(to: CGPoint(x: cx + 1.5, y: cy + 8))
+            bFinC.closeSubpath()
+            ctx.addPath(bFinC); ctx.fillPath()
 
         case "mining_bomb":
-            // Drill-tipped bomb
-            ctx.fillEllipse(in: CGRect(x: cx - 9, y: cy - 6, width: 18, height: 22))
-            let tip = CGMutablePath()
-            tip.move(to: CGPoint(x: cx - 6, y: cy - 6))
-            tip.addLine(to: CGPoint(x: cx, y: cy - 16))
-            tip.addLine(to: CGPoint(x: cx + 6, y: cy - 6))
-            tip.closeSubpath()
-            ctx.addPath(tip)
-            ctx.fillPath()
+            // Drill-tipped pear bomb
+            let mTip = CGMutablePath()
+            mTip.move(to: CGPoint(x: cx - 6, y: cy - 8))
+            mTip.addLine(to: CGPoint(x: cx, y: cy - 18))
+            mTip.addLine(to: CGPoint(x: cx + 6, y: cy - 8))
+            mTip.closeSubpath()
+            ctx.addPath(mTip); ctx.fillPath()
+            ctx.fillEllipse(in: CGRect(x: cx - 9, y: cy - 10, width: 18, height: 20))
+            ctx.fillEllipse(in: CGRect(x: cx - 6, y: cy + 6, width: 12, height: 5))
             ctx.setFillColor(UIColor(red: 0.7, green: 0.5, blue: 0.1, alpha: 0.8).cgColor)
-            ctx.fill(CGRect(x: cx - 3, y: cy + 12, width: 6, height: 8))
+            // Tail fins
+            let mFinL = CGMutablePath()
+            mFinL.move(to: CGPoint(x: cx - 5, y: cy + 8))
+            mFinL.addLine(to: CGPoint(x: cx - 10, y: cy + 17))
+            mFinL.addLine(to: CGPoint(x: cx - 3, y: cy + 12))
+            mFinL.closeSubpath()
+            ctx.addPath(mFinL); ctx.fillPath()
+            let mFinR = CGMutablePath()
+            mFinR.move(to: CGPoint(x: cx + 5, y: cy + 8))
+            mFinR.addLine(to: CGPoint(x: cx + 10, y: cy + 17))
+            mFinR.addLine(to: CGPoint(x: cx + 3, y: cy + 12))
+            mFinR.closeSubpath()
+            ctx.addPath(mFinR); ctx.fillPath()
 
         case "heavy_bomb":
-            // Fat bomb
-            ctx.fillEllipse(in: CGRect(x: cx - 14, y: cy - 12, width: 28, height: 32))
-            ctx.fill(CGRect(x: cx - 8, y: cy + 16, width: 16, height: 6))
-            ctx.setFillColor(UIColor(red: 0.8, green: 0.2, blue: 0.1, alpha: 0.6).cgColor)
-            ctx.fill(CGRect(x: cx - 4, y: cy - 14, width: 8, height: 4))
+            // Fat pear bomb with red band and huge fins
+            ctx.fillEllipse(in: CGRect(x: cx - 14, y: cy - 14, width: 28, height: 24))
+            ctx.fillEllipse(in: CGRect(x: cx - 9, y: cy + 6, width: 18, height: 6))
+            ctx.setFillColor(UIColor(red: 0.8, green: 0.15, blue: 0.1, alpha: 0.7).cgColor)
+            ctx.fill(CGRect(x: cx - 12, y: cy - 8, width: 24, height: 3))
+            ctx.setFillColor(UIColor(white: 0.15, alpha: 0.9).cgColor)
+            // Huge flared fins
+            let hFinL = CGMutablePath()
+            hFinL.move(to: CGPoint(x: cx - 8, y: cy + 8))
+            hFinL.addLine(to: CGPoint(x: cx - 15, y: cy + 20))
+            hFinL.addLine(to: CGPoint(x: cx - 5, y: cy + 14))
+            hFinL.closeSubpath()
+            ctx.addPath(hFinL); ctx.fillPath()
+            let hFinR = CGMutablePath()
+            hFinR.move(to: CGPoint(x: cx + 8, y: cy + 8))
+            hFinR.addLine(to: CGPoint(x: cx + 15, y: cy + 20))
+            hFinR.addLine(to: CGPoint(x: cx + 5, y: cy + 14))
+            hFinR.closeSubpath()
+            ctx.addPath(hFinR); ctx.fillPath()
+            let hFinC = CGMutablePath()
+            hFinC.move(to: CGPoint(x: cx - 2, y: cy + 10))
+            hFinC.addLine(to: CGPoint(x: cx, y: cy + 22))
+            hFinC.addLine(to: CGPoint(x: cx + 2, y: cy + 10))
+            hFinC.closeSubpath()
+            ctx.addPath(hFinC); ctx.fillPath()
 
         case "cluster_bomb":
-            // Multiple small bombs
+            // Multiple small pear bombs with tiny fins
             let offsets: [(CGFloat, CGFloat)] = [(-10, -8), (0, -12), (10, -8), (-6, 4), (6, 4)]
             for (ox, oy) in offsets {
-                ctx.fillEllipse(in: CGRect(x: cx + ox - 5, y: cy + oy - 5, width: 10, height: 14))
+                ctx.fillEllipse(in: CGRect(x: cx + ox - 5, y: cy + oy - 6, width: 10, height: 12))
+                let miniF = CGMutablePath()
+                miniF.move(to: CGPoint(x: cx + ox - 3, y: cy + oy + 4))
+                miniF.addLine(to: CGPoint(x: cx + ox, y: cy + oy + 9))
+                miniF.addLine(to: CGPoint(x: cx + ox + 3, y: cy + oy + 4))
+                miniF.closeSubpath()
+                ctx.addPath(miniF); ctx.fillPath()
             }
 
         case "decoy_flare":
