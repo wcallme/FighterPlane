@@ -770,45 +770,51 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         let speedMult = Float(PlayerData.shared.speedMultiplier)
         let baseSpeed = playerSpeed * speedMult * 5.0 / 60.0
 
-        // Fire all equipped guns simultaneously
+        // Fire equipped guns with 0.1s stagger between each gun
         for (gunIndex, gun) in equippedGuns.enumerated() {
-            let bulletCount = gun.bulletCount
-            let spread = gun.bulletSpread
-            let speed = Float(gun.projectileSpeed) / 60.0 * speedMult
+            let delay = Double(gunIndex) * 0.1
 
-            // Slight X offset per gun to simulate multiple barrel positions
-            let gunSpacing: Float = equippedGuns.count > 1 ? 0.8 : 0
-            let xOffset = (Float(gunIndex) - Float(equippedGuns.count - 1) / 2.0) * gunSpacing
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                guard let self = self else { return }
 
-            for i in 0..<bulletCount {
-                let bullet = ModelGenerator3D.playerBullet(weaponId: gun.id)
+                let bulletCount = gun.bulletCount
+                let spread = gun.bulletSpread
+                let speed = Float(gun.projectileSpeed) / 60.0 * speedMult
 
-                let spawnOffset: Float = 1.5
-                bullet.position = SCNVector3(
-                    xOffset,
-                    playerY + sin(playerAngle) * spawnOffset,
-                    playerZ + cos(playerAngle) * spawnOffset
-                )
+                // Slight X offset per gun to simulate multiple barrel positions
+                let gunSpacing: Float = self.equippedGuns.count > 1 ? 0.8 : 0
+                let xOffset = (Float(gunIndex) - Float(self.equippedGuns.count - 1) / 2.0) * gunSpacing
 
-                var angle = playerAngle
-                if bulletCount > 1 {
-                    let offset = Float(i) - Float(bulletCount - 1) / 2.0
-                    angle += offset * Float(spread)
-                } else if spread > 0 {
-                    angle += Float.random(in: -Float(spread)...Float(spread))
+                for i in 0..<bulletCount {
+                    let bullet = ModelGenerator3D.playerBullet(weaponId: gun.id)
+
+                    let spawnOffset: Float = 1.5
+                    bullet.position = SCNVector3(
+                        xOffset,
+                        self.playerY + sin(self.playerAngle) * spawnOffset,
+                        self.playerZ + cos(self.playerAngle) * spawnOffset
+                    )
+
+                    var angle = self.playerAngle
+                    if bulletCount > 1 {
+                        let offset = Float(i) - Float(bulletCount - 1) / 2.0
+                        angle += offset * Float(spread)
+                    } else if spread > 0 {
+                        angle += Float.random(in: -Float(spread)...Float(spread))
+                    }
+
+                    let vz = cos(angle) * speed
+                    let vy = sin(angle) * speed
+
+                    bullet.eulerAngles.x = (.pi / 2) - angle
+
+                    self.scene.rootNode.addChildNode(bullet)
+                    self.playerBullets.append(Bullet3D(
+                        node: bullet,
+                        velocity: SCNVector3(0, vy, vz),
+                        damage: gun.damage
+                    ))
                 }
-
-                let vz = cos(angle) * speed
-                let vy = sin(angle) * speed
-
-                bullet.eulerAngles.x = (.pi / 2) - angle
-
-                scene.rootNode.addChildNode(bullet)
-                playerBullets.append(Bullet3D(
-                    node: bullet,
-                    velocity: SCNVector3(0, vy, vz),
-                    damage: gun.damage
-                ))
             }
         }
 
