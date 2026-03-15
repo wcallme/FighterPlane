@@ -926,9 +926,7 @@ class Editor {
 
     placeTree(ix, iz) {
         const h = this.map.getHeight(ix, iz);
-        const minH = this.map.terrainType === 'desert' ? 0.3 : 1.2;
-        const maxH = this.map.terrainType === 'desert' ? 5.0 : 7.0;
-        if (h < minH || h > maxH) return;
+        if (h <= this.map.waterLevel) return;
         const wx = this.map.worldX(ix);
         const wz = this.map.worldZ(iz);
         // Don't place too close to existing tree
