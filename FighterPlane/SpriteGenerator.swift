@@ -518,19 +518,19 @@ enum SpriteGenerator {
 
     /// Machine gun — medium tracer with golden-amber glow trail
     private static func machineGunBulletSprite() -> SKTexture {
-        renderTexture(size: CGSize(width: 10, height: 24)) { ctx in
+        renderTexture(size: CGSize(width: 14, height: 26)) { ctx in
             // Golden glow halo
             ctx.setFillColor(UIColor(red: 1.0, green: 0.85, blue: 0.3, alpha: 0.25).cgColor)
-            ctx.fill(CGRect(x: 0, y: 0, width: 10, height: 24))
+            ctx.fill(CGRect(x: 0, y: 0, width: 14, height: 26))
             // Amber tracer core
             ctx.setFillColor(UIColor(red: 0.85, green: 0.65, blue: 0.1, alpha: 0.9).cgColor)
-            ctx.fill(CGRect(x: 2, y: 0, width: 6, height: 24))
+            ctx.fill(CGRect(x: 3, y: 0, width: 8, height: 26))
             // Bright center line
             ctx.setFillColor(UIColor(red: 1.0, green: 0.95, blue: 0.6, alpha: 0.8).cgColor)
-            ctx.fill(CGRect(x: 4, y: 0, width: 2, height: 24))
+            ctx.fill(CGRect(x: 5, y: 0, width: 4, height: 26))
             // Hot leading edge
             ctx.setFillColor(UIColor(red: 1.0, green: 1.0, blue: 0.8, alpha: 0.9).cgColor)
-            ctx.fillEllipse(in: CGRect(x: 2, y: 0, width: 6, height: 6))
+            ctx.fillEllipse(in: CGRect(x: 3, y: 0, width: 8, height: 8))
         }
     }
 

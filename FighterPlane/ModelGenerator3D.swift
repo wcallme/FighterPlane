@@ -591,7 +591,7 @@ enum ModelGenerator3D {
         root.name = "playerBullet"
 
         // Amber tracer core
-        let stick = SCNCylinder(radius: 0.07, height: 2.4)
+        let stick = SCNCylinder(radius: 0.09, height: 2.4)
         stick.firstMaterial?.diffuse.contents = UIColor(red: 0.85, green: 0.65, blue: 0.1, alpha: 1)
         stick.firstMaterial?.emission.contents = UIColor(red: 0.6, green: 0.45, blue: 0.05, alpha: 0.5)
         stick.firstMaterial?.lightingModel = .constant
@@ -599,7 +599,7 @@ enum ModelGenerator3D {
         root.addChildNode(stickNode)
 
         // Golden glow envelope
-        let glow = SCNCylinder(radius: 0.12, height: 2.4)
+        let glow = SCNCylinder(radius: 0.15, height: 2.4)
         glow.firstMaterial?.diffuse.contents = UIColor(red: 1.0, green: 0.85, blue: 0.3, alpha: 0.15)
         glow.firstMaterial?.emission.contents = UIColor(red: 0.8, green: 0.65, blue: 0.1, alpha: 0.1)
         glow.firstMaterial?.lightingModel = .constant
