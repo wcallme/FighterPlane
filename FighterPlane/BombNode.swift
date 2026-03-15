@@ -111,7 +111,7 @@ class BombNode: SKNode {
         emitter.emissionAngleRange = .pi / 4
         emitter.particleScaleSpeed = -0.5
         emitter.zPosition = ZLayer.bombs.rawValue - 0.1
-        emitter.targetNode = self
+        emitter.targetNode = self.scene ?? self
         bombSprite.addChild(emitter)
         trailEmitter = emitter
     }
@@ -208,6 +208,7 @@ class BombNode: SKNode {
             y: position.y + shadowSprite.position.y
         )
         onImpact?(worldPos)
+        onImpact = nil
 
         run(.sequence([
             .wait(forDuration: 0.1),
