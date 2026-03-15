@@ -779,7 +779,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
                 let bulletCount = gun.bulletCount
                 let spread = gun.bulletSpread
-                let speed = Float(gun.projectileSpeed) / 60.0 * speedMult * 0.75
+                let speed = Float(gun.projectileSpeed) / 60.0 * speedMult * 0.60
 
                 // Slight X offset per gun to simulate multiple barrel positions
                 let gunSpacing: Float = self.equippedGuns.count > 1 ? 0.8 : 0
@@ -802,6 +802,9 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                     } else if spread > 0 {
                         angle += Float.random(in: -Float(spread)...Float(spread))
                     }
+                    // Slight random jitter (1-3 degrees) so bullets don't follow identical paths
+                    let jitterDeg = Float.random(in: -3.0...3.0)
+                    angle += jitterDeg * .pi / 180.0
 
                     let vz = cos(angle) * speed
                     let vy = sin(angle) * speed
