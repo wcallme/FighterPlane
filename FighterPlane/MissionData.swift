@@ -66,17 +66,21 @@ struct MissionObjective: Codable {
 
 enum MissionLoader {
     static func load(from filename: String) -> MissionData? {
-        guard let url = Bundle.main.url(forResource: filename, withExtension: "json"),
-              let data = try? Data(contentsOf: url) else { return nil }
+        // Try Missions subdirectory first, then root bundle
+        let url = Bundle.main.url(forResource: filename, withExtension: "json", subdirectory: "Missions")
+            ?? Bundle.main.url(forResource: filename, withExtension: "json")
+        guard let url, let data = try? Data(contentsOf: url) else { return nil }
         return try? JSONDecoder().decode(MissionData.self, from: data)
     }
 
     /// Load all missions from bundle, sorted by filename (mission1, mission2, ...)
     static func loadAll() -> [MissionData] {
-        guard let urls = Bundle.main.urls(forResourcesWithExtension: "json", subdirectory: nil) else { return [] }
-        // Filter to mission files only, sort by name for level ordering
-        let missionURLs = urls
-            .filter { $0.lastPathComponent.hasPrefix("mission") }
+        // Search both Missions subdirectory and root bundle
+        let subdirURLs = Bundle.main.urls(forResourcesWithExtension: "json", subdirectory: "Missions") ?? []
+        let rootURLs = Bundle.main.urls(forResourcesWithExtension: "json", subdirectory: nil) ?? []
+        let allURLs = subdirURLs + rootURLs
+        // Filter to mission files only, deduplicate, sort by name for level ordering
+        let missionURLs = Array(Set(allURLs.filter { $0.lastPathComponent.hasPrefix("mission") }))
             .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
         return missionURLs.compactMap { url in
             guard let data = try? Data(contentsOf: url) else { return nil }
