@@ -499,82 +499,82 @@ enum SpriteGenerator {
 
     /// Basic gun — dark tracer, slightly thicker than original
     private static func basicBulletSprite() -> SKTexture {
-        renderTexture(size: CGSize(width: 4, height: 22)) { ctx in
+        renderTexture(size: CGSize(width: 6, height: 22)) { ctx in
             // Dark core
             ctx.setFillColor(rgb(0.10, 0.10, 0.10))
-            ctx.fill(CGRect(x: 1, y: 0, width: 2, height: 22))
+            ctx.fill(CGRect(x: 1, y: 0, width: 4, height: 22))
             // Slight metallic edge highlights
             ctx.setFillColor(UIColor(white: 0.35, alpha: 0.4).cgColor)
             ctx.fill(CGRect(x: 0, y: 0, width: 1, height: 22))
-            ctx.fill(CGRect(x: 3, y: 0, width: 1, height: 22))
+            ctx.fill(CGRect(x: 5, y: 0, width: 1, height: 22))
             // Dark metallic tip
             ctx.setFillColor(UIColor(red: 0.2, green: 0.2, blue: 0.2, alpha: 0.8).cgColor)
-            ctx.fillEllipse(in: CGRect(x: 0, y: 0, width: 4, height: 4))
+            ctx.fillEllipse(in: CGRect(x: 0, y: 0, width: 6, height: 6))
         }
     }
 
     /// Heavy Cannon — big dark yellow slug
     private static func cannonBulletSprite() -> SKTexture {
-        renderTexture(size: CGSize(width: 10, height: 30)) { ctx in
+        renderTexture(size: CGSize(width: 14, height: 30)) { ctx in
             // Dark yellow outer glow
             ctx.setFillColor(UIColor(red: 0.8, green: 0.65, blue: 0.05, alpha: 0.3).cgColor)
-            ctx.fill(CGRect(x: 0, y: 0, width: 10, height: 30))
+            ctx.fill(CGRect(x: 0, y: 0, width: 14, height: 30))
             // Dark yellow core
             ctx.setFillColor(UIColor(red: 0.7, green: 0.55, blue: 0.0, alpha: 0.95).cgColor)
-            ctx.fill(CGRect(x: 2, y: 1, width: 6, height: 28))
+            ctx.fill(CGRect(x: 3, y: 1, width: 8, height: 28))
             // Darker center line
             ctx.setFillColor(UIColor(red: 0.5, green: 0.4, blue: 0.0, alpha: 0.6).cgColor)
-            ctx.fill(CGRect(x: 3, y: 1, width: 4, height: 28))
+            ctx.fill(CGRect(x: 4, y: 1, width: 6, height: 28))
             // Dark golden tip
             ctx.setFillColor(UIColor(red: 0.85, green: 0.7, blue: 0.05, alpha: 0.9).cgColor)
-            ctx.fillEllipse(in: CGRect(x: 1, y: 0, width: 8, height: 8))
+            ctx.fillEllipse(in: CGRect(x: 1, y: 0, width: 12, height: 10))
         }
     }
 
     /// Machine gun — medium tracer with golden-amber glow trail
     private static func machineGunBulletSprite() -> SKTexture {
-        renderTexture(size: CGSize(width: 14, height: 26)) { ctx in
+        renderTexture(size: CGSize(width: 20, height: 26)) { ctx in
             // Golden glow halo
             ctx.setFillColor(UIColor(red: 1.0, green: 0.85, blue: 0.3, alpha: 0.25).cgColor)
-            ctx.fill(CGRect(x: 0, y: 0, width: 14, height: 26))
+            ctx.fill(CGRect(x: 0, y: 0, width: 20, height: 26))
             // Amber tracer core
             ctx.setFillColor(UIColor(red: 0.85, green: 0.65, blue: 0.1, alpha: 0.9).cgColor)
-            ctx.fill(CGRect(x: 3, y: 0, width: 8, height: 26))
+            ctx.fill(CGRect(x: 4, y: 0, width: 12, height: 26))
             // Bright center line
             ctx.setFillColor(UIColor(red: 1.0, green: 0.95, blue: 0.6, alpha: 0.8).cgColor)
-            ctx.fill(CGRect(x: 5, y: 0, width: 4, height: 26))
+            ctx.fill(CGRect(x: 7, y: 0, width: 6, height: 26))
             // Hot leading edge
             ctx.setFillColor(UIColor(red: 1.0, green: 0.85, blue: 0.2, alpha: 0.9).cgColor)
-            ctx.fillEllipse(in: CGRect(x: 3, y: 0, width: 8, height: 8))
+            ctx.fillEllipse(in: CGRect(x: 4, y: 0, width: 12, height: 10))
         }
     }
 
     /// Autocannon — twin heavy golden tracers, bright and aggressive
     private static func autocannonBulletSprite() -> SKTexture {
-        renderTexture(size: CGSize(width: 6, height: 22)) { ctx in
+        renderTexture(size: CGSize(width: 9, height: 22)) { ctx in
             // Wide golden glow
             ctx.setFillColor(UIColor(red: 1.0, green: 0.8, blue: 0.15, alpha: 0.3).cgColor)
-            ctx.fill(CGRect(x: 0, y: 0, width: 6, height: 22))
+            ctx.fill(CGRect(x: 0, y: 0, width: 9, height: 22))
             // Dark steel core
             ctx.setFillColor(rgb(0.15, 0.15, 0.12))
-            ctx.fill(CGRect(x: 1, y: 0, width: 4, height: 22))
+            ctx.fill(CGRect(x: 1, y: 0, width: 7, height: 22))
             // Golden hot edges
             ctx.setFillColor(UIColor(red: 1.0, green: 0.75, blue: 0.1, alpha: 0.7).cgColor)
             ctx.fill(CGRect(x: 0, y: 0, width: 1, height: 22))
-            ctx.fill(CGRect(x: 5, y: 0, width: 1, height: 22))
+            ctx.fill(CGRect(x: 8, y: 0, width: 1, height: 22))
             // Bright golden center
             ctx.setFillColor(UIColor(red: 1.0, green: 0.9, blue: 0.4, alpha: 0.6).cgColor)
-            ctx.fill(CGRect(x: 2, y: 0, width: 2, height: 22))
+            ctx.fill(CGRect(x: 3, y: 0, width: 3, height: 22))
             // Golden tip
             ctx.setFillColor(UIColor(red: 1.0, green: 0.8, blue: 0.1, alpha: 0.95).cgColor)
-            ctx.fillEllipse(in: CGRect(x: 0, y: 0, width: 6, height: 6))
+            ctx.fillEllipse(in: CGRect(x: 0, y: 0, width: 9, height: 8))
         }
     }
 
     static func enemyBullet() -> SKTexture {
-        cached("enemyBullet") { renderTexture(size: CGSize(width: 8, height: 8)) { ctx in
+        cached("enemyBullet") { renderTexture(size: CGSize(width: 11, height: 11)) { ctx in
             ctx.setFillColor(UIColor(red: 0.7, green: 0.1, blue: 0.08, alpha: 1.0).cgColor)
-            ctx.fillEllipse(in: CGRect(x: 0, y: 0, width: 8, height: 8))
+            ctx.fillEllipse(in: CGRect(x: 0, y: 0, width: 11, height: 11))
         }}
     }
 
