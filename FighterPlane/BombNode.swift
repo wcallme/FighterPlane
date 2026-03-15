@@ -9,13 +9,19 @@ class BombNode: SKNode {
     private var hasExploded = false
     private let weaponId: String
 
-    // Momentum inherited from the plane at drop time
-    private let lateralMomentum: CGFloat   // horizontal velocity (from player left/right movement)
-    private let forwardMomentum: CGFloat   // forward velocity (from plane speed over ground)
+    // Physics: velocity inherited from the plane at drop time
+    private var velocityX: CGFloat        // lateral speed (from player banking)
+    private var velocityY: CGFloat        // forward speed (from plane flying forward)
+    private let deceleration: CGFloat     // how fast forward momentum bleeds off
+
+    // Track total node displacement so shadow can stay ground-relative
+    private var nodeDisplacementX: CGFloat = 0
+    private var nodeDisplacementY: CGFloat = 0
+    private let initialShadowPos: CGPoint
 
     // Animation state
-    private var spinRate: CGFloat = 0       // radians/sec for spinning bombs
-    private var wobblePhase: CGFloat = 0    // phase for wobble animation
+    private var spinRate: CGFloat = 0
+    private var wobblePhase: CGFloat = 0
     private var trailEmitter: SKEmitterNode?
 
     /// Called when the bomb reaches the ground
@@ -24,27 +30,31 @@ class BombNode: SKNode {
     init(startPosition: CGPoint, groundOffset: CGPoint, weaponId: String = "bomb",
          playerVelocityX: CGFloat = 0, scrollSpeed: CGFloat = 120) {
         self.weaponId = weaponId
-        self.lateralMomentum = playerVelocityX
-        // Forward momentum determines arc height — bomb carries plane's forward speed
-        self.forwardMomentum = scrollSpeed
+
+        // Bomb inherits the plane's velocity:
+        // - Forward: the plane moves at scrollSpeed relative to the ground.
+        //   In screen space the plane is stationary, so the bomb's visible
+        //   forward velocity is the portion that exceeds the camera/scroll.
+        //   We give it a kick so it visibly drifts upward before arcing down.
+        // - Lateral: whatever horizontal speed the player has at drop time.
+        self.velocityX = playerVelocityX * 0.8
+        self.velocityY = scrollSpeed * 1.0
+
+        // Deceleration pulls the bomb from forward velocity to negative (falling back).
+        // Tuned so the bomb peaks around 40% through the fall, then curves down.
+        self.deceleration = scrollSpeed * 2.5
 
         bombSprite = SKSpriteNode(texture: SpriteGenerator.bomb(weaponId: weaponId))
         shadowSprite = SKSpriteNode(texture: SpriteGenerator.bombShadow())
+        initialShadowPos = groundOffset
         fallDuration = GameConfig.bombFallDuration
 
         super.init()
 
         name = "bomb"
 
-        // Shadow starts AHEAD of the drop point — the bomb's forward momentum
-        // carries it forward relative to the ground before gravity wins
-        let forwardShadowOffset = scrollSpeed * CGFloat(fallDuration) * 0.25
-        let lateralShadowOffset = playerVelocityX * CGFloat(fallDuration) * 0.15
-        let shadowStart = CGPoint(
-            x: groundOffset.x + lateralShadowOffset,
-            y: groundOffset.y + forwardShadowOffset
-        )
-        shadowSprite.position = shadowStart
+        // Shadow starts at the ground offset (will be kept ground-relative in update)
+        shadowSprite.position = groundOffset
         shadowSprite.zPosition = ZLayer.shadows.rawValue
         shadowSprite.setScale(0.4)
         shadowSprite.alpha = 0.3
@@ -58,7 +68,6 @@ class BombNode: SKNode {
 
         position = startPosition
 
-        // Set up per-type animations
         setupBombAnimation()
     }
 
@@ -71,21 +80,17 @@ class BombNode: SKNode {
     private func setupBombAnimation() {
         switch weaponId {
         case "mining_bomb":
-            // Mining bomb spins like a drill as it falls
-            spinRate = .pi * 6  // 3 full rotations per second
+            spinRate = .pi * 6
 
         case "heavy_bomb":
-            // Heavy bomb has a smoke trail and slight wobble
             wobblePhase = CGFloat.random(in: 0...(.pi * 2))
             addSmokeTrail(color: UIColor(white: 0.4, alpha: 0.5), birthRate: 15, size: 4)
 
         case "cluster_bomb":
-            // Cluster bomblets tumble erratically
             spinRate = .pi * 3
             wobblePhase = CGFloat.random(in: 0...(.pi * 2))
 
         default:
-            // Standard bomb — gentle nose-down rotation, faint trail
             addSmokeTrail(color: UIColor(white: 0.5, alpha: 0.3), birthRate: 8, size: 3)
         }
     }
@@ -102,11 +107,11 @@ class BombNode: SKNode {
         emitter.particleAlphaSpeed = -1.5
         emitter.particleSpeed = 5
         emitter.particleSpeedRange = 3
-        emitter.emissionAngle = .pi / 2  // emit upward (behind the falling bomb visually)
+        emitter.emissionAngle = .pi / 2
         emitter.emissionAngleRange = .pi / 4
         emitter.particleScaleSpeed = -0.5
         emitter.zPosition = ZLayer.bombs.rawValue - 0.1
-        emitter.targetNode = self // particles stay in world space
+        emitter.targetNode = self
         bombSprite.addChild(emitter)
         trailEmitter = emitter
     }
@@ -115,37 +120,41 @@ class BombNode: SKNode {
         guard !hasExploded else { return }
 
         elapsed += deltaTime
+        let dt = CGFloat(deltaTime)
 
-        // Shadow scrolls with the ground
-        shadowSprite.position.y -= scrollSpeed * CGFloat(deltaTime)
+        // === PHYSICS: move bomb node with inherited momentum ===
+        // The bomb physically drifts forward (up on screen) then arcs backward
+        // as it decelerates and gravity takes over.
+        let dx = velocityX * dt
+        let dy = velocityY * dt
+        position.x += dx
+        position.y += dy
+        nodeDisplacementX += dx
+        nodeDisplacementY += dy
+
+        // Decelerate forward velocity (drag + no engine = bomb slows down)
+        velocityY -= deceleration * dt
+
+        // Lateral velocity decays with drag
+        velocityX *= max(0, 1.0 - 3.0 * dt)
+
+        // === SHADOW: stays on the ground, independent of bomb node movement ===
+        // Undo node displacement so the shadow remains ground-relative,
+        // then apply ground scroll for how far the terrain has moved.
+        shadowSprite.position = CGPoint(
+            x: initialShadowPos.x - nodeDisplacementX,
+            y: initialShadowPos.y - scrollSpeed * CGFloat(elapsed) - nodeDisplacementY
+        )
 
         let t = Swift.min(elapsed / fallDuration, 1.0)
         let easedT = t * t // quadratic ease-in (gravity acceleration)
 
-        // === BALLISTIC TRAJECTORY WITH INHERITED MOMENTUM ===
-        //
-        // The bomb inherits the plane's velocity when released. Instead of
-        // lerping straight to the shadow, it follows a ballistic arc:
-        //   - Forward arc: bomb drifts forward (upward on screen) before
-        //     gravity curves it back down to the impact point.
-        //   - Lateral drift: bomb carries any horizontal movement from the
-        //     player banking left/right at drop time.
-        //
-        // Both offsets use t*(1-t²) which peaks around t≈0.58 and returns
-        // to zero at t=1, so the bomb converges exactly to the shadow.
-
-        // Forward arc: visible forward momentum that peaks mid-fall
-        let arcScale = forwardMomentum * CGFloat(fallDuration) * 1.1
-        let forwardArc = arcScale * CGFloat(t) * CGFloat(1.0 - easedT)
-
-        // Lateral drift: horizontal momentum that decays over the fall
-        let lateralScale = lateralMomentum * CGFloat(fallDuration) * 0.5
-        let lateralDrift = lateralScale * CGFloat(t) * CGFloat(1.0 - easedT)
-
-        // Base pull toward shadow (gravity) + momentum offsets
+        // === BOMB SPRITE: converges from node origin toward shadow (falling to ground) ===
+        // At t=0 the bomb is at the node position (riding momentum).
+        // At t=1 the bomb is at the shadow position (hit the ground).
         bombSprite.position = CGPoint(
-            x: shadowSprite.position.x * easedT + lateralDrift,
-            y: shadowSprite.position.y * easedT + forwardArc
+            x: shadowSprite.position.x * easedT,
+            y: shadowSprite.position.y * easedT
         )
 
         // Bomb shrinks as it "falls away" from camera (preserve vertical flip)
@@ -160,7 +169,6 @@ class BombNode: SKNode {
         // Per-type falling animations
         updateBombAnimation(deltaTime: deltaTime, t: t, easedT: easedT)
 
-        // Explode when bomb reaches ground
         if t >= 1.0 {
             explode()
         }
@@ -169,28 +177,24 @@ class BombNode: SKNode {
     private func updateBombAnimation(deltaTime: TimeInterval, t: Double, easedT: Double) {
         switch weaponId {
         case "mining_bomb":
-            // Drill spin — accelerates as it falls
             let currentSpin = spinRate * CGFloat(1.0 + easedT * 2.0)
             bombSprite.zRotation += currentSpin * CGFloat(deltaTime)
 
         case "heavy_bomb":
-            // Slow ominous wobble that dampens as it nears ground
             wobblePhase += CGFloat(deltaTime) * 4.0
             let wobbleAmount = CGFloat(0.08 * (1.0 - easedT))
             bombSprite.zRotation = sin(wobblePhase) * wobbleAmount
 
         case "cluster_bomb":
-            // Erratic tumble
             bombSprite.zRotation += spinRate * CGFloat(deltaTime)
             wobblePhase += CGFloat(deltaTime) * 8.0
             let jitter = sin(wobblePhase) * CGFloat(1.5 * (1.0 - easedT))
             bombSprite.position.x += jitter * CGFloat(deltaTime)
 
         default:
-            // Bomb tips to follow its trajectory — initially level (riding momentum),
-            // then pitching nose-down as gravity takes over
+            // Bomb pitches nose-down as momentum gives way to gravity
             let noseDown = CGFloat(easedT) * 0.5
-            let lateralTilt = lateralMomentum * 0.001 * CGFloat(1.0 - easedT)
+            let lateralTilt = velocityX * 0.001
             bombSprite.zRotation = noseDown + lateralTilt
         }
     }
@@ -205,7 +209,6 @@ class BombNode: SKNode {
         )
         onImpact?(worldPos)
 
-        // Remove after brief delay for explosion to play
         run(.sequence([
             .wait(forDuration: 0.1),
             .removeFromParent()
