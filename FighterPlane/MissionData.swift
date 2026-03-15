@@ -71,12 +71,45 @@ enum MissionLoader {
         return try? JSONDecoder().decode(MissionData.self, from: data)
     }
 
+    /// Load all missions from bundle, sorted by filename (mission1, mission2, ...)
     static func loadAll() -> [MissionData] {
         guard let urls = Bundle.main.urls(forResourcesWithExtension: "json", subdirectory: nil) else { return [] }
-        return urls.compactMap { url in
+        // Filter to mission files only, sort by name for level ordering
+        let missionURLs = urls
+            .filter { $0.lastPathComponent.hasPrefix("mission") }
+            .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+        return missionURLs.compactMap { url in
             guard let data = try? Data(contentsOf: url) else { return nil }
-            // Only return files that successfully decode as MissionData
             return try? JSONDecoder().decode(MissionData.self, from: data)
         }
+    }
+}
+
+// MARK: - Mission Progress
+
+enum MissionProgress {
+    private static let key = "completedMissionLevel"
+
+    /// Highest completed mission level (0 = none completed, 1 = mission1 done, etc.)
+    static var completedLevel: Int {
+        get { UserDefaults.standard.integer(forKey: key) }
+        set { UserDefaults.standard.set(newValue, forKey: key) }
+    }
+
+    /// Call when player beats mission at this index (0-based)
+    static func complete(levelIndex: Int) {
+        let level = levelIndex + 1
+        if level > completedLevel {
+            completedLevel = level
+        }
+    }
+
+    /// Is mission at this index unlocked? (index 0 always unlocked, others require prior completion)
+    static func isUnlocked(index: Int) -> Bool {
+        return index <= completedLevel
+    }
+
+    static func reset() {
+        completedLevel = 0
     }
 }
