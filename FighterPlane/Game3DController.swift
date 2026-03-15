@@ -81,6 +81,15 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     // SAM Missiles
     private var activeSAMs: [SAMMissile3D] = []
 
+    // ECM Jammer state
+    private var hasECM = false
+    private var ecmActive = false
+    private var ecmActiveTimer: TimeInterval = 0
+    private let ecmDuration: TimeInterval = 5.5
+    private var ecmCooldownTimer: TimeInterval = 0
+    private let ecmCooldown: TimeInterval = 37.0
+    private var ecmFlashTimer: TimeInterval = 0
+
     // Game state
     private var gameState: GameState = .playing
     private var lastUpdateTime: TimeInterval = 0
@@ -165,10 +174,18 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         // Water – large flat plane
         waterNode = ModelGenerator3D.waterPlane(width: 200, length: 600)
 
+        // Check if player has ECM Jammer equipped
+        hasECM = data.equippedSpecials.contains { $0.id == "ecm_jammer" }
+
         super.init()
 
         setupScene()
         GameManager.shared.resetSession()
+
+        // Show ECM button if equipped
+        if hasECM {
+            hud.setupECMButton()
+        }
 
         // Mission mode: set enemy total for win condition and setup mission HUD
         if case .mission(let mission) = mode {
@@ -601,6 +618,14 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         if input.shouldDropBomb {
             dropBomb()
         }
+
+        // ECM Jammer activation
+        if input.shouldActivateECM && hasECM && !ecmActive && ecmCooldownTimer <= 0 {
+            activateECM()
+        }
+
+        // Update ECM state
+        updateECM(dt: dt)
 
         // Update bullets
         updateBullets(dt: floatDt)
@@ -1323,7 +1348,10 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             if time - enemies[i].lastFireTime >= fireInterval {
                 enemies[i].lastFireTime = time
                 if enemies[i].type == .samLauncher {
-                    fireSAMMissile(from: enemies[i])
+                    // ECM active → block all new SAM missile launches
+                    if !ecmActive {
+                        fireSAMMissile(from: enemies[i])
+                    }
                 } else {
                     fireEnemyBullet(from: enemies[i])
                 }
@@ -1418,44 +1446,48 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             }
 
             // Homing with lead-target prediction in Y-Z plane only (X=0 always)
+            // ECM active → missiles lose lock and fly straight (no homing)
             let pos = activeSAMs[i].node.position
             let speed: Float = 0.37
-            let missileSpeed = speed * 60.0  // world-units per second
 
-            // Estimate player velocity from angle & speed
-            let pVelY = sin(playerAngle) * playerSpeed
-            let pVelZ = cos(playerAngle) * playerSpeed
+            if !ecmActive {
+                let missileSpeed = speed * 60.0  // world-units per second
 
-            // Predict where player will be when missile arrives
-            let rawDy = playerNode.position.y - pos.y
-            let rawDz = playerNode.position.z - pos.z
-            let rawDist = sqrt(rawDy * rawDy + rawDz * rawDz)
-            let timeToIntercept = min(rawDist / max(missileSpeed, 1.0), 1.5)
+                // Estimate player velocity from angle & speed
+                let pVelY = sin(playerAngle) * playerSpeed
+                let pVelZ = cos(playerAngle) * playerSpeed
 
-            let predictedY = playerNode.position.y + pVelY * timeToIntercept
-            let predictedZ = playerNode.position.z + pVelZ * timeToIntercept
+                // Predict where player will be when missile arrives
+                let rawDy = playerNode.position.y - pos.y
+                let rawDz = playerNode.position.z - pos.z
+                let rawDist = sqrt(rawDy * rawDy + rawDz * rawDz)
+                let timeToIntercept = min(rawDist / max(missileSpeed, 1.0), 1.5)
 
-            let dy = predictedY - pos.y
-            let dzToTarget = predictedZ - pos.z
-            let distToTarget = sqrt(dy * dy + dzToTarget * dzToTarget)
+                let predictedY = playerNode.position.y + pVelY * timeToIntercept
+                let predictedZ = playerNode.position.z + pVelZ * timeToIntercept
 
-            if distToTarget > 0.5 {
-                let desiredY = dy / distToTarget * speed
-                let desiredZ = dzToTarget / distToTarget * speed
+                let dy = predictedY - pos.y
+                let dzToTarget = predictedZ - pos.z
+                let distToTarget = sqrt(dy * dy + dzToTarget * dzToTarget)
 
-                let t = min(1.0, activeSAMs[i].turnRate * dt)
-                activeSAMs[i].velocity.x = 0
-                activeSAMs[i].velocity.y += (desiredY - activeSAMs[i].velocity.y) * t
-                activeSAMs[i].velocity.z += (desiredZ - activeSAMs[i].velocity.z) * t
+                if distToTarget > 0.5 {
+                    let desiredY = dy / distToTarget * speed
+                    let desiredZ = dzToTarget / distToTarget * speed
 
-                // Normalize to maintain constant speed
-                let vy = activeSAMs[i].velocity.y
-                let vz2 = activeSAMs[i].velocity.z
-                let curSpeed = sqrt(vy * vy + vz2 * vz2)
-                if curSpeed > 0.01 {
+                    let t = min(1.0, activeSAMs[i].turnRate * dt)
                     activeSAMs[i].velocity.x = 0
-                    activeSAMs[i].velocity.y = vy / curSpeed * speed
-                    activeSAMs[i].velocity.z = vz2 / curSpeed * speed
+                    activeSAMs[i].velocity.y += (desiredY - activeSAMs[i].velocity.y) * t
+                    activeSAMs[i].velocity.z += (desiredZ - activeSAMs[i].velocity.z) * t
+
+                    // Normalize to maintain constant speed
+                    let vy = activeSAMs[i].velocity.y
+                    let vz2 = activeSAMs[i].velocity.z
+                    let curSpeed = sqrt(vy * vy + vz2 * vz2)
+                    if curSpeed > 0.01 {
+                        activeSAMs[i].velocity.x = 0
+                        activeSAMs[i].velocity.y = vy / curSpeed * speed
+                        activeSAMs[i].velocity.z = vz2 / curSpeed * speed
+                    }
                 }
             }
 
@@ -1551,6 +1583,75 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 }
             }
         }
+    }
+
+    // MARK: - ECM Jammer
+
+    private func activateECM() {
+        ecmActive = true
+        ecmActiveTimer = ecmDuration
+        ecmFlashTimer = 0
+    }
+
+    private func updateECM(dt: TimeInterval) {
+        guard hasECM else { return }
+
+        if ecmActive {
+            ecmActiveTimer -= dt
+            ecmFlashTimer -= dt
+
+            // Spawn flashing white circles around the jet
+            if ecmFlashTimer <= 0 {
+                ecmFlashTimer = 0.12
+                spawnECMFlash()
+            }
+
+            if ecmActiveTimer <= 0 {
+                ecmActive = false
+                ecmCooldownTimer = ecmCooldown
+            }
+
+            hud.updateECMButton(isActive: true, isReady: false, cooldownFraction: 0)
+        } else if ecmCooldownTimer > 0 {
+            ecmCooldownTimer -= dt
+            if ecmCooldownTimer < 0 { ecmCooldownTimer = 0 }
+            let fraction = CGFloat(1.0 - ecmCooldownTimer / ecmCooldown)
+            hud.updateECMButton(isActive: false, isReady: false, cooldownFraction: fraction)
+        } else {
+            hud.updateECMButton(isActive: false, isReady: true, cooldownFraction: 1)
+        }
+    }
+
+    private func spawnECMFlash() {
+        let offset = SCNVector3(
+            Float.random(in: -2.5...2.5),
+            Float.random(in: -1.5...2.0),
+            Float.random(in: -2.5...2.5)
+        )
+        let radius = CGFloat(Float.random(in: 0.6...1.4))
+        let sphere = SCNSphere(radius: radius)
+        let mat = SCNMaterial()
+        mat.diffuse.contents = UIColor(white: 1.0, alpha: 0.5)
+        mat.emission.contents = UIColor(white: 1.0, alpha: 0.5)
+        mat.lightingModel = .constant
+        mat.isDoubleSided = true
+        mat.writesToDepthBuffer = false
+        mat.transparencyMode = .aOne
+        mat.blendMode = .add
+        sphere.firstMaterial = mat
+
+        let node = SCNNode(geometry: sphere)
+        node.position = SCNVector3(
+            playerNode.position.x + offset.x,
+            playerNode.position.y + offset.y,
+            playerNode.position.z + offset.z
+        )
+        scene.rootNode.addChildNode(node)
+
+        // Fade out and remove
+        let fadeOut = SCNAction.fadeOut(duration: 0.2)
+        let remove = SCNAction.removeFromParentNode()
+        node.runAction(.sequence([fadeOut, remove]))
     }
 
     // MARK: - Collisions
