@@ -1,10 +1,14 @@
 import Foundation
 
+enum GameMode {
+    case infiniteBattle
+    case mission(MissionData)
+}
+
 @MainActor
 class NavigationManager: ObservableObject {
     static let shared = NavigationManager()
     @Published var isInGame = false
-    // TODO: re-enable when MissionData is ready
-    // @Published var activeMission: MissionData?
+    var gameMode: GameMode = .infiniteBattle
     private init() {}
 }
