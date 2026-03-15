@@ -493,6 +493,7 @@ class HangarScene: SKScene {
         let startX = (size.width - totalWidth) / 2
 
         let data = PlayerData.shared
+        let currentLoadout = data.loadout  // cache once to avoid repeated UserDefaults reads
 
         // Section label
         let loadoutLabel = SKLabelNode(fontNamed: "Menlo-Bold")
@@ -503,14 +504,14 @@ class HangarScene: SKScene {
         loadoutLabel.zPosition = 10
         addChild(loadoutLabel)
 
-        for i in 0..<6 {
+        for i in 0..<min(6, currentLoadout.count) {
             let slot = SKNode()
             slot.position = CGPoint(x: startX + CGFloat(i) * spacing, y: loadoutRowY)
             slot.name = "slot_\(i)"
             slot.zPosition = 10
 
             let bg = SKShapeNode(rectOf: CGSize(width: slotSize, height: slotSize), cornerRadius: 8)
-            if data.loadout[i] != nil {
+            if currentLoadout[i] != nil {
                 bg.fillColor = SKColor(red: 0.10, green: 0.22, blue: 0.12, alpha: 0.95)
                 bg.strokeColor = SKColor(red: 0.25, green: 0.6, blue: 0.3, alpha: 0.6)
                 bg.glowWidth = 1
@@ -522,7 +523,7 @@ class HangarScene: SKScene {
             bg.name = "slot_\(i)"
             slot.addChild(bg)
 
-            if let weaponId = data.loadout[i] {
+            if let weaponId = currentLoadout[i] {
                 let icon = SKSpriteNode(texture: SpriteGenerator.weaponIcon(for: weaponId))
                 icon.setScale(0.40)
                 icon.position = .zero
