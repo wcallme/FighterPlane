@@ -20,6 +20,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     private var enemies: [EnemyNode] = []
     private var bombs: [BombNode] = []
 
+    // Multi-bomb system
+    private lazy var equippedBombs: [WeaponInfo] = PlayerData.shared.equippedBombs
+    private lazy var bombSlotReady: [Bool] = Array(repeating: true, count: PlayerData.shared.equippedBombs.count)
+
     // Touch tracking
     private var activeTouches: [UITouch: String] = [:]
 
@@ -198,13 +202,25 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func dropBomb() {
-        guard player.canBomb else { return }
-        player.canBomb = false
+        // Find first ready bomb slot
+        guard let slotIndex = bombSlotReady.firstIndex(of: true) else { return }
+        bombSlotReady[slotIndex] = false
 
-        let bombWeapon = PlayerData.shared.equippedBomb
+        let bombWeapon = equippedBombs[slotIndex]
         GameManager.shared.bombsDropped += 1
 
-        // Shadow offset simulates the bomb falling to the ground ahead of the plane
+        // Calculate player's horizontal velocity for momentum transfer
+        let playerSpeed = GameConfig.playerSpeed * PlayerData.shared.speedMultiplier
+        let playerVelocityX: CGFloat
+        if player.isTouchingLeft {
+            playerVelocityX = -playerSpeed
+        } else if player.isTouchingRight {
+            playerVelocityX = playerSpeed
+        } else {
+            playerVelocityX = 0
+        }
+
+        // Base shadow offset (momentum offsets added in BombNode)
         let groundOffset = CGPoint(x: 15, y: -20)
 
         let bombCount = bombWeapon.bulletCount // cluster bombs drop multiple
@@ -219,7 +235,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 offset = groundOffset
             }
 
-            let bomb = BombNode(startPosition: player.position, groundOffset: offset)
+            let bomb = BombNode(startPosition: player.position, groundOffset: offset,
+                                weaponId: bombWeapon.id, playerVelocityX: playerVelocityX,
+                                scrollSpeed: GameConfig.scrollSpeed)
             bomb.onImpact = { [weak self] impactPoint in
                 self?.handleBombImpact(at: impactPoint, weapon: bombWeapon)
             }
@@ -227,12 +245,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             bombs.append(bomb)
         }
 
-        // Cooldown from weapon stats
+        // Per-slot cooldown
         let cooldown = bombWeapon.fireRate
         hud.showBombCooldown(duration: cooldown)
-        player.run(.sequence([
+        run(.sequence([
             .wait(forDuration: cooldown),
-            .run { [weak self] in self?.player.canBomb = true }
+            .run { [weak self] in self?.bombSlotReady[slotIndex] = true }
         ]))
     }
 
