@@ -464,14 +464,14 @@ enum ModelGenerator3D {
         let root = SCNNode()
         root.name = "playerBullet"
 
-        let stick = SCNCylinder(radius: 0.028, height: 2.5)
+        let stick = SCNCylinder(radius: 0.042, height: 2.5)
         stick.firstMaterial?.diffuse.contents = UIColor(red: 0.10, green: 0.10, blue: 0.10, alpha: 1)
         stick.firstMaterial?.lightingModel = .constant
         let stickNode = SCNNode(geometry: stick)
         root.addChildNode(stickNode)
 
         // Subtle metallic edge highlight
-        let highlight = SCNCylinder(radius: 0.034, height: 2.5)
+        let highlight = SCNCylinder(radius: 0.051, height: 2.5)
         highlight.firstMaterial?.diffuse.contents = UIColor(white: 0.35, alpha: 0.3)
         highlight.firstMaterial?.lightingModel = .constant
         highlight.firstMaterial?.transparency = 0.3
@@ -487,14 +487,14 @@ enum ModelGenerator3D {
         root.name = "playerBullet"
 
         // Dark heavy core
-        let stick = SCNCylinder(radius: 0.05, height: 2.8)
+        let stick = SCNCylinder(radius: 0.075, height: 2.8)
         stick.firstMaterial?.diffuse.contents = UIColor(red: 0.12, green: 0.12, blue: 0.12, alpha: 1)
         stick.firstMaterial?.lightingModel = .constant
         let stickNode = SCNNode(geometry: stick)
         root.addChildNode(stickNode)
 
         // Warm orange glow halo
-        let glow = SCNCylinder(radius: 0.085, height: 2.8)
+        let glow = SCNCylinder(radius: 0.128, height: 2.8)
         glow.firstMaterial?.diffuse.contents = UIColor(red: 1.0, green: 0.7, blue: 0.2, alpha: 0.2)
         glow.firstMaterial?.emission.contents = UIColor(red: 1.0, green: 0.6, blue: 0.15, alpha: 0.15)
         glow.firstMaterial?.lightingModel = .constant
@@ -511,7 +511,7 @@ enum ModelGenerator3D {
         root.name = "playerBullet"
 
         // Amber tracer core
-        let stick = SCNCylinder(radius: 0.09, height: 2.4)
+        let stick = SCNCylinder(radius: 0.135, height: 2.4)
         stick.firstMaterial?.diffuse.contents = UIColor(red: 0.85, green: 0.65, blue: 0.1, alpha: 1)
         stick.firstMaterial?.emission.contents = UIColor(red: 0.6, green: 0.45, blue: 0.05, alpha: 0.5)
         stick.firstMaterial?.lightingModel = .constant
@@ -519,7 +519,7 @@ enum ModelGenerator3D {
         root.addChildNode(stickNode)
 
         // Golden glow envelope
-        let glow = SCNCylinder(radius: 0.15, height: 2.4)
+        let glow = SCNCylinder(radius: 0.225, height: 2.4)
         glow.firstMaterial?.diffuse.contents = UIColor(red: 1.0, green: 0.85, blue: 0.3, alpha: 0.15)
         glow.firstMaterial?.emission.contents = UIColor(red: 0.8, green: 0.65, blue: 0.1, alpha: 0.1)
         glow.firstMaterial?.lightingModel = .constant
@@ -536,14 +536,14 @@ enum ModelGenerator3D {
         root.name = "playerBullet"
 
         // Dark steel core
-        let stick = SCNCylinder(radius: 0.045, height: 2.5)
+        let stick = SCNCylinder(radius: 0.068, height: 2.5)
         stick.firstMaterial?.diffuse.contents = UIColor(red: 0.15, green: 0.15, blue: 0.12, alpha: 1)
         stick.firstMaterial?.lightingModel = .constant
         let stickNode = SCNNode(geometry: stick)
         root.addChildNode(stickNode)
 
         // Bright golden glow
-        let glow = SCNCylinder(radius: 0.075, height: 2.5)
+        let glow = SCNCylinder(radius: 0.113, height: 2.5)
         glow.firstMaterial?.diffuse.contents = UIColor(red: 1.0, green: 0.8, blue: 0.15, alpha: 0.25)
         glow.firstMaterial?.emission.contents = UIColor(red: 1.0, green: 0.75, blue: 0.1, alpha: 0.3)
         glow.firstMaterial?.lightingModel = .constant
@@ -552,7 +552,7 @@ enum ModelGenerator3D {
         root.addChildNode(glowNode)
 
         // Hot tip sphere — offset along Y (cylinder axis), fireGun rotates to match travel
-        let tip = SCNSphere(radius: 0.06)
+        let tip = SCNSphere(radius: 0.09)
         tip.firstMaterial?.diffuse.contents = UIColor(red: 1.0, green: 1.0, blue: 0.7, alpha: 1)
         tip.firstMaterial?.emission.contents = UIColor(red: 1.0, green: 0.9, blue: 0.4, alpha: 0.8)
         tip.firstMaterial?.lightingModel = .constant
