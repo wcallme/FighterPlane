@@ -285,7 +285,7 @@ class HangarScene: SKScene {
            let img = UIImage(named: assetName) {
             let texture = SKTexture(image: img)
             sprite.texture = texture
-            sprite.size = CGSize(width: 260, height: 200)
+            sprite.size = CGSize(width: 180, height: 138)
             return
         }
 
