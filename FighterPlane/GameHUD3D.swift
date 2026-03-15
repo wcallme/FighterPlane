@@ -428,6 +428,57 @@ class GameHUD3D: SKScene {
         ]))
     }
 
+    func showMissionComplete(score: Int, enemies: Int) {
+        let overlay = SKNode()
+        overlay.zPosition = 50
+
+        let bg = SKShapeNode(rectOf: size)
+        bg.fillColor = SKColor(white: 0, alpha: 0.6)
+        bg.strokeColor = .clear
+        bg.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        overlay.addChild(bg)
+
+        let title = SKLabelNode(fontNamed: "Menlo-Bold")
+        title.text = "MISSION COMPLETE"
+        title.fontSize = 32
+        title.fontColor = SKColor(red: 0.2, green: 0.9, blue: 0.3, alpha: 1)
+        title.position = CGPoint(x: size.width / 2, y: size.height / 2 + 50)
+        overlay.addChild(title)
+
+        let scoreLbl = SKLabelNode(fontNamed: "Menlo")
+        scoreLbl.text = "Score: \(score)"
+        scoreLbl.fontSize = 22
+        scoreLbl.fontColor = SKColor(white: 0.9, alpha: 1)
+        scoreLbl.position = CGPoint(x: size.width / 2, y: size.height / 2 + 10)
+        overlay.addChild(scoreLbl)
+
+        let enemyLbl = SKLabelNode(fontNamed: "Menlo")
+        enemyLbl.text = "Enemies Destroyed: \(enemies)"
+        enemyLbl.fontSize = 14
+        enemyLbl.fontColor = SKColor(white: 0.7, alpha: 1)
+        enemyLbl.position = CGPoint(x: size.width / 2, y: size.height / 2 - 15)
+        overlay.addChild(enemyLbl)
+
+        let tapLbl = SKLabelNode(fontNamed: "Menlo-Bold")
+        tapLbl.text = "Tap to Continue"
+        tapLbl.fontSize = 18
+        tapLbl.fontColor = SKColor(white: 0.8, alpha: 1)
+        tapLbl.position = CGPoint(x: size.width / 2, y: size.height / 2 - 55)
+        tapLbl.run(.repeatForever(.sequence([
+            .fadeAlpha(to: 0.4, duration: 0.6),
+            .fadeAlpha(to: 1.0, duration: 0.6)
+        ])))
+        overlay.addChild(tapLbl)
+
+        addChild(overlay)
+        gameOverOverlay = overlay
+
+        run(.sequence([
+            .wait(forDuration: 1.5),
+            .run { [weak self] in self?.canRestart = true }
+        ]))
+    }
+
     // MARK: - Touch Handling
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {

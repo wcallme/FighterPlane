@@ -95,10 +95,9 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         if case .mission = gameMode { return true }
         return false
     }
-    // private var spawnedMissionEnemyIndices: Set<Int> = []
-    // private var missionEnemyTotal: Int = 0
-    // private var missionEnemiesDestroyed: Int = 0
-    // private var missionObjectPlaced = false
+    private var missionEnemiesDestroyed: Int = 0
+    private var missionEnemyTotal: Int = 0
+    private var spawnedMissionIndices: Set<Int> = []
 
     // MARK: - Data Structs
 
@@ -166,6 +165,11 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
         setupScene()
         GameManager.shared.resetSession()
+
+        // Mission mode: set enemy total for win condition
+        if case .mission(let mission) = mode {
+            missionEnemyTotal = mission.enemies.count
+        }
     }
 
     // MARK: - Scene Setup
@@ -959,11 +963,10 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     // MARK: - Enemies
 
     private func spawnEnemies(time: TimeInterval) {
-        // TODO: re-enable when MissionData is ready
-        // if isMissionMode {
-        //     spawnMissionEnemies()
-        //     return
-        // }
+        if isMissionMode {
+            spawnMissionEnemies()
+            return
+        }
 
         let manager = GameManager.shared
 
@@ -982,8 +985,44 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         }
     }
 
-    // TODO: re-enable when MissionData is ready
-    // private func spawnMissionEnemies() { ... }
+    private func spawnMissionEnemies() {
+        guard case .mission(let mission) = gameMode else { return }
+        let spawnAhead: Float = 90 // spawn enemies when player is this far away
+
+        for (i, placement) in mission.enemies.enumerated() {
+            guard !spawnedMissionIndices.contains(i) else { continue }
+            // Spawn when player approaches
+            guard placement.z - playerZ < spawnAhead else { continue }
+            spawnedMissionIndices.insert(i)
+
+            guard let type = EnemyType(rawValue: placement.type) else { continue }
+            let node = modelForEnemyType(type)
+
+            let y: Float
+            if type.isGround {
+                y = groundHeight(x: placement.x, z: placement.z)
+            } else {
+                y = placement.altitude ?? 15
+            }
+            node.position = SCNVector3(placement.x, y, placement.z)
+            scene.rootNode.addChildNode(node)
+
+            let healthBar = ModelGenerator3D.healthBar()
+            let barHeight: Float = type == .building ? 2.8 : (type == .radioTower ? 4.5 : 1.5)
+            healthBar.position = SCNVector3(0, barHeight, 0)
+            node.addChildNode(healthBar)
+
+            enemies.append(Enemy3D(
+                node: node,
+                type: type,
+                health: type.health,
+                maxHealth: type.health,
+                lastFireTime: -1,
+                isAir: !type.isGround,
+                healthBarNode: healthBar
+            ))
+        }
+    }
 
     private func modelForEnemyType(_ type: EnemyType) -> SCNNode {
         switch type {
@@ -1290,17 +1329,31 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         enemy.healthBarNode.removeFromParentNode()
         enemy.node.removeFromParentNode()
 
-        // TODO: re-enable when MissionData is ready
-        // if isMissionMode {
-        //     missionEnemiesDestroyed += 1
-        //     if missionEnemiesDestroyed >= missionEnemyTotal {
-        //         missionComplete()
-        //     }
-        // }
+        if isMissionMode {
+            missionEnemiesDestroyed += 1
+            if missionEnemiesDestroyed >= missionEnemyTotal && missionEnemyTotal > 0 {
+                missionComplete()
+            }
+        }
     }
 
-    // TODO: re-enable when MissionData is ready
-    // private func missionComplete() { ... }
+    private func missionComplete() {
+        guard gameState == .playing else { return }
+        gameState = .gameOver
+        GameManager.shared.endGame()
+
+        // Record mission progress
+        let allMissions = MissionLoader.loadAll()
+        if case .mission(let data) = gameMode,
+           let idx = allMissions.firstIndex(where: { $0.name == data.name }) {
+            MissionProgress.complete(levelIndex: idx)
+        }
+
+        hud.showMissionComplete(
+            score: GameManager.shared.currentScore,
+            enemies: missionEnemiesDestroyed
+        )
+    }
 
     private func updateHealthBar(for enemy: Enemy3D) {
         let ratio = Float(enemy.health) / Float(max(1, enemy.maxHealth))

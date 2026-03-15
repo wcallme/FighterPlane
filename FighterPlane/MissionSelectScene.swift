@@ -4,11 +4,13 @@ class MissionSelectScene: SKScene {
 
     private var safeTop: CGFloat = 59
     private var safeBottom: CGFloat = 34
+    private var missions: [MissionData] = []
 
     override func didMove(to view: SKView) {
         backgroundColor = SKColor(red: 0.06, green: 0.07, blue: 0.11, alpha: 1.0)
         safeTop = SafeArea.top
         safeBottom = SafeArea.bottom
+        missions = MissionLoader.loadAll()
 
         setupBackground()
         setupHeader()
@@ -25,7 +27,6 @@ class MissionSelectScene: SKScene {
         bg.zPosition = -10
         addChild(bg)
 
-        // Subtle radial glow
         let glow = SKShapeNode(circleOfRadius: size.width * 0.4)
         glow.fillColor = SKColor(red: 0.18, green: 0.12, blue: 0.08, alpha: 0.3)
         glow.strokeColor = .clear
@@ -84,8 +85,6 @@ class MissionSelectScene: SKScene {
     // MARK: - Mission List
 
     private func setupMissionList() {
-        let missions = MissionLoader.loadAll()
-
         if missions.isEmpty {
             setupComingSoon()
             return
@@ -96,31 +95,42 @@ class MissionSelectScene: SKScene {
         let rowWidth: CGFloat = size.width - 40
 
         for (index, mission) in missions.enumerated() {
+            let unlocked = MissionProgress.isUnlocked(index: index)
+            let completed = index < MissionProgress.completedLevel
             let y = startY - CGFloat(index) * rowHeight
-            let row = createMissionRow(mission: mission, index: index, width: rowWidth)
+            let row = createMissionRow(mission: mission, index: index, width: rowWidth, unlocked: unlocked, completed: completed)
             row.position = CGPoint(x: size.width / 2, y: y)
             addChild(row)
         }
     }
 
-    private func createMissionRow(mission: MissionData, index: Int, width: CGFloat) -> SKNode {
+    private func createMissionRow(mission: MissionData, index: Int, width: CGFloat, unlocked: Bool, completed: Bool) -> SKNode {
         let node = SKNode()
-        node.name = "mission_\(index)"
+        node.name = unlocked ? "mission_\(index)" : "locked_\(index)"
         node.zPosition = 10
 
         // Row background
         let bg = SKShapeNode(rectOf: CGSize(width: width, height: 56), cornerRadius: 10)
-        bg.fillColor = SKColor(red: 0.10, green: 0.12, blue: 0.18, alpha: 0.95)
-        bg.strokeColor = SKColor(red: 0.8, green: 0.6, blue: 0.1, alpha: 0.3)
+        if unlocked {
+            bg.fillColor = SKColor(red: 0.10, green: 0.12, blue: 0.18, alpha: 0.95)
+            bg.strokeColor = completed
+                ? SKColor(red: 0.2, green: 0.8, blue: 0.3, alpha: 0.4)
+                : SKColor(red: 0.8, green: 0.6, blue: 0.1, alpha: 0.3)
+        } else {
+            bg.fillColor = SKColor(white: 0.08, alpha: 0.9)
+            bg.strokeColor = SKColor(white: 0.2, alpha: 0.2)
+        }
         bg.lineWidth = 1
-        bg.name = "mission_\(index)"
+        bg.name = node.name
         node.addChild(bg)
 
         // Level number
         let levelLabel = SKLabelNode(fontNamed: "Menlo-Bold")
         levelLabel.text = "\(index + 1)"
         levelLabel.fontSize = 20
-        levelLabel.fontColor = SKColor(red: 0.95, green: 0.75, blue: 0.15, alpha: 1)
+        levelLabel.fontColor = unlocked
+            ? SKColor(red: 0.95, green: 0.75, blue: 0.15, alpha: 1)
+            : SKColor(white: 0.3, alpha: 0.5)
         levelLabel.horizontalAlignmentMode = .left
         levelLabel.verticalAlignmentMode = .center
         levelLabel.position = CGPoint(x: -width / 2 + 20, y: 0)
@@ -130,33 +140,52 @@ class MissionSelectScene: SKScene {
         let nameLabel = SKLabelNode(fontNamed: "Menlo-Bold")
         nameLabel.text = mission.name
         nameLabel.fontSize = 13
-        nameLabel.fontColor = SKColor(white: 0.85, alpha: 1)
+        nameLabel.fontColor = unlocked ? SKColor(white: 0.85, alpha: 1) : SKColor(white: 0.35, alpha: 0.6)
         nameLabel.horizontalAlignmentMode = .left
         nameLabel.verticalAlignmentMode = .center
-        nameLabel.position = CGPoint(x: -width / 2 + 55, y: 5)
+        nameLabel.position = CGPoint(x: -width / 2 + 55, y: completed ? 0 : 5)
         node.addChild(nameLabel)
 
-        // Description
-        if let desc = mission.description {
-            let descLabel = SKLabelNode(fontNamed: "Menlo")
-            descLabel.text = desc
-            descLabel.fontSize = 9
-            descLabel.fontColor = SKColor(white: 0.5, alpha: 0.8)
-            descLabel.horizontalAlignmentMode = .left
-            descLabel.verticalAlignmentMode = .center
-            descLabel.position = CGPoint(x: -width / 2 + 55, y: -10)
-            node.addChild(descLabel)
+        if unlocked && !completed {
+            // Enemy count subtitle
+            let sub = SKLabelNode(fontNamed: "Menlo")
+            sub.text = "\(mission.enemies.count) enemies"
+            sub.fontSize = 9
+            sub.fontColor = SKColor(white: 0.5, alpha: 0.8)
+            sub.horizontalAlignmentMode = .left
+            sub.verticalAlignmentMode = .center
+            sub.position = CGPoint(x: -width / 2 + 55, y: -10)
+            node.addChild(sub)
         }
 
-        // Play arrow
-        let arrow = SKLabelNode(fontNamed: "Menlo-Bold")
-        arrow.text = "\u{25B6}"
-        arrow.fontSize = 16
-        arrow.fontColor = SKColor(red: 0.2, green: 0.9, blue: 0.3, alpha: 0.9)
-        arrow.horizontalAlignmentMode = .right
-        arrow.verticalAlignmentMode = .center
-        arrow.position = CGPoint(x: width / 2 - 20, y: 0)
-        node.addChild(arrow)
+        // Right side indicator
+        if completed {
+            let check = SKLabelNode(fontNamed: "Menlo-Bold")
+            check.text = "\u{2713}"
+            check.fontSize = 20
+            check.fontColor = SKColor(red: 0.2, green: 0.85, blue: 0.3, alpha: 0.9)
+            check.horizontalAlignmentMode = .right
+            check.verticalAlignmentMode = .center
+            check.position = CGPoint(x: width / 2 - 20, y: 0)
+            node.addChild(check)
+        } else if unlocked {
+            let arrow = SKLabelNode(fontNamed: "Menlo-Bold")
+            arrow.text = "\u{25B6}"
+            arrow.fontSize = 16
+            arrow.fontColor = SKColor(red: 0.2, green: 0.9, blue: 0.3, alpha: 0.9)
+            arrow.horizontalAlignmentMode = .right
+            arrow.verticalAlignmentMode = .center
+            arrow.position = CGPoint(x: width / 2 - 20, y: 0)
+            node.addChild(arrow)
+        } else {
+            let lock = SKLabelNode(fontNamed: "Menlo-Bold")
+            lock.text = "\u{1F512}"
+            lock.fontSize = 14
+            lock.horizontalAlignmentMode = .right
+            lock.verticalAlignmentMode = .center
+            lock.position = CGPoint(x: width / 2 - 20, y: 0)
+            node.addChild(lock)
+        }
 
         return node
     }
@@ -164,7 +193,6 @@ class MissionSelectScene: SKScene {
     private func setupComingSoon() {
         let centerY = size.height / 2
 
-        // Icon
         let icon = SKLabelNode(fontNamed: "AppleColorEmoji")
         icon.text = "\u{1F3AF}"
         icon.fontSize = 48
@@ -172,7 +200,6 @@ class MissionSelectScene: SKScene {
         icon.zPosition = 10
         addChild(icon)
 
-        // Message
         let label = SKLabelNode(fontNamed: "Menlo-Bold")
         label.text = "NO MISSIONS YET"
         label.fontSize = 16
@@ -221,7 +248,6 @@ class MissionSelectScene: SKScene {
     }
 
     private func launchMission(index: Int) {
-        let missions = MissionLoader.loadAll()
         guard index < missions.count else { return }
         NavigationManager.shared.gameMode = .mission(missions[index])
         NavigationManager.shared.isInGame = true
