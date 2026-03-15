@@ -842,6 +842,12 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 bullet.node.removeFromParentNode()
                 return true
             }
+            // Terrain collision — bullets can't pass through ground
+            let terrainY = groundHeight(x: 0, z: bullet.node.position.z)
+            if bullet.node.position.y <= terrainY {
+                bullet.node.removeFromParentNode()
+                return true
+            }
             return false
         }
 
@@ -852,7 +858,13 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             bullet.node.position.z += bullet.velocity.z * dt * 60
 
             let dz = bullet.node.position.z - playerZ
-            if abs(dz) > 100 || bullet.node.position.y < -1 || bullet.node.position.y > 30 {
+            if abs(dz) > 100 || bullet.node.position.y > 30 {
+                bullet.node.removeFromParentNode()
+                return true
+            }
+            // Terrain collision — enemy bullets also blocked by ground
+            let terrainY = groundHeight(x: 0, z: bullet.node.position.z)
+            if bullet.node.position.y <= terrainY {
                 bullet.node.removeFromParentNode()
                 return true
             }
