@@ -965,10 +965,12 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
         let manager = GameManager.shared
 
-        // Ground enemies
+        // Ground enemies — spawn count scales with difficulty
         if time - lastGroundSpawn >= manager.groundSpawnInterval {
             lastGroundSpawn = time
-            spawnGroundEnemy()
+            for _ in 0..<manager.groundSpawnCount {
+                spawnGroundEnemy()
+            }
         }
 
         // Air enemies (after difficulty 2)
@@ -1115,9 +1117,10 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             let range = enemies[i].type.fireRange
             guard range > 0 && dist <= range else { continue }
 
-            // Fire intervals per type
-            let fireInterval = enemies[i].type.fireRate
-            guard fireInterval > 0 else { continue }
+            // Fire intervals per type, scaled by difficulty
+            let baseFireInterval = enemies[i].type.fireRate
+            guard baseFireInterval > 0 else { continue }
+            let fireInterval = TimeInterval(Float(baseFireInterval) * GameManager.shared.fireRateMultiplier)
 
             if time - enemies[i].lastFireTime >= fireInterval {
                 enemies[i].lastFireTime = time
@@ -1139,9 +1142,10 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         // (enemies have visual X spread for the side camera but gameplay is Y-Z)
         bullet.position = SCNVector3(0, enemy.node.position.y, enemy.node.position.z)
 
-        // Aim at player in Y-Z only, with slight inaccuracy for fairness
-        let jitterY = Float.random(in: -1.0...1.0)
-        let jitterZ = Float.random(in: -0.5...0.5)
+        // Aim at player in Y-Z only — accuracy tightens with difficulty
+        let mgr = GameManager.shared
+        let jitterY = Float.random(in: -mgr.aaJitterY...mgr.aaJitterY)
+        let jitterZ = Float.random(in: -mgr.aaJitterZ...mgr.aaJitterZ)
 
         let targetY = playerNode.position.y + jitterY
         let targetZ = playerNode.position.z + jitterZ
@@ -1151,13 +1155,14 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         let dist = sqrt(dy * dy + dz * dz)
         guard dist > 1 else { return }
 
-        // Tanks shoot slower, heavier shells; AA guns shoot faster; fighters 25% slower
-        let speed: Float
+        // Base speed per type, scaled up with difficulty
+        let baseSpeed: Float
         switch enemy.type {
-        case .tank: speed = 0.3
-        case .fighter: speed = 0.4 * 0.75  // planes fire 25% slower
-        default: speed = 0.4
+        case .tank: baseSpeed = 0.3
+        case .fighter: baseSpeed = 0.4 * 0.75
+        default: baseSpeed = 0.4
         }
+        let speed = baseSpeed * mgr.enemyBulletSpeedMultiplier
 
         let vy = (dy / dist) * speed
         let vz = (dz / dist) * speed
