@@ -463,13 +463,14 @@ function drawRockAsset(ctx, x, y, cs, zoom, terrainType, scale) {
 
 // --- Procedural terrain (matching Swift terrainHeight) ---
 
-function proceduralHeight(x, z) {
+function proceduralHeight(x, z, seed) {
+    const s = seed || [0, 0, 0, 0, 0];
     let h = 0;
-    h += Math.sin(x * 0.055 + z * 0.04) * 5.5;
-    h += Math.cos(x * 0.08 - z * 0.06 + 0.7) * 3.5;
-    h += Math.sin(x * 0.13 + z * 0.1 + 2.3) * 2.2;
-    h += Math.sin(x * 0.22 + z * 0.17 + 5.1) * 1.0;
-    const island = (Math.sin(z * 0.025 + x * 0.015 + 1.0) + 0.8) * 0.6;
+    h += Math.sin(x * 0.055 + z * 0.04 + s[0]) * 5.5;
+    h += Math.cos(x * 0.08 - z * 0.06 + s[1]) * 3.5;
+    h += Math.sin(x * 0.13 + z * 0.1 + s[2]) * 2.2;
+    h += Math.sin(x * 0.22 + z * 0.17 + s[3]) * 1.0;
+    const island = (Math.sin(z * 0.025 + x * 0.015 + s[4]) + 0.8) * 0.6;
     h *= Math.max(0, island);
     h += 1.8;
     const stripHalfWidth = 40;
@@ -1239,11 +1240,12 @@ class Editor {
     generateTerrain() {
         this.saveUndo();
         const map = this.map;
+        const seed = Array.from({ length: 5 }, () => Math.random() * Math.PI * 2);
         for (let iz = 0; iz <= map.segmentsZ; iz++) {
             for (let ix = 0; ix <= map.segmentsX; ix++) {
                 const wx = map.worldX(ix);
                 const wz = map.worldZ(iz);
-                map.heightmap[iz][ix] = proceduralHeight(wx, wz);
+                map.heightmap[iz][ix] = proceduralHeight(wx, wz, seed);
             }
         }
         this.render();
