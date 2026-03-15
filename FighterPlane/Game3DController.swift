@@ -267,7 +267,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         var simVY = sin(playerAngle) * fwdSpeed
 
         // Start the guide ahead of the plane nose, not at the center
-        let noseOffset: Float = 3.0
+        let noseOffset: Float = 4.0
         var simY = playerY + sin(playerAngle) * noseOffset
         var simZ = playerZ + cos(playerAngle) * noseOffset
         let simDt: Float = 1.0 / 30.0
@@ -783,7 +783,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             for i in 0..<bulletCount {
                 let bullet = ModelGenerator3D.playerBullet(weaponId: gun.id)
 
-                let spawnOffset: Float = 2.5
+                let spawnOffset: Float = 1.5
                 bullet.position = SCNVector3(
                     xOffset,
                     playerY + sin(playerAngle) * spawnOffset,
