@@ -2,10 +2,21 @@ import SpriteKit
 
 enum SpriteGenerator {
 
+    // MARK: - Texture Cache
+
+    private static var textureCache: [String: SKTexture] = [:]
+
+    private static func cached(_ key: String, generator: () -> SKTexture) -> SKTexture {
+        if let tex = textureCache[key] { return tex }
+        let tex = generator()
+        textureCache[key] = tex
+        return tex
+    }
+
     // MARK: - Player
 
     static func playerPlane() -> SKTexture {
-        renderTexture(size: CGSize(width: 48, height: 56)) { ctx in
+        cached("playerPlane") { renderTexture(size: CGSize(width: 48, height: 56)) { ctx in
             // Fuselage
             ctx.setFillColor(rgb(0.18, 0.42, 0.15))
             ctx.fill(CGRect(x: 19, y: 4, width: 10, height: 48))
@@ -32,20 +43,20 @@ enum SpriteGenerator {
             // Propeller disc (translucent)
             ctx.setFillColor(UIColor(white: 0.7, alpha: 0.3).cgColor)
             ctx.fillEllipse(in: CGRect(x: 12, y: 50, width: 24, height: 6))
-        }
+        }}
     }
 
     static func playerShadow() -> SKTexture {
-        renderTexture(size: CGSize(width: 48, height: 56)) { ctx in
+        cached("playerShadow") { renderTexture(size: CGSize(width: 48, height: 56)) { ctx in
             ctx.setFillColor(UIColor(white: 0, alpha: 0.3).cgColor)
             ctx.fillEllipse(in: CGRect(x: 6, y: 10, width: 36, height: 36))
-        }
+        }}
     }
 
     // MARK: - Enemies
 
     static func enemyPlane() -> SKTexture {
-        renderTexture(size: CGSize(width: 44, height: 52)) { ctx in
+        cached("enemyPlane") { renderTexture(size: CGSize(width: 44, height: 52)) { ctx in
             // Fuselage (gray)
             ctx.setFillColor(rgb(0.45, 0.45, 0.43))
             ctx.fill(CGRect(x: 17, y: 4, width: 10, height: 44))
@@ -66,18 +77,18 @@ enum SpriteGenerator {
             ctx.setFillColor(UIColor(white: 0.3, alpha: 0.5).cgColor)
             ctx.fillEllipse(in: CGRect(x: 5, y: 21, width: 6, height: 6))
             ctx.fillEllipse(in: CGRect(x: 33, y: 21, width: 6, height: 6))
-        }
+        }}
     }
 
     static func enemyShadow() -> SKTexture {
-        renderTexture(size: CGSize(width: 44, height: 52)) { ctx in
+        cached("enemyShadow") { renderTexture(size: CGSize(width: 44, height: 52)) { ctx in
             ctx.setFillColor(UIColor(white: 0, alpha: 0.25).cgColor)
             ctx.fillEllipse(in: CGRect(x: 6, y: 10, width: 32, height: 32))
-        }
+        }}
     }
 
     static func tank() -> SKTexture {
-        renderTexture(size: CGSize(width: 28, height: 36)) { ctx in
+        cached("tank") { renderTexture(size: CGSize(width: 28, height: 36)) { ctx in
             // Tracks
             ctx.setFillColor(rgb(0.28, 0.28, 0.25))
             ctx.fill(CGRect(x: 1, y: 2, width: 7, height: 32))
@@ -94,11 +105,11 @@ enum SpriteGenerator {
             // Barrel
             ctx.setFillColor(rgb(0.30, 0.30, 0.26))
             ctx.fill(CGRect(x: 12, y: 24, width: 4, height: 12))
-        }
+        }}
     }
 
     static func aaGun() -> SKTexture {
-        renderTexture(size: CGSize(width: 26, height: 26)) { ctx in
+        cached("aaGun") { renderTexture(size: CGSize(width: 26, height: 26)) { ctx in
             // Sandbag base
             ctx.setFillColor(rgb(0.55, 0.50, 0.38))
             ctx.fillEllipse(in: CGRect(x: 1, y: 1, width: 24, height: 24))
@@ -115,11 +126,11 @@ enum SpriteGenerator {
             // Center mount
             ctx.setFillColor(rgb(0.45, 0.45, 0.40))
             ctx.fillEllipse(in: CGRect(x: 9, y: 9, width: 8, height: 8))
-        }
+        }}
     }
 
     static func building() -> SKTexture {
-        renderTexture(size: CGSize(width: 40, height: 40)) { ctx in
+        cached("building") { renderTexture(size: CGSize(width: 40, height: 40)) { ctx in
             // Building shadow
             ctx.setFillColor(UIColor(white: 0, alpha: 0.2).cgColor)
             ctx.fill(CGRect(x: 6, y: 0, width: 34, height: 34))
@@ -139,7 +150,7 @@ enum SpriteGenerator {
                     ctx.fill(CGRect(x: 5 + col * 9, y: 12 + row * 12, width: 5, height: 5))
                 }
             }
-        }
+        }}
     }
 
     // MARK: - Projectiles
@@ -147,11 +158,13 @@ enum SpriteGenerator {
     // MARK: - Bomb Sprites (per-type)
 
     static func bomb(weaponId: String = "bomb") -> SKTexture {
-        switch weaponId {
-        case "mining_bomb": return miningBombSprite()
-        case "heavy_bomb": return heavyBombSprite()
-        case "cluster_bomb": return clusterBombSprite()
-        default: return standardBombSprite()
+        cached("bomb_\(weaponId)") {
+            switch weaponId {
+            case "mining_bomb": return miningBombSprite()
+            case "heavy_bomb": return heavyBombSprite()
+            case "cluster_bomb": return clusterBombSprite()
+            default: return standardBombSprite()
+            }
         }
     }
 
@@ -467,18 +480,20 @@ enum SpriteGenerator {
     }
 
     static func bombShadow() -> SKTexture {
-        renderTexture(size: CGSize(width: 24, height: 24)) { ctx in
+        cached("bombShadow") { renderTexture(size: CGSize(width: 24, height: 24)) { ctx in
             ctx.setFillColor(UIColor(white: 0, alpha: 0.4).cgColor)
             ctx.fillEllipse(in: CGRect(x: 2, y: 2, width: 20, height: 20))
-        }
+        }}
     }
 
     static func bullet(weaponId: String = "basic_gun") -> SKTexture {
-        switch weaponId {
-        case "cannon": return cannonBulletSprite()
-        case "machine_gun": return machineGunBulletSprite()
-        case "autocannon": return autocannonBulletSprite()
-        default: return basicBulletSprite()
+        cached("bullet_\(weaponId)") {
+            switch weaponId {
+            case "cannon": return cannonBulletSprite()
+            case "machine_gun": return machineGunBulletSprite()
+            case "autocannon": return autocannonBulletSprite()
+            default: return basicBulletSprite()
+            }
         }
     }
 
@@ -557,16 +572,16 @@ enum SpriteGenerator {
     }
 
     static func enemyBullet() -> SKTexture {
-        renderTexture(size: CGSize(width: 6, height: 6)) { ctx in
+        cached("enemyBullet") { renderTexture(size: CGSize(width: 6, height: 6)) { ctx in
             ctx.setFillColor(UIColor(red: 1.0, green: 0.3, blue: 0.2, alpha: 1.0).cgColor)
             ctx.fillEllipse(in: CGRect(x: 0, y: 0, width: 6, height: 6))
-        }
+        }}
     }
 
     // MARK: - Environment
 
     static func groundTile(variant: Int) -> SKTexture {
-        renderTexture(size: CGSize(width: 128, height: 128)) { ctx in
+        cached("groundTile_\(variant)") { renderTexture(size: CGSize(width: 128, height: 128)) { ctx in
             // Base ground
             let g: CGFloat = variant % 2 == 0 ? 0.50 : 0.48
             ctx.setFillColor(rgb(0.36, g, 0.28))
@@ -596,22 +611,22 @@ enum SpriteGenerator {
                 ctx.setFillColor(rgb(0.50, 0.44, 0.32))
                 ctx.fillEllipse(in: CGRect(x: 30, y: 40, width: 60, height: 40))
             }
-        }
+        }}
     }
 
     static func cloud() -> SKTexture {
-        renderTexture(size: CGSize(width: 140, height: 70)) { ctx in
+        cached("cloud") { renderTexture(size: CGSize(width: 140, height: 70)) { ctx in
             let c = UIColor(white: 1.0, alpha: 0.2).cgColor
             ctx.setFillColor(c)
             ctx.fillEllipse(in: CGRect(x: 10, y: 15, width: 50, height: 30))
             ctx.fillEllipse(in: CGRect(x: 35, y: 5, width: 60, height: 45))
             ctx.fillEllipse(in: CGRect(x: 70, y: 10, width: 55, height: 40))
             ctx.fillEllipse(in: CGRect(x: 50, y: 25, width: 40, height: 30))
-        }
+        }}
     }
 
     static func treePatch() -> SKTexture {
-        renderTexture(size: CGSize(width: 32, height: 32)) { ctx in
+        cached("treePatch") { renderTexture(size: CGSize(width: 32, height: 32)) { ctx in
             // Tree shadow
             ctx.setFillColor(UIColor(white: 0, alpha: 0.15).cgColor)
             ctx.fillEllipse(in: CGRect(x: 6, y: 2, width: 22, height: 22))
@@ -623,7 +638,7 @@ enum SpriteGenerator {
             // Lighter center
             ctx.setFillColor(rgb(0.20, 0.50, 0.18))
             ctx.fillEllipse(in: CGRect(x: 8, y: 10, width: 16, height: 16))
-        }
+        }}
     }
 
     // MARK: - UI
@@ -670,6 +685,7 @@ enum SpriteGenerator {
     // MARK: - Weapon Icons (80x80 cards)
 
     static func weaponIcon(for weaponId: String) -> SKTexture {
+        cached("weaponIcon_\(weaponId)") {
         let s: CGFloat = 80
         return renderTexture(size: CGSize(width: s, height: s)) { ctx in
             // Card background gradient
@@ -708,7 +724,7 @@ enum SpriteGenerator {
             ctx.setStrokeColor(UIColor(white: 0.8, alpha: 0.6).cgColor)
             ctx.setLineWidth(1.5)
             ctx.strokePath()
-        }
+        }}
     }
 
     private static func drawWeaponShape(ctx: CGContext, id: String, bounds: CGRect) {
@@ -858,7 +874,7 @@ enum SpriteGenerator {
     }
 
     static func gemIcon() -> SKTexture {
-        renderTexture(size: CGSize(width: 20, height: 20)) { ctx in
+        cached("gemIcon") { renderTexture(size: CGSize(width: 20, height: 20)) { ctx in
             ctx.setFillColor(UIColor(red: 0.85, green: 0.2, blue: 0.7, alpha: 1).cgColor)
             let path = CGMutablePath()
             path.move(to: CGPoint(x: 10, y: 0))
@@ -871,18 +887,18 @@ enum SpriteGenerator {
             // Highlight
             ctx.setFillColor(UIColor(white: 1, alpha: 0.3).cgColor)
             ctx.fill(CGRect(x: 8, y: 3, width: 5, height: 6))
-        }
+        }}
     }
 
     static func coinIcon() -> SKTexture {
-        renderTexture(size: CGSize(width: 20, height: 20)) { ctx in
+        cached("coinIcon") { renderTexture(size: CGSize(width: 20, height: 20)) { ctx in
             ctx.setFillColor(UIColor(red: 0.9, green: 0.75, blue: 0.1, alpha: 1).cgColor)
             ctx.fillEllipse(in: CGRect(x: 1, y: 1, width: 18, height: 18))
             ctx.setFillColor(UIColor(red: 0.7, green: 0.55, blue: 0.05, alpha: 1).cgColor)
             ctx.fillEllipse(in: CGRect(x: 4, y: 4, width: 12, height: 12))
             ctx.setFillColor(UIColor(red: 0.95, green: 0.85, blue: 0.2, alpha: 1).cgColor)
             ctx.fillEllipse(in: CGRect(x: 6, y: 6, width: 8, height: 8))
-        }
+        }}
     }
 
     // MARK: - Helpers
