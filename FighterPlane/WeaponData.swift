@@ -37,35 +37,35 @@ enum WeaponCatalog {
     // --- Guns ---
 
     static let basicGun = WeaponInfo(
-        id: "basic_gun", name: "Basic Gun", category: .gun,
+        id: "basic_gun", name: "Machine Gun", category: .gun,
         gemCost: 0, damage: 1, fireRate: 0.22,
         blastRadius: 0, bulletCount: 1, bulletSpread: 0,
         projectileSpeed: 600, isHoming: false,
-        description: "Standard-issue single-barrel gun."
+        description: "Standard-issue 7.62mm machine gun."
     )
 
     static let cannon = WeaponInfo(
-        id: "cannon", name: "Cannon", category: .gun,
+        id: "cannon", name: "Heavy Cannon", category: .gun,
         gemCost: 40, damage: 3, fireRate: 0.5,
         blastRadius: 0, bulletCount: 1, bulletSpread: 0,
         projectileSpeed: 500, isHoming: false,
-        description: "Slow but powerful single shot."
+        description: "Slow-firing 30mm cannon, heavy punch."
     )
 
     static let machineGun = WeaponInfo(
-        id: "machine_gun", name: "Machine Gun", category: .gun,
+        id: "machine_gun", name: "Vulcan Cannon", category: .gun,
         gemCost: 100, damage: 1, fireRate: 0.08,
         blastRadius: 0, bulletCount: 1, bulletSpread: 0.03,
         projectileSpeed: 553, isHoming: false,
-        description: "Rapid fire with slight spread."
+        description: "20mm rotary cannon, blistering fire rate."
     )
 
     static let autocannon = WeaponInfo(
-        id: "autocannon", name: "Autocannon", category: .gun,
+        id: "autocannon", name: "Twin Autocannon", category: .gun,
         gemCost: 180, damage: 2, fireRate: 0.14,
         blastRadius: 0, bulletCount: 2, bulletSpread: 0.05,
         projectileSpeed: 600, isHoming: false,
-        description: "Twin barrels, double the pain."
+        description: "Dual-linked 23mm cannons."
     )
 
     // --- Bombs ---

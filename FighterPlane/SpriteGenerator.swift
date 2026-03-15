@@ -507,8 +507,8 @@ enum SpriteGenerator {
             ctx.setFillColor(UIColor(white: 0.35, alpha: 0.4).cgColor)
             ctx.fill(CGRect(x: 0, y: 0, width: 1, height: 22))
             ctx.fill(CGRect(x: 3, y: 0, width: 1, height: 22))
-            // Bright tip
-            ctx.setFillColor(UIColor(white: 0.8, alpha: 0.6).cgColor)
+            // Dark metallic tip
+            ctx.setFillColor(UIColor(red: 0.2, green: 0.2, blue: 0.2, alpha: 0.8).cgColor)
             ctx.fillEllipse(in: CGRect(x: 0, y: 0, width: 4, height: 4))
         }
     }
@@ -544,7 +544,7 @@ enum SpriteGenerator {
             ctx.setFillColor(UIColor(red: 1.0, green: 0.95, blue: 0.6, alpha: 0.8).cgColor)
             ctx.fill(CGRect(x: 5, y: 0, width: 4, height: 26))
             // Hot leading edge
-            ctx.setFillColor(UIColor(red: 1.0, green: 1.0, blue: 0.8, alpha: 0.9).cgColor)
+            ctx.setFillColor(UIColor(red: 1.0, green: 0.85, blue: 0.2, alpha: 0.9).cgColor)
             ctx.fillEllipse(in: CGRect(x: 3, y: 0, width: 8, height: 8))
         }
     }
@@ -565,8 +565,8 @@ enum SpriteGenerator {
             // Bright golden center
             ctx.setFillColor(UIColor(red: 1.0, green: 0.9, blue: 0.4, alpha: 0.6).cgColor)
             ctx.fill(CGRect(x: 2, y: 0, width: 2, height: 22))
-            // Incandescent tip
-            ctx.setFillColor(UIColor(red: 1.0, green: 1.0, blue: 0.7, alpha: 0.95).cgColor)
+            // Golden tip
+            ctx.setFillColor(UIColor(red: 1.0, green: 0.8, blue: 0.1, alpha: 0.95).cgColor)
             ctx.fillEllipse(in: CGRect(x: 0, y: 0, width: 6, height: 6))
         }
     }
