@@ -779,7 +779,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
                 let bulletCount = gun.bulletCount
                 let spread = gun.bulletSpread
-                let speed = Float(gun.projectileSpeed) / 60.0 * speedMult
+                let speed = Float(gun.projectileSpeed) / 60.0 * speedMult * 0.75
 
                 // Slight X offset per gun to simulate multiple barrel positions
                 let gunSpacing: Float = self.equippedGuns.count > 1 ? 0.8 : 0
@@ -1204,8 +1204,13 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         let dist = sqrt(dy * dy + dz * dz)
         guard dist > 1 else { return }
 
-        // Tanks shoot slower, heavier shells; AA guns shoot faster
-        let speed: Float = enemy.type == .tank ? 0.3 : 0.4
+        // Tanks shoot slower, heavier shells; AA guns shoot faster; fighters 25% slower
+        let speed: Float
+        switch enemy.type {
+        case .tank: speed = 0.3
+        case .fighter: speed = 0.4 * 0.75  // planes fire 25% slower
+        default: speed = 0.4
+        }
 
         let vy = (dy / dist) * speed
         let vz = (dz / dist) * speed
