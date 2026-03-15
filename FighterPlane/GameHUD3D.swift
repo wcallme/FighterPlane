@@ -10,6 +10,7 @@ class GameHUD3D: SKScene {
         var steeringAngle: CGFloat = 0
         var isFiring = false
         var shouldDropBomb = false
+        var shouldActivateECM = false
         var shouldRestart = false
         var shouldExitToMenu = false
         var shouldRetryMission = false
@@ -25,6 +26,7 @@ class GameHUD3D: SKScene {
         _lock.lock()
         let snapshot = _state
         _state.shouldDropBomb = false
+        _state.shouldActivateECM = false
         _state.shouldRestart = false
         _state.shouldExitToMenu = false
         _state.shouldRetryMission = false
@@ -52,6 +54,10 @@ class GameHUD3D: SKScene {
     var shouldDropBomb: Bool {
         get { _lock.lock(); defer { _lock.unlock() }; return _state.shouldDropBomb }
         set { _lock.lock(); _state.shouldDropBomb = newValue; _lock.unlock() }
+    }
+    var shouldActivateECM: Bool {
+        get { _lock.lock(); defer { _lock.unlock() }; return _state.shouldActivateECM }
+        set { _lock.lock(); _state.shouldActivateECM = newValue; _lock.unlock() }
     }
     var shouldRestart: Bool {
         get { _lock.lock(); defer { _lock.unlock() }; return _state.shouldRestart }
@@ -87,6 +93,8 @@ class GameHUD3D: SKScene {
     private var fireButton: SKShapeNode!
     private var bombButton: SKShapeNode!
     private var bombPips: [SKShapeNode] = []
+    private var ecmButton: SKShapeNode?
+    private var ecmCooldownRing: SKShapeNode?
 
     private var healthBarBg: SKShapeNode!
     private var healthBarFill: SKShapeNode!
@@ -184,6 +192,51 @@ class GameHUD3D: SKScene {
         bombIcon.verticalAlignmentMode = .center
         bombIcon.position = CGPoint(x: 0, y: 4)
         bombButton.addChild(bombIcon)
+    }
+
+    func setupECMButton() {
+        let btn = SKShapeNode(circleOfRadius: 32)
+        btn.fillColor = SKColor(red: 0.2, green: 0.5, blue: 0.8, alpha: 0.5)
+        btn.strokeColor = SKColor(white: 0.9, alpha: 0.7)
+        btn.lineWidth = 2
+        btn.position = CGPoint(x: size.width - safeRight - 70, y: safeBottom + 196)
+        btn.zPosition = 10
+        btn.name = "ecmBtn"
+        addChild(btn)
+
+        let icon = SKLabelNode(fontNamed: "Menlo-Bold")
+        icon.text = "ECM"
+        icon.fontSize = 11
+        icon.fontColor = .white
+        icon.verticalAlignmentMode = .center
+        icon.position = CGPoint(x: 0, y: 4)
+        btn.addChild(icon)
+
+        // Cooldown overlay ring (fills as cooldown progresses)
+        let ring = SKShapeNode(circleOfRadius: 30)
+        ring.fillColor = SKColor(white: 0, alpha: 0.55)
+        ring.strokeColor = .clear
+        ring.zPosition = 2
+        ring.isHidden = true
+        btn.addChild(ring)
+        ecmCooldownRing = ring
+
+        ecmButton = btn
+    }
+
+    func updateECMButton(isActive: Bool, isReady: Bool, cooldownFraction: CGFloat) {
+        guard let btn = ecmButton else { return }
+        if isActive {
+            btn.fillColor = SKColor(red: 0.3, green: 0.9, blue: 1.0, alpha: 0.7)
+            ecmCooldownRing?.isHidden = true
+        } else if isReady {
+            btn.fillColor = SKColor(red: 0.2, green: 0.5, blue: 0.8, alpha: 0.5)
+            ecmCooldownRing?.isHidden = true
+        } else {
+            btn.fillColor = SKColor(red: 0.2, green: 0.3, blue: 0.4, alpha: 0.4)
+            ecmCooldownRing?.isHidden = false
+            ecmCooldownRing?.alpha = CGFloat(1.0 - cooldownFraction)
+        }
     }
 
     private func setupPauseButton() {
@@ -497,6 +550,7 @@ class GameHUD3D: SKScene {
         pauseButton.run(.fadeAlpha(to: 0, duration: 0.5))
         healthBarBg.run(.fadeAlpha(to: 0, duration: 0.5))
         healthBarFill.run(.fadeAlpha(to: 0, duration: 0.5))
+        ecmButton?.run(.fadeAlpha(to: 0, duration: 0.5))
     }
 
     func showMissionComplete(score: Int, enemies: Int, coins: Int, gems: Int) {
@@ -718,6 +772,20 @@ class GameHUD3D: SKScene {
                 ]))
                 continue
             }
+
+            // ECM button
+            if let ecm = ecmButton {
+                let ecmDist = hypot(loc.x - ecm.position.x, loc.y - ecm.position.y)
+                if ecmDist <= 50 {
+                    shouldActivateECM = true
+                    pressButton(ecm)
+                    ecm.run(.sequence([
+                        .wait(forDuration: 0.15),
+                        .run { [weak self] in self?.releaseECMButton() }
+                    ]))
+                    continue
+                }
+            }
         }
     }
 
@@ -774,6 +842,12 @@ class GameHUD3D: SKScene {
                 }
             }
         ]))
+    }
+
+    private func releaseECMButton() {
+        guard let btn = ecmButton else { return }
+        btn.removeAllActions()
+        btn.run(.scale(to: 1.0, duration: 0.1))
     }
 
     private func updateJoystick(touch: UITouch) {
