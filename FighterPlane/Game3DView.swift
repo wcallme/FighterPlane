@@ -1,15 +1,54 @@
 import SwiftUI
 import SceneKit
 
-struct Game3DView: UIViewRepresentable {
+struct Game3DView: View {
+    @StateObject private var loader = GameLoader()
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
+    var body: some View {
+        ZStack {
+            if let controller = loader.controller {
+                Game3DSceneView(controller: controller)
+                    .ignoresSafeArea()
+            }
+
+            // Loading overlay — visible until scene is ready
+            if !loader.isReady {
+                LoadingView()
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.4), value: loader.isReady)
+        .onAppear { loader.load() }
     }
+}
+
+// MARK: - Loader
+
+private class GameLoader: ObservableObject {
+    @Published var controller: Game3DController?
+    @Published var isReady = false
+
+    func load() {
+        // Controller must be created on main thread (SceneKit/SpriteKit + UIScreen access)
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            let ctrl = Game3DController(mode: NavigationManager.shared.gameMode)
+            self.controller = ctrl
+            // Give SceneKit one frame to render before hiding the loading screen
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+                self?.isReady = true
+            }
+        }
+    }
+}
+
+// MARK: - SceneKit Host
+
+private struct Game3DSceneView: UIViewRepresentable {
+    let controller: Game3DController
 
     func makeUIView(context: Context) -> SCNView {
         let scnView = SCNView()
-        let controller = Game3DController()
 
         scnView.scene = controller.scene
         scnView.delegate = controller
@@ -28,7 +67,52 @@ struct Game3DView: UIViewRepresentable {
 
     func updateUIView(_ uiView: SCNView, context: Context) {}
 
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
     class Coordinator {
         var controller: Game3DController?
+    }
+}
+
+// MARK: - Loading Screen
+
+private struct LoadingView: View {
+    @State private var dotCount = 0
+    private let timer = Timer.publish(every: 0.4, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        ZStack {
+            // Sky gradient background
+            LinearGradient(
+                colors: [
+                    Color(red: 0.35, green: 0.58, blue: 0.80),
+                    Color(red: 0.55, green: 0.78, blue: 0.95),
+                    Color(red: 0.70, green: 0.88, blue: 0.97)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+
+            VStack(spacing: 24) {
+                // Plane silhouette
+                Text("✈")
+                    .font(.system(size: 64))
+                    .rotationEffect(.degrees(-30))
+
+                Text("FIGHTER PLANE")
+                    .font(.system(size: 28, weight: .heavy, design: .monospaced))
+                    .foregroundColor(.white)
+                    .shadow(color: .black.opacity(0.3), radius: 2, y: 2)
+
+                Text("Loading" + String(repeating: ".", count: dotCount))
+                    .font(.system(size: 16, weight: .medium, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.8))
+                    .frame(width: 120, alignment: .leading)
+                    .onReceive(timer) { _ in
+                        dotCount = (dotCount + 1) % 4
+                    }
+            }
+        }
+        .ignoresSafeArea()
     }
 }

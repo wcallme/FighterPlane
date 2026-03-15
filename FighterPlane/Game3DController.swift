@@ -89,9 +89,12 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     private let equippedBombs: [WeaponInfo]
     private var bombReady: [Bool]
 
-    // Mission mode (TODO: re-enable when MissionData is ready)
-    // private let missionData: MissionData?
-    private var isMissionMode: Bool { false }
+    // Game mode
+    let gameMode: GameMode
+    private var isMissionMode: Bool {
+        if case .mission = gameMode { return true }
+        return false
+    }
     // private var spawnedMissionEnemyIndices: Set<Int> = []
     // private var missionEnemyTotal: Int = 0
     // private var missionEnemiesDestroyed: Int = 0
@@ -136,7 +139,9 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
     // MARK: - Init
 
-    override init() {
+    init(mode: GameMode = .infiniteBattle) {
+        self.gameMode = mode
+
         let data = PlayerData.shared
         playerMaxHealth = data.maxHealth
         playerHealth = playerMaxHealth
@@ -162,9 +167,6 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         setupScene()
         GameManager.shared.resetSession()
     }
-
-    // TODO: re-enable when MissionData is ready
-    // init(mission: MissionData) { ... }
 
     // MARK: - Scene Setup
 
