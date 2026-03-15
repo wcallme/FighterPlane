@@ -271,10 +271,26 @@ class HangarScene: SKScene {
         planeGlow.run(.repeatForever(glowPulse))
     }
 
+    private static let menuImageMap: [String: String] = [
+        "F16": "MenuF16",
+        "F22": "MenuF22",
+        "B2":  "MenuB2",
+    ]
+
     private func updatePlaneSprite(planeId: String) {
         guard let sprite = childNode(withName: "planeSprite") as? SKSpriteNode else { return }
 
-        let renderSize = CGSize(width: 520, height: 400) // 2x for retina
+        // Try pre-rendered menu image first (much faster than USDZ snapshot)
+        if let assetName = Self.menuImageMap[planeId],
+           let img = UIImage(named: assetName) {
+            let texture = SKTexture(image: img)
+            sprite.texture = texture
+            sprite.size = CGSize(width: 260, height: 200)
+            return
+        }
+
+        // Fallback to USDZ snapshot for planes without menu images
+        let renderSize = CGSize(width: 520, height: 400)
         guard let image = renderPlaneSnapshot(planeId: planeId, size: renderSize) else { return }
 
         let texture = SKTexture(image: image)
