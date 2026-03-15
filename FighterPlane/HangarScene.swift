@@ -37,22 +37,18 @@ class HangarScene: SKScene {
         let usableTop = size.height - safeTop
         let usableBottom = safeBottom
 
-        // Header: from top, 70pt tall
+        // Header: from top
         headerY = usableTop - 40
 
-        // Button row: from bottom
+        // Bottom sections (build upward from bottom with room for section labels)
         buttonRowY = usableBottom + 50
+        loadoutRowY = buttonRowY + 64
+        upgradeRowY = loadoutRowY + 64
 
-        // Loadout row: above buttons
-        loadoutRowY = buttonRowY + 58
-
-        // Upgrade row: above loadout
-        upgradeRowY = loadoutRowY + 54
-
-        // Plane area: centered in the remaining space, biased upward to avoid overlap
+        // Plane area: centered between upgrade section top and header bottom
         let headerBottom = usableTop - 80
-        let upgradeTop = upgradeRowY + 30
-        planeAreaCenterY = upgradeTop + (headerBottom - upgradeTop) * 0.55
+        let upgradeTop = upgradeRowY + 34
+        planeAreaCenterY = upgradeTop + (headerBottom - upgradeTop) * 0.5
     }
 
     // MARK: - Atmospheric Background
@@ -290,12 +286,12 @@ class HangarScene: SKScene {
         }
 
         // Fallback to USDZ snapshot for planes without menu images
-        let renderSize = CGSize(width: 520, height: 400)
+        let renderSize = CGSize(width: 360, height: 276)
         guard let image = renderPlaneSnapshot(planeId: planeId, size: renderSize) else { return }
 
         let texture = SKTexture(image: image)
         sprite.texture = texture
-        sprite.size = CGSize(width: 260, height: 200)
+        sprite.size = CGSize(width: 180, height: 138)
     }
 
     private func renderPlaneSnapshot(planeId: String, size: CGSize) -> UIImage? {
@@ -379,7 +375,7 @@ class HangarScene: SKScene {
 
     private func setupStatsBar() {
         let data = PlayerData.shared
-        let statsY = planeAreaCenterY - 70
+        let statsY = planeAreaCenterY - 85
 
         let statsText = "HP \(data.maxHealth)  \u{2022}  SPD \(String(format: "%.0f", data.speedMultiplier * 100))%  \u{2022}  ENG \(String(format: "%.0f", data.engineMultiplier * 100))%"
         let stats = SKLabelNode(fontNamed: "Menlo")
