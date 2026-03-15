@@ -25,7 +25,10 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     private let playerMaxHealth: Int
     private let playerSpeed: Float = 14.0
     private let minAltitude: Float = 2.0
-    private let maxAltitude: Float = 65.0
+    private var maxAltitude: Float {
+        if case .mission = gameMode { return 65.0 }
+        return 48.75  // 25% lower ceiling for endless mode
+    }
     private var currentFlipRoll: Float = 0      // child roll offset, decays toward 0
     private var smoothPitch: Float = 0            // smoothed pitch euler
     private let playerRollNode = SCNNode()        // child node for roll
@@ -1192,7 +1195,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
         // Detection range ring for AA guns and SAM launchers
         if type == .aaGun || type == .samLauncher {
-            let range = type.fireRange
+            let range = effectiveFireRange(for: type)
             let ring = SCNTorus(ringRadius: CGFloat(range), pipeRadius: 0.12)
             let mat = SCNMaterial()
             let color = type == .samLauncher
@@ -1286,7 +1289,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
             // Distance check for firing range (use Y-Z; X is visual depth only)
             let dist = distanceYZ(enemies[i].node.position, playerNode.position)
-            let range = enemies[i].type.fireRange
+            let range = effectiveFireRange(for: enemies[i].type)
             guard range > 0 && dist <= range else { continue }
 
             // Fire intervals per type, scaled by difficulty
@@ -1638,6 +1641,15 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         let dy = a.y - b.y
         let dz = a.z - b.z
         return sqrt(dx * dx + dy * dy + dz * dz)
+    }
+
+    /// Fire range for an enemy, scaled up in endless mode based on distance traveled.
+    /// At playerZ=0 the range is base; by playerZ=2000 it's +50% larger.
+    private func effectiveFireRange(for type: EnemyType) -> Float {
+        let base = type.fireRange
+        guard case .infiniteBattle = gameMode else { return base }
+        let progress = min(abs(playerZ) / 2000.0, 1.0)
+        return base * (1.0 + progress * 0.5)
     }
 
     /// Distance ignoring X axis – used for hit detection in this side-view game
