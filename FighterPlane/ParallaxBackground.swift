@@ -2,7 +2,7 @@ import SpriteKit
 
 class ParallaxBackground {
 
-    private let scene: SKScene
+    private weak var scene: SKScene?
     private var groundLayers: [(SKSpriteNode, SKSpriteNode)] = []
     private var cloudNodes: [SKSpriteNode] = []
     private var treeClusters: [SKSpriteNode] = []
@@ -22,6 +22,7 @@ class ParallaxBackground {
     // MARK: - Setup
 
     private func setupGround() {
+        guard let scene = scene else { return }
         // Create two ground strips that tile vertically for seamless scrolling
         let stripHeight = scene.size.height + 128
 
@@ -67,6 +68,7 @@ class ParallaxBackground {
     }
 
     private func setupClouds() {
+        guard let scene = scene else { return }
         let cloudTexture = SpriteGenerator.cloud()
         for _ in 0..<6 {
             let cloud = SKSpriteNode(texture: cloudTexture)
@@ -84,6 +86,7 @@ class ParallaxBackground {
     }
 
     private func setupInitialTrees() {
+        guard let scene = scene else { return }
         let treeTexture = SpriteGenerator.treePatch()
         for _ in 0..<12 {
             let tree = SKSpriteNode(texture: treeTexture)
@@ -103,6 +106,7 @@ class ParallaxBackground {
     // MARK: - Update
 
     func update(deltaTime: TimeInterval) {
+        guard let scene = scene else { return }
         let baseScroll = GameConfig.scrollSpeed * CGFloat(deltaTime)
 
         // Scroll ground layers

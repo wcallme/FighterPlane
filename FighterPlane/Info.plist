@@ -24,12 +24,14 @@
     <true/>
     <key>UILaunchScreen</key>
     <dict>
-        <key>UIColorName</key>
-        <string>groundGreen</string>
+        <key>UIImageName</key>
+        <string>LaunchImage</string>
+        <key>UIImageRespectsSafeAreaInsets</key>
+        <false/>
     </dict>
     <key>UIRequiredDeviceCapabilities</key>
     <array>
-        <string>armv7</string>
+        <string>arm64</string>
     </array>
     <key>UISupportedInterfaceOrientations</key>
     <array>
