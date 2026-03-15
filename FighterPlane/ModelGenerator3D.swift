@@ -589,10 +589,10 @@ enum ModelGenerator3D {
         if let template = enemyBulletTemplate {
             return template.clone()
         }
-        // Long thin red tracer — slightly thicker
-        let stick = SCNCylinder(radius: 0.033, height: 2.0)
-        stick.firstMaterial?.diffuse.contents = UIColor(red: 1.0, green: 0.25, blue: 0.15, alpha: 1)
-        stick.firstMaterial?.emission.contents = UIColor(red: 1.0, green: 0.2, blue: 0.1, alpha: 0.6)
+        // Long thin dark-red tracer — wider and shorter
+        let stick = SCNCylinder(radius: 0.045, height: 1.5)
+        stick.firstMaterial?.diffuse.contents = UIColor(red: 0.7, green: 0.1, blue: 0.08, alpha: 1)
+        stick.firstMaterial?.emission.contents = UIColor(red: 0.75, green: 0.1, blue: 0.05, alpha: 0.6)
         stick.firstMaterial?.lightingModel = .constant
         let node = SCNNode(geometry: stick)
         node.name = "enemyBullet"

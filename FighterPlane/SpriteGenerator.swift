@@ -572,9 +572,9 @@ enum SpriteGenerator {
     }
 
     static func enemyBullet() -> SKTexture {
-        cached("enemyBullet") { renderTexture(size: CGSize(width: 6, height: 6)) { ctx in
-            ctx.setFillColor(UIColor(red: 1.0, green: 0.3, blue: 0.2, alpha: 1.0).cgColor)
-            ctx.fillEllipse(in: CGRect(x: 0, y: 0, width: 6, height: 6))
+        cached("enemyBullet") { renderTexture(size: CGSize(width: 8, height: 8)) { ctx in
+            ctx.setFillColor(UIColor(red: 0.7, green: 0.1, blue: 0.08, alpha: 1.0).cgColor)
+            ctx.fillEllipse(in: CGRect(x: 0, y: 0, width: 8, height: 8))
         }}
     }
 

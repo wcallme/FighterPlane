@@ -128,10 +128,10 @@ enum EnemyType: String {
 
     var fireRate: TimeInterval {
         switch self {
-        case .tank: return 3.0
-        case .aaGun: return 1.5
-        case .samLauncher: return 5.0
-        case .fighter: return 2.5
+        case .tank: return 3.36
+        case .aaGun: return 1.68
+        case .samLauncher: return 5.6
+        case .fighter: return 2.8
         case .building, .truck, .radioTower: return 0
         }
     }
@@ -140,6 +140,7 @@ enum EnemyType: String {
 enum GameState {
     case playing
     case paused
+    case missionVictory   // plane auto-flies before showing results
     case gameOver
 }
 
