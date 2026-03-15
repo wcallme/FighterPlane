@@ -266,8 +266,10 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         let vz = cos(playerAngle) * fwdSpeed
         var simVY = sin(playerAngle) * fwdSpeed
 
-        var simY = playerY
-        var simZ = playerZ
+        // Start the guide ahead of the plane nose, not at the center
+        let noseOffset: Float = 3.0
+        var simY = playerY + sin(playerAngle) * noseOffset
+        var simZ = playerZ + cos(playerAngle) * noseOffset
         let simDt: Float = 1.0 / 30.0
         var simTime: Float = 0
 
