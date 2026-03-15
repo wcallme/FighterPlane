@@ -165,10 +165,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         )
 
         // Apply difficulty health bonus
-        let bonus = GameManager.shared.enemyHealthBonus
-        for _ in 0..<bonus {
-            enemy.health += 1
-        }
+        enemy.health += GameManager.shared.enemyHealthBonus
 
         addChild(enemy)
         enemies.append(enemy)
@@ -365,6 +362,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func destroyEnemy(_ enemy: EnemyNode) {
+        // Guard against double-destroy (e.g. bomb + bullet same frame)
+        guard !enemy.isDestroyed else { return }
+        enemy.isDestroyed = true
+
         GameManager.shared.addScore(enemy.type.score)
         GameManager.shared.enemiesDestroyed += 1
         hud.updateScore(GameManager.shared.currentScore)

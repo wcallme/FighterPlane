@@ -4,6 +4,7 @@ class EnemyNode: SKNode {
 
     let type: EnemyType
     var health: Int
+    var isDestroyed = false
     private let bodySprite: SKSpriteNode
     private let shadowSprite: SKSpriteNode?
     private var lastFireTime: TimeInterval = -1  // -1 signals "not yet initialized"
@@ -34,6 +35,14 @@ class EnemyNode: SKNode {
             bodySprite = SKSpriteNode(texture: SpriteGenerator.aaGun()) // reuse AA gun sprite for 2D
             shadowSprite = nil
             fireInterval = 5.0
+        case .truck:
+            bodySprite = SKSpriteNode(texture: SpriteGenerator.tank()) // reuse tank sprite for 2D
+            shadowSprite = nil
+            fireInterval = 0
+        case .radioTower:
+            bodySprite = SKSpriteNode(texture: SpriteGenerator.building()) // reuse building sprite for 2D
+            shadowSprite = nil
+            fireInterval = 0
         }
 
         super.init()
