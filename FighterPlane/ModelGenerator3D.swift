@@ -604,7 +604,7 @@ enum ModelGenerator3D {
         switch weaponId {
         case "mining_bomb": return miningBomb3D()
         case "heavy_bomb": return heavyBomb3D()
-        case "cluster_bomb": return clusterBomb3D()
+        case "cluster_warhead": return clusterWarhead3D()
         default: return standardBomb3D()
         }
     }
@@ -807,8 +807,8 @@ enum ModelGenerator3D {
         return root
     }
 
-    /// Cluster bomblet — small stubby pear, olive green with yellow band and mini fins
-    private static func clusterBomb3D() -> SCNNode {
+    /// Cluster warhead — small stubby pear, olive green with yellow band and mini fins
+    private static func clusterWarhead3D() -> SCNNode {
         let root = SCNNode()
         root.name = "bomb3D"
 
@@ -845,6 +845,28 @@ enum ModelGenerator3D {
             finNode.eulerAngles.z = 0.12
             root.addChildNode(finNode)
         }
+
+        return root
+    }
+
+    /// Tiny dot bomblet for cluster warhead sub-munitions — small dark sphere
+    static func clusterBomblet3D() -> SCNNode {
+        let root = SCNNode()
+        root.name = "bomb3D"
+
+        let sphere = SCNSphere(radius: 0.06)
+        sphere.firstMaterial?.diffuse.contents = UIColor(red: 0.22, green: 0.28, blue: 0.14, alpha: 1)
+        sphere.firstMaterial?.specular.contents = UIColor(white: 0.3, alpha: 1)
+        let sphereNode = SCNNode(geometry: sphere)
+        root.addChildNode(sphereNode)
+
+        // Tiny yellow dot marking
+        let dot = SCNSphere(radius: 0.02)
+        dot.firstMaterial?.diffuse.contents = UIColor(red: 0.92, green: 0.82, blue: 0.18, alpha: 1)
+        dot.firstMaterial?.emission.contents = UIColor(red: 0.4, green: 0.35, blue: 0.05, alpha: 0.3)
+        let dotNode = SCNNode(geometry: dot)
+        dotNode.position = SCNVector3(0, -0.04, 0)
+        root.addChildNode(dotNode)
 
         return root
     }

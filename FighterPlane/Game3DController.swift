@@ -128,7 +128,8 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         var velocityZ: Float   // Z velocity (inherited from plane)
         let damage: Int
         let blastRadius: Float
-        var clusterCount: Int = 0  // >0 means this bomb splits into sub-bomblets on impact
+        var clusterCount: Int = 0  // >0 means this bomb splits into sub-bomblets mid-air
+        var timeAlive: Float = 0   // elapsed time since drop (used for cluster split timing)
     }
 
     struct SAMMissile3D {
@@ -996,7 +997,12 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     }
 
     private func updateBombs(dt: Float) {
+        var newBomblets: [Bomb3D] = []
+
         for i in activeBombs.indices {
+            // Track time alive for cluster split timing
+            activeBombs[i].timeAlive += dt
+
             // Apply gravity to vertical velocity
             activeBombs[i].velocityY -= bombGravity * dt
 
@@ -1022,6 +1028,15 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             activeBombs[i].shadowNode.scale = SCNVector3(shadowScale, shadowScale, shadowScale)
             activeBombs[i].shadowNode.opacity = CGFloat(0.3 + clamped * 0.4)
 
+            // Cluster warhead: split mid-air after 1.4 seconds
+            if activeBombs[i].clusterCount > 0 && activeBombs[i].timeAlive >= 1.4 {
+                let bomblets = spawnClusterBomblets(from: activeBombs[i])
+                newBomblets.append(contentsOf: bomblets)
+                activeBombs[i].node.removeFromParentNode()
+                activeBombs[i].shadowNode.removeFromParentNode()
+                continue
+            }
+
             // Remove on ground hit or if too far from player
             let dz = bombPos.z - playerZ
             if bombPos.y <= groundLevel + 0.3 {
@@ -1034,47 +1049,55 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             }
         }
         activeBombs.removeAll { $0.node.parent == nil }
+        activeBombs.append(contentsOf: newBomblets)
+    }
+
+    /// Splits a cluster warhead into 8 tiny dot bomblets scattered radially,
+    /// simulating a real cluster munition canister opening mid-air.
+    private func spawnClusterBomblets(from bomb: Bomb3D) -> [Bomb3D] {
+        let pos = bomb.node.position
+        let groundY = max(Float(0.1), groundHeight(x: 0, z: pos.z))
+        var bomblets: [Bomb3D] = []
+
+        // Small puff at split point
+        let puff = ModelGenerator3D.explosion(radius: bomb.blastRadius * 0.3)
+        puff.position = pos
+        scene.rootNode.addChildNode(puff)
+
+        let count = bomb.clusterCount
+        for i in 0..<count {
+            // Scatter radially in a full circle (like canister spinning open)
+            let angle = Float(i) / Float(count) * Float.pi * 2.0
+            let spreadZ = sin(angle) * Float.random(in: 4.0...7.0)
+            let spreadX = cos(angle) * Float.random(in: 0.5...1.5) // slight lateral for visual variety
+            // Bomblets inherit parent's downward velocity + small random scatter upward
+            let popY = bomb.velocityY * 0.3 + Float.random(in: -1.0...2.0)
+
+            let bomblet = ModelGenerator3D.clusterBomblet3D()
+            bomblet.position = SCNVector3(pos.x + spreadX * 0.2, pos.y, pos.z)
+
+            let shadow = ModelGenerator3D.bombShadow3D()
+            shadow.position = SCNVector3(0, groundY + 0.1, pos.z)
+            shadow.scale = SCNVector3(0.15, 0.15, 0.15)
+
+            scene.rootNode.addChildNode(bomblet)
+            scene.rootNode.addChildNode(shadow)
+
+            bomblets.append(Bomb3D(
+                node: bomblet,
+                shadowNode: shadow,
+                velocityY: popY,
+                velocityZ: bomb.velocityZ * 0.5 + spreadZ,
+                damage: bomb.damage,
+                blastRadius: bomb.blastRadius * 0.5
+            ))
+        }
+        return bomblets
     }
 
     private func handleBombImpact(bomb: Bomb3D) {
         let pos = bomb.node.position
         let groundY = max(Float(0.1), groundHeight(x: pos.x, z: pos.z))
-
-        // Cluster bomb: spawn sub-bomblets that radiate outward from center
-        if bomb.clusterCount > 0 {
-            let smallExplosion = ModelGenerator3D.explosion(radius: bomb.blastRadius * 0.4)
-            smallExplosion.position = SCNVector3(pos.x, groundY + 0.3, pos.z)
-            scene.rootNode.addChildNode(smallExplosion)
-
-            let count = bomb.clusterCount
-            for i in 0..<count {
-                // Spread evenly across a fan in the Y-Z plane
-                let t = count > 1 ? Float(i) / Float(count - 1) - 0.5 : Float(0)  // -0.5 to +0.5
-                let spreadZ: Float = t * 16.0
-                let popY: Float = 6.0 + Float.random(in: 0...2.0)
-
-                let bomblet = ModelGenerator3D.bomb3D(weaponId: "cluster_bomb")
-                bomblet.scale = SCNVector3(0.5, 0.5, 0.5)
-                bomblet.position = pos
-
-                let shadow = ModelGenerator3D.bombShadow3D()
-                shadow.position = SCNVector3(0, groundY + 0.1, pos.z)
-                shadow.scale = SCNVector3(0.2, 0.2, 0.2)
-
-                scene.rootNode.addChildNode(bomblet)
-                scene.rootNode.addChildNode(shadow)
-
-                activeBombs.append(Bomb3D(
-                    node: bomblet,
-                    shadowNode: shadow,
-                    velocityY: popY,
-                    velocityZ: bomb.velocityZ * 0.3 + spreadZ,
-                    damage: bomb.damage,
-                    blastRadius: bomb.blastRadius * 0.6
-                ))
-            }
-            return
-        }
 
         let explosion = ModelGenerator3D.explosion(radius: bomb.blastRadius)
         explosion.position = SCNVector3(pos.x, groundY + 0.5, pos.z)

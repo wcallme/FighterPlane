@@ -27,6 +27,11 @@ class BombNode: SKNode {
     /// Called when the bomb reaches the ground
     var onImpact: ((CGPoint) -> Void)?
 
+    /// Called when a cluster warhead splits mid-air (passes world position of split + remaining fall fraction)
+    var onClusterSplit: ((CGPoint, CGFloat, CGFloat) -> Void)?
+    private let clusterSplitTime: TimeInterval = 1.4
+    private var hasSplit = false
+
     init(startPosition: CGPoint, groundOffset: CGPoint, weaponId: String = "bomb",
          playerVelocityX: CGFloat = 0, scrollSpeed: CGFloat = 120) {
         self.weaponId = weaponId
@@ -84,7 +89,7 @@ class BombNode: SKNode {
             wobblePhase = CGFloat.random(in: 0...(.pi * 2))
             addSmokeTrail(color: UIColor(white: 0.4, alpha: 0.5), birthRate: 15, size: 4)
 
-        case "cluster_bomb":
+        case "cluster_warhead":
             spinRate = .pi * 3
             wobblePhase = CGFloat.random(in: 0...(.pi * 2))
 
@@ -173,6 +178,22 @@ class BombNode: SKNode {
         // Per-type falling animations
         updateBombAnimation(deltaTime: deltaTime, t: Double(t), easedT: Double(easedT))
 
+        // Cluster warhead: split mid-air after 1.4 seconds
+        if weaponId == "cluster_warhead" && !hasSplit && elapsed >= clusterSplitTime {
+            hasSplit = true
+            let splitWorldPos = CGPoint(
+                x: position.x + bombSprite.position.x,
+                y: position.y + bombSprite.position.y
+            )
+            let scrollY = scrollSpeed * CGFloat(elapsed)
+            onClusterSplit?(splitWorldPos, scrollY, CGFloat(elapsed))
+            onClusterSplit = nil
+            // Remove the canister bomb
+            hasExploded = true
+            run(.sequence([.fadeOut(withDuration: 0.1), .removeFromParent()]))
+            return
+        }
+
         if t >= 1.0 {
             explode()
         }
@@ -189,7 +210,7 @@ class BombNode: SKNode {
             let wobbleAmount = CGFloat(0.08 * (1.0 - easedT))
             bombSprite.zRotation = sin(wobblePhase) * wobbleAmount
 
-        case "cluster_bomb":
+        case "cluster_warhead":
             bombSprite.zRotation += spinRate * CGFloat(deltaTime)
             wobblePhase += CGFloat(deltaTime) * 8.0
             let jitter = sin(wobblePhase) * CGFloat(1.5 * (1.0 - easedT))

@@ -220,27 +220,24 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Base shadow offset (momentum offsets added in BombNode)
         let groundOffset = CGPoint(x: 15, y: -20)
 
-        let bombCount = bombWeapon.bulletCount // cluster bombs drop multiple
-        for i in 0..<bombCount {
-            let offset: CGPoint
-            if bombCount > 1 {
-                // Spread bomblets in a pattern
-                let spreadX = CGFloat(i - bombCount / 2) * 25
-                let spreadY = CGFloat.random(in: -10...10)
-                offset = CGPoint(x: groundOffset.x + spreadX, y: groundOffset.y + spreadY)
-            } else {
-                offset = groundOffset
-            }
-
-            let bomb = BombNode(startPosition: player.position, groundOffset: offset,
-                                weaponId: bombWeapon.id, playerVelocityX: playerVelocityX,
-                                scrollSpeed: GameConfig.scrollSpeed)
-            bomb.onImpact = { [weak self] impactPoint in
-                self?.handleBombImpact(at: impactPoint, weapon: bombWeapon)
-            }
-            addChild(bomb)
-            bombs.append(bomb)
+        // Always drop a single canister (cluster warheads split mid-air)
+        let bomb = BombNode(startPosition: player.position, groundOffset: groundOffset,
+                            weaponId: bombWeapon.id, playerVelocityX: playerVelocityX,
+                            scrollSpeed: GameConfig.scrollSpeed)
+        bomb.onImpact = { [weak self] impactPoint in
+            self?.handleBombImpact(at: impactPoint, weapon: bombWeapon)
         }
+
+        // Cluster warhead: on mid-air split, spawn 8 tiny bomblets that scatter and fall
+        if bombWeapon.id == "cluster_warhead" {
+            bomb.onClusterSplit = { [weak self] splitPos, scrollY, elapsed in
+                self?.spawnClusterBomblets(at: splitPos, weapon: bombWeapon,
+                                           playerVelocityX: playerVelocityX, scrollY: scrollY, elapsed: elapsed)
+            }
+        }
+
+        addChild(bomb)
+        bombs.append(bomb)
 
         // Per-slot cooldown
         let cooldown = bombWeapon.fireRate
@@ -268,6 +265,35 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                     destroyEnemy(enemy)
                 }
             }
+        }
+    }
+
+    /// Spawns 8 tiny dot bomblets that scatter radially from the cluster warhead's
+    /// mid-air split point, simulating a cluster munition canister opening.
+    private func spawnClusterBomblets(at splitPos: CGPoint, weapon: WeaponInfo,
+                                      playerVelocityX: CGFloat, scrollY: CGFloat, elapsed: CGFloat) {
+        // Small visual puff at split point
+        addChild(ExplosionNode(at: splitPos, size: .small))
+
+        let count = weapon.bulletCount  // 8 bomblets
+        for i in 0..<count {
+            // Scatter radially like a real cluster munition spinning open
+            let angle = CGFloat(i) / CGFloat(count) * .pi * 2.0
+            let spreadX = cos(angle) * CGFloat.random(in: 15...35)
+            let spreadY = sin(angle) * CGFloat.random(in: 10...25)
+
+            let offset = CGPoint(x: spreadX, y: -20 + spreadY)
+
+            let bomblet = BombNode(startPosition: splitPos, groundOffset: offset,
+                                    weaponId: "bomb", playerVelocityX: playerVelocityX * 0.3,
+                                    scrollSpeed: GameConfig.scrollSpeed)
+            bomblet.onImpact = { [weak self] impactPoint in
+                self?.handleBombImpact(at: impactPoint, weapon: weapon)
+            }
+            // Make bomblet visually tiny
+            bomblet.setScale(0.4)
+            addChild(bomblet)
+            bombs.append(bomblet)
         }
     }
 

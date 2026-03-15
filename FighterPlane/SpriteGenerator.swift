@@ -162,7 +162,7 @@ enum SpriteGenerator {
             switch weaponId {
             case "mining_bomb": return miningBombSprite()
             case "heavy_bomb": return heavyBombSprite()
-            case "cluster_bomb": return clusterBombSprite()
+            case "cluster_warhead": return clusterWarheadSprite()
             default: return standardBombSprite()
             }
         }
@@ -424,8 +424,8 @@ enum SpriteGenerator {
         }
     }
 
-    /// Cluster bomblet — small stubby pear with flared mini-fins, olive with yellow band
-    private static func clusterBombSprite() -> SKTexture {
+    /// Cluster warhead — small stubby pear with flared mini-fins, olive with yellow band
+    private static func clusterWarheadSprite() -> SKTexture {
         renderTexture(size: CGSize(width: 14, height: 22)) { ctx in
             let cx: CGFloat = 7
 
@@ -698,7 +698,7 @@ enum SpriteGenerator {
             case "bomb": bgColor = UIColor(red: 0.45, green: 0.45, blue: 0.35, alpha: 1)
             case "mining_bomb": bgColor = UIColor(red: 0.55, green: 0.4, blue: 0.2, alpha: 1)
             case "heavy_bomb": bgColor = UIColor(red: 0.5, green: 0.25, blue: 0.25, alpha: 1)
-            case "cluster_bomb": bgColor = UIColor(red: 0.35, green: 0.45, blue: 0.35, alpha: 1)
+            case "cluster_warhead": bgColor = UIColor(red: 0.35, green: 0.45, blue: 0.35, alpha: 1)
             case "decoy_flare": bgColor = UIColor(red: 0.6, green: 0.5, blue: 0.2, alpha: 1)
             case "missile_launcher": bgColor = UIColor(red: 0.4, green: 0.3, blue: 0.5, alpha: 1)
             default: bgColor = UIColor(white: 0.35, alpha: 1)
@@ -834,7 +834,7 @@ enum SpriteGenerator {
             hFinC.closeSubpath()
             ctx.addPath(hFinC); ctx.fillPath()
 
-        case "cluster_bomb":
+        case "cluster_warhead":
             // Multiple small pear bombs with tiny fins
             let offsets: [(CGFloat, CGFloat)] = [(-10, -8), (0, -12), (10, -8), (-6, 4), (6, 4)]
             for (ox, oy) in offsets {

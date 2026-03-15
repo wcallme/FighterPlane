@@ -290,5 +290,30 @@ class PlayerData {
 
     private init() {
         ensureDefaults()
+        migrateWeaponIds()
+    }
+
+    /// Migrate renamed weapon IDs in saved data
+    private func migrateWeaponIds() {
+        let renames = ["cluster_bomb": "cluster_warhead"]
+        var owned = ownedWeaponIds
+        var changed = false
+        for i in owned.indices {
+            if let newId = renames[owned[i]] {
+                owned[i] = newId
+                changed = true
+            }
+        }
+        if changed { ownedWeaponIds = owned }
+
+        var slots = loadout
+        var slotsChanged = false
+        for i in slots.indices {
+            if let old = slots[i], let newId = renames[old] {
+                slots[i] = newId
+                slotsChanged = true
+            }
+        }
+        if slotsChanged { loadout = slots }
     }
 }

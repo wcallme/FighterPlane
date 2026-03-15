@@ -94,12 +94,12 @@ enum WeaponCatalog {
         description: "Massive blast radius, heavy payload."
     )
 
-    static let clusterBomb = WeaponInfo(
-        id: "cluster_bomb", name: "Cluster Bomb", category: .bomb,
+    static let clusterWarhead = WeaponInfo(
+        id: "cluster_warhead", name: "Cluster Warhead", category: .bomb,
         gemCost: 300, damage: 2, fireRate: 4.5,
-        blastRadius: 35, bulletCount: 5, bulletSpread: 0,
+        blastRadius: 35, bulletCount: 8, bulletSpread: 0,
         projectileSpeed: 0, isHoming: false,
-        description: "Splits into 5 smaller bomblets."
+        description: "Splits mid-air into 8 scatter bomblets."
     )
 
     // --- Specials ---
@@ -124,7 +124,7 @@ enum WeaponCatalog {
 
     static let all: [WeaponInfo] = [
         basicGun, cannon, machineGun, autocannon,
-        bomb, miningBomb, heavyBomb, clusterBomb,
+        bomb, miningBomb, heavyBomb, clusterWarhead,
         decoyFlare, missileLauncher
     ]
 
