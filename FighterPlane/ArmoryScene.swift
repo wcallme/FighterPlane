@@ -306,8 +306,6 @@ class ArmoryScene: SKScene {
         let cardH = cardW * 0.85
         let totalCardWidth = cardW + padding
         let totalCardHeight = cardH + padding
-        let gridWidth = CGFloat(columns) * totalCardWidth - padding
-        let gridStartX = (size.width - gridWidth) / 2 + cardW / 2
 
         var currentY: CGFloat = 0
 
