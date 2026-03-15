@@ -249,9 +249,6 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     private func setupTrajectory() {
         trajectoryNode.renderingOrder = 100
         scene.rootNode.addChildNode(trajectoryNode)
-
-        gunGuideNode.renderingOrder = 100
-        scene.rootNode.addChildNode(gunGuideNode)
     }
 
     private func updateTrajectory() {
