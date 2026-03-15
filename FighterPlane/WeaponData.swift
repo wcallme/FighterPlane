@@ -40,7 +40,7 @@ enum WeaponCatalog {
         id: "basic_gun", name: "Machine Gun", category: .gun,
         gemCost: 0, damage: 1, fireRate: 0.22,
         blastRadius: 0, bulletCount: 1, bulletSpread: 0,
-        projectileSpeed: 600, isHoming: false,
+        projectileSpeed: 480, isHoming: false,
         description: "Standard-issue 7.62mm machine gun."
     )
 
@@ -48,7 +48,7 @@ enum WeaponCatalog {
         id: "cannon", name: "Heavy Cannon", category: .gun,
         gemCost: 40, damage: 3, fireRate: 0.9,
         blastRadius: 0, bulletCount: 1, bulletSpread: 0,
-        projectileSpeed: 450, isHoming: false,
+        projectileSpeed: 360, isHoming: false,
         description: "Slow-firing 30mm cannon, heavy punch."
     )
 
@@ -56,7 +56,7 @@ enum WeaponCatalog {
         id: "machine_gun", name: "Chain Gun", category: .gun,
         gemCost: 100, damage: 1, fireRate: 0.08,
         blastRadius: 0, bulletCount: 1, bulletSpread: 0.03,
-        projectileSpeed: 553, isHoming: false,
+        projectileSpeed: 442, isHoming: false,
         description: "20mm chain-driven cannon, blistering fire rate."
     )
 
@@ -64,7 +64,7 @@ enum WeaponCatalog {
         id: "autocannon", name: "Twin Autocannon", category: .gun,
         gemCost: 180, damage: 2, fireRate: 0.14,
         blastRadius: 0, bulletCount: 2, bulletSpread: 0.05,
-        projectileSpeed: 600, isHoming: false,
+        projectileSpeed: 480, isHoming: false,
         description: "Dual-linked 23mm cannons."
     )
 
