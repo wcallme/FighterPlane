@@ -46,18 +46,18 @@ enum WeaponCatalog {
 
     static let cannon = WeaponInfo(
         id: "cannon", name: "Heavy Cannon", category: .gun,
-        gemCost: 40, damage: 3, fireRate: 0.5,
+        gemCost: 40, damage: 3, fireRate: 0.9,
         blastRadius: 0, bulletCount: 1, bulletSpread: 0,
-        projectileSpeed: 500, isHoming: false,
+        projectileSpeed: 450, isHoming: false,
         description: "Slow-firing 30mm cannon, heavy punch."
     )
 
     static let machineGun = WeaponInfo(
-        id: "machine_gun", name: "Vulcan Cannon", category: .gun,
+        id: "machine_gun", name: "Chain Gun", category: .gun,
         gemCost: 100, damage: 1, fireRate: 0.08,
         blastRadius: 0, bulletCount: 1, bulletSpread: 0.03,
         projectileSpeed: 553, isHoming: false,
-        description: "20mm rotary cannon, blistering fire rate."
+        description: "20mm chain-driven cannon, blistering fire rate."
     )
 
     static let autocannon = WeaponInfo(

@@ -500,22 +500,23 @@ enum ModelGenerator3D {
         return root
     }
 
-    /// Cannon — thick heavy slug with warm orange glow
+    /// Heavy Cannon — big dark yellow slug
     private static func cannonBullet3D() -> SCNNode {
         let root = SCNNode()
         root.name = "playerBullet"
 
-        // Dark heavy core
-        let stick = SCNCylinder(radius: 0.075, height: 2.8)
-        stick.firstMaterial?.diffuse.contents = UIColor(red: 0.12, green: 0.12, blue: 0.12, alpha: 1)
+        // Dark yellow core — bigger than other bullets
+        let stick = SCNCylinder(radius: 0.12, height: 3.2)
+        stick.firstMaterial?.diffuse.contents = UIColor(red: 0.7, green: 0.55, blue: 0.0, alpha: 1)
+        stick.firstMaterial?.emission.contents = UIColor(red: 0.5, green: 0.4, blue: 0.0, alpha: 0.4)
         stick.firstMaterial?.lightingModel = .constant
         let stickNode = SCNNode(geometry: stick)
         root.addChildNode(stickNode)
 
-        // Warm orange glow halo
-        let glow = SCNCylinder(radius: 0.128, height: 2.8)
-        glow.firstMaterial?.diffuse.contents = UIColor(red: 1.0, green: 0.7, blue: 0.2, alpha: 0.2)
-        glow.firstMaterial?.emission.contents = UIColor(red: 1.0, green: 0.6, blue: 0.15, alpha: 0.15)
+        // Dark golden glow halo
+        let glow = SCNCylinder(radius: 0.18, height: 3.2)
+        glow.firstMaterial?.diffuse.contents = UIColor(red: 0.8, green: 0.65, blue: 0.05, alpha: 0.2)
+        glow.firstMaterial?.emission.contents = UIColor(red: 0.7, green: 0.55, blue: 0.0, alpha: 0.15)
         glow.firstMaterial?.lightingModel = .constant
         glow.firstMaterial?.transparency = 0.25
         let glowNode = SCNNode(geometry: glow)

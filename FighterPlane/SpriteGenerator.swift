@@ -513,21 +513,21 @@ enum SpriteGenerator {
         }
     }
 
-    /// Cannon — thick, heavy slug with orange muzzle flash glow
+    /// Heavy Cannon — big dark yellow slug
     private static func cannonBulletSprite() -> SKTexture {
-        renderTexture(size: CGSize(width: 6, height: 24)) { ctx in
-            // Outer glow
-            ctx.setFillColor(UIColor(red: 1.0, green: 0.7, blue: 0.2, alpha: 0.25).cgColor)
-            ctx.fill(CGRect(x: 0, y: 0, width: 6, height: 24))
-            // Dark core
-            ctx.setFillColor(rgb(0.12, 0.12, 0.12))
-            ctx.fill(CGRect(x: 1, y: 1, width: 4, height: 22))
-            // Metallic highlight
-            ctx.setFillColor(UIColor(white: 0.4, alpha: 0.5).cgColor)
-            ctx.fill(CGRect(x: 1, y: 1, width: 2, height: 22))
-            // Hot tip
-            ctx.setFillColor(UIColor(red: 1.0, green: 0.8, blue: 0.3, alpha: 0.7).cgColor)
-            ctx.fillEllipse(in: CGRect(x: 0, y: 0, width: 6, height: 6))
+        renderTexture(size: CGSize(width: 10, height: 30)) { ctx in
+            // Dark yellow outer glow
+            ctx.setFillColor(UIColor(red: 0.8, green: 0.65, blue: 0.05, alpha: 0.3).cgColor)
+            ctx.fill(CGRect(x: 0, y: 0, width: 10, height: 30))
+            // Dark yellow core
+            ctx.setFillColor(UIColor(red: 0.7, green: 0.55, blue: 0.0, alpha: 0.95).cgColor)
+            ctx.fill(CGRect(x: 2, y: 1, width: 6, height: 28))
+            // Darker center line
+            ctx.setFillColor(UIColor(red: 0.5, green: 0.4, blue: 0.0, alpha: 0.6).cgColor)
+            ctx.fill(CGRect(x: 3, y: 1, width: 4, height: 28))
+            // Dark golden tip
+            ctx.setFillColor(UIColor(red: 0.85, green: 0.7, blue: 0.05, alpha: 0.9).cgColor)
+            ctx.fillEllipse(in: CGRect(x: 1, y: 0, width: 8, height: 8))
         }
     }
 
