@@ -125,7 +125,6 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         let damage: Int
         let blastRadius: Float
         var clusterCount: Int = 0  // >0 means this bomb splits into sub-bomblets on impact
-        var timeAlive: Float = 0
     }
 
     struct SAMMissile3D {
@@ -294,10 +293,9 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         for _ in 0..<trajectorySamples {
             for _ in 0..<2 {
                 simTime += simDt
-                let ramp = min(1.0 as Float, 0.3 + simTime * 1.4)
                 simVY -= bombGravity * simDt   // gravity pulls bomb down
-                simY += simVY * simDt * ramp
-                simZ += vz * simDt * ramp
+                simY += simVY * simDt
+                simZ += vz * simDt
             }
 
             let groundH = groundHeight(x: 0, z: simZ)
@@ -874,14 +872,13 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
     private func updateBombs(dt: Float) {
         for i in activeBombs.indices {
-            activeBombs[i].timeAlive += dt
-            let ramp = min(1.0 as Float, 0.3 + activeBombs[i].timeAlive * 1.4)
-
             // Apply gravity to vertical velocity
             activeBombs[i].velocityY -= bombGravity * dt
 
-            activeBombs[i].node.position.y += activeBombs[i].velocityY * dt * ramp
-            activeBombs[i].node.position.z += activeBombs[i].velocityZ * dt * ramp
+            // Full momentum inheritance — bomb keeps the plane's velocity vector
+            // and gravity naturally curves it into a parabolic arc
+            activeBombs[i].node.position.y += activeBombs[i].velocityY * dt
+            activeBombs[i].node.position.z += activeBombs[i].velocityZ * dt
 
             // Rotate bomb nose to follow velocity direction
             activeBombs[i].node.eulerAngles.x = atan2(-activeBombs[i].velocityZ, -activeBombs[i].velocityY)
