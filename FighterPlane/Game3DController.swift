@@ -783,8 +783,11 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         let fwdSpeed = playerSpeed * speedMult
         let dropVZ = cos(playerAngle) * fwdSpeed
 
-        // Clamp so bomb never kicks upward — it should only fall
-        let clampedDropVY = min(sin(playerAngle) * fwdSpeed, 0.0 as Float)
+        // Bomb inherits the plane's full velocity vector, including upward
+        // momentum when climbing. Real physics: a released object keeps moving
+        // in the direction it was traveling — if the plane is climbing, the bomb
+        // arcs upward before gravity curves it back down (parabolic trajectory).
+        let dropVY = sin(playerAngle) * fwdSpeed
 
         let bomb = ModelGenerator3D.bomb3D(weaponId: bombWeapon.id)
         bomb.position = playerNode.position
@@ -796,7 +799,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         shadow.scale = SCNVector3(0.3, 0.3, 0.3)
 
         // Orient bomb nose along velocity (-Y axis is nose)
-        bomb.eulerAngles.x = atan2(-dropVZ, -clampedDropVY)
+        bomb.eulerAngles.x = atan2(-dropVZ, -dropVY)
 
         scene.rootNode.addChildNode(bomb)
         scene.rootNode.addChildNode(shadow)
@@ -806,7 +809,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         activeBombs.append(Bomb3D(
             node: bomb,
             shadowNode: shadow,
-            velocityY: clampedDropVY,
+            velocityY: dropVY,
             velocityZ: dropVZ,
             damage: bombWeapon.damage,
             blastRadius: Float(bombWeapon.blastRadius) * 0.15,
