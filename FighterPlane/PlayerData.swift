@@ -86,18 +86,26 @@ class PlayerData {
     }
 
     /// 6 loadout slots, nil means empty
+    /// Cached to avoid repeated UserDefaults deserialization (read by equippedGuns, equippedBombs, etc.)
+    private var _loadoutCache: [String?]?
+
     var loadout: [String?] {
         get {
+            if let cached = _loadoutCache { return cached }
             guard let raw = defaults.stringArray(forKey: "pd_loadout") else {
-                return ["basic_gun", "bomb", nil, nil, nil, nil]
+                let def: [String?] = ["basic_gun", "bomb", nil, nil, nil, nil]
+                _loadoutCache = def
+                return def
             }
             var result = raw.map { $0.isEmpty ? nil : $0 } as [String?]
             // Ensure exactly 6 slots
             while result.count < 6 { result.append(nil) }
             if result.count > 6 { result = Array(result.prefix(6)) }
+            _loadoutCache = result
             return result
         }
         set {
+            _loadoutCache = newValue
             let raw = newValue.map { $0 ?? "" }
             defaults.set(raw, forKey: "pd_loadout")
         }
