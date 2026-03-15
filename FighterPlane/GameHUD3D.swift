@@ -2,13 +2,65 @@ import SpriteKit
 
 class GameHUD3D: SKScene {
 
-    // Output: read by Game3DController each frame
-    var steeringX: CGFloat = 0   // -1 (full left) to 1 (full right)
-    var hasSteeringInput = false  // true when joystick is being used
-    var steeringAngle: CGFloat = 0 // angle in radians from joystick (atan2 of knob offset)
-    var isFiring = false
-    var shouldDropBomb = false
-    var shouldRestart = false
+    // Output: read by Game3DController on render thread, written from main thread.
+    // All input state is bundled in a single struct behind one lock for atomic snapshots.
+    struct InputState {
+        var steeringX: CGFloat = 0
+        var hasSteeringInput = false
+        var steeringAngle: CGFloat = 0
+        var isFiring = false
+        var shouldDropBomb = false
+        var shouldRestart = false
+        var shouldExitToMenu = false
+        var isGamePaused = false
+    }
+
+    private let _lock = NSLock()
+    private var _state = InputState()
+
+    /// Atomically read and optionally reset one-shot flags
+    func consumeInputState() -> InputState {
+        _lock.lock()
+        let snapshot = _state
+        _state.shouldDropBomb = false
+        _state.shouldRestart = false
+        _state.shouldExitToMenu = false
+        _lock.unlock()
+        return snapshot
+    }
+
+    var steeringX: CGFloat {
+        get { _lock.lock(); defer { _lock.unlock() }; return _state.steeringX }
+        set { _lock.lock(); _state.steeringX = newValue; _lock.unlock() }
+    }
+    var hasSteeringInput: Bool {
+        get { _lock.lock(); defer { _lock.unlock() }; return _state.hasSteeringInput }
+        set { _lock.lock(); _state.hasSteeringInput = newValue; _lock.unlock() }
+    }
+    var steeringAngle: CGFloat {
+        get { _lock.lock(); defer { _lock.unlock() }; return _state.steeringAngle }
+        set { _lock.lock(); _state.steeringAngle = newValue; _lock.unlock() }
+    }
+    var isFiring: Bool {
+        get { _lock.lock(); defer { _lock.unlock() }; return _state.isFiring }
+        set { _lock.lock(); _state.isFiring = newValue; _lock.unlock() }
+    }
+    var shouldDropBomb: Bool {
+        get { _lock.lock(); defer { _lock.unlock() }; return _state.shouldDropBomb }
+        set { _lock.lock(); _state.shouldDropBomb = newValue; _lock.unlock() }
+    }
+    var shouldRestart: Bool {
+        get { _lock.lock(); defer { _lock.unlock() }; return _state.shouldRestart }
+        set { _lock.lock(); _state.shouldRestart = newValue; _lock.unlock() }
+    }
+    var shouldExitToMenu: Bool {
+        get { _lock.lock(); defer { _lock.unlock() }; return _state.shouldExitToMenu }
+        set { _lock.lock(); _state.shouldExitToMenu = newValue; _lock.unlock() }
+    }
+    var isGamePaused: Bool {
+        get { _lock.lock(); defer { _lock.unlock() }; return _state.isGamePaused }
+        set { _lock.lock(); _state.isGamePaused = newValue; _lock.unlock() }
+    }
 
     // HUD elements
     private var joystickBase: SKShapeNode!
@@ -18,10 +70,14 @@ class GameHUD3D: SKScene {
 
     private var fireButton: SKShapeNode!
     private var bombButton: SKShapeNode!
+    private var bombPips: [SKShapeNode] = []
 
     private var healthBarBg: SKShapeNode!
     private var healthBarFill: SKShapeNode!
     private var scoreLabel: SKLabelNode!
+
+    private var pauseButton: SKNode!
+    private var pauseOverlay: SKNode?
 
     private var gameOverOverlay: SKNode?
     private var canRestart = false
@@ -30,11 +86,22 @@ class GameHUD3D: SKScene {
     private var joystickTouch: UITouch?
     private var fireTouch: UITouch?
 
+    // Safe area insets
+    private var safeTop: CGFloat = 59
+    private var safeBottom: CGFloat = 34
+    private var safeLeft: CGFloat = 0
+    private var safeRight: CGFloat = 0
+
     override func didMove(to view: SKView) {
         backgroundColor = .clear
+        safeTop = SafeArea.top
+        safeBottom = SafeArea.bottom
+        safeLeft = SafeArea.left
+        safeRight = SafeArea.right
 
         setupJoystick()
         setupButtons()
+        setupPauseButton()
         setupHealthBar()
         setupScore()
     }
@@ -42,15 +109,14 @@ class GameHUD3D: SKScene {
     // MARK: - Setup
 
     private func setupJoystick() {
-        let baseX: CGFloat = 80
-        let baseY: CGFloat = 80
-
+        // Joystick starts hidden — it appears wherever the thumb touches
         joystickBase = SKShapeNode(circleOfRadius: joystickRadius)
         joystickBase.fillColor = SKColor(white: 0.3, alpha: 0.3)
         joystickBase.strokeColor = SKColor(white: 0.8, alpha: 0.5)
         joystickBase.lineWidth = 2
-        joystickBase.position = CGPoint(x: baseX, y: baseY)
+        joystickBase.position = CGPoint(x: 80, y: 80)
         joystickBase.zPosition = 10
+        joystickBase.alpha = 0
         addChild(joystickBase)
 
         joystickKnob = SKShapeNode(circleOfRadius: knobRadius)
@@ -59,6 +125,7 @@ class GameHUD3D: SKScene {
         joystickKnob.lineWidth = 2
         joystickKnob.position = joystickBase.position
         joystickKnob.zPosition = 11
+        joystickKnob.alpha = 0
         addChild(joystickKnob)
     }
 
@@ -68,7 +135,7 @@ class GameHUD3D: SKScene {
         fireButton.fillColor = SKColor(red: 0.8, green: 0.5, blue: 0.1, alpha: 0.5)
         fireButton.strokeColor = SKColor(white: 0.9, alpha: 0.7)
         fireButton.lineWidth = 2
-        fireButton.position = CGPoint(x: size.width - 70, y: 60)
+        fireButton.position = CGPoint(x: size.width - safeRight - 70, y: safeBottom + 26)
         fireButton.zPosition = 10
         fireButton.name = "fireBtn"
         addChild(fireButton)
@@ -85,7 +152,7 @@ class GameHUD3D: SKScene {
         bombButton.fillColor = SKColor(red: 0.7, green: 0.2, blue: 0.2, alpha: 0.5)
         bombButton.strokeColor = SKColor(white: 0.9, alpha: 0.7)
         bombButton.lineWidth = 2
-        bombButton.position = CGPoint(x: size.width - 70, y: 145)
+        bombButton.position = CGPoint(x: size.width - safeRight - 70, y: safeBottom + 111)
         bombButton.zPosition = 10
         bombButton.name = "bombBtn"
         addChild(bombButton)
@@ -95,7 +162,139 @@ class GameHUD3D: SKScene {
         bombIcon.fontSize = 12
         bombIcon.fontColor = .white
         bombIcon.verticalAlignmentMode = .center
+        bombIcon.position = CGPoint(x: 0, y: 4)
         bombButton.addChild(bombIcon)
+    }
+
+    private func setupPauseButton() {
+        pauseButton = SKNode()
+        pauseButton.position = CGPoint(x: safeLeft + 40, y: size.height - safeTop - 12)
+        pauseButton.zPosition = 20
+        pauseButton.name = "pauseBtn"
+
+        let bg = SKShapeNode(rectOf: CGSize(width: 40, height: 32), cornerRadius: 8)
+        bg.fillColor = SKColor(white: 0.15, alpha: 0.6)
+        bg.strokeColor = SKColor(white: 0.6, alpha: 0.4)
+        bg.lineWidth = 1
+        bg.name = "pauseBtn"
+        pauseButton.addChild(bg)
+
+        // Pause icon (two vertical bars)
+        let bar1 = SKShapeNode(rectOf: CGSize(width: 4, height: 14), cornerRadius: 1)
+        bar1.fillColor = .white
+        bar1.strokeColor = .clear
+        bar1.position = CGPoint(x: -5, y: 0)
+        bar1.name = "pauseBtn"
+        pauseButton.addChild(bar1)
+
+        let bar2 = SKShapeNode(rectOf: CGSize(width: 4, height: 14), cornerRadius: 1)
+        bar2.fillColor = .white
+        bar2.strokeColor = .clear
+        bar2.position = CGPoint(x: 5, y: 0)
+        bar2.name = "pauseBtn"
+        pauseButton.addChild(bar2)
+
+        addChild(pauseButton)
+    }
+
+    private func showPauseMenu() {
+        guard pauseOverlay == nil else { return }
+        isGamePaused = true
+
+        let overlay = SKNode()
+        overlay.zPosition = 80
+        overlay.name = "pauseOverlay"
+
+        // Dimmed background
+        let bg = SKShapeNode(rectOf: CGSize(width: size.width * 2, height: size.height * 2))
+        bg.fillColor = SKColor(white: 0, alpha: 0.65)
+        bg.strokeColor = .clear
+        bg.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        overlay.addChild(bg)
+
+        // Pause title
+        let title = SKLabelNode(fontNamed: "Menlo-Bold")
+        title.text = "PAUSED"
+        title.fontSize = 32
+        title.fontColor = .white
+        title.position = CGPoint(x: size.width / 2, y: size.height / 2 + 60)
+        overlay.addChild(title)
+
+        // Resume button
+        let resumeBtn = createMenuButton(text: "RESUME", color: SKColor(red: 0.15, green: 0.5, blue: 0.2, alpha: 0.95))
+        resumeBtn.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        resumeBtn.name = "resumeBtn"
+        overlay.addChild(resumeBtn)
+
+        // Exit to Menu button
+        let exitBtn = createMenuButton(text: "EXIT TO MENU", color: SKColor(red: 0.55, green: 0.15, blue: 0.15, alpha: 0.95))
+        exitBtn.position = CGPoint(x: size.width / 2, y: size.height / 2 - 60)
+        exitBtn.name = "exitBtn"
+        overlay.addChild(exitBtn)
+
+        addChild(overlay)
+        pauseOverlay = overlay
+    }
+
+    private func hidePauseMenu() {
+        pauseOverlay?.removeFromParent()
+        pauseOverlay = nil
+        isGamePaused = false
+    }
+
+    private func createMenuButton(text: String, color: SKColor) -> SKNode {
+        let node = SKNode()
+
+        let bg = SKShapeNode(rectOf: CGSize(width: 200, height: 44), cornerRadius: 10)
+        bg.fillColor = color
+        bg.strokeColor = SKColor(white: 0.8, alpha: 0.4)
+        bg.lineWidth = 1.5
+        node.addChild(bg)
+
+        let label = SKLabelNode(fontNamed: "Menlo-Bold")
+        label.text = text
+        label.fontSize = 15
+        label.fontColor = .white
+        label.verticalAlignmentMode = .center
+        node.addChild(label)
+
+        return node
+    }
+
+    private var lastPipTotal = 0
+
+    func updateBombIndicator(ready: Int, total: Int) {
+        guard total > 0, bombButton != nil else { return }
+
+        // Only rebuild pip nodes if total count changed; otherwise just update colors
+        if total != lastPipTotal {
+            for pip in bombPips { pip.removeFromParent() }
+            bombPips.removeAll()
+            lastPipTotal = total
+
+            let pipRadius: CGFloat = 4
+            let spacing: CGFloat = 12
+            let totalWidth = CGFloat(total - 1) * spacing
+            let startX = -totalWidth / 2
+
+            for i in 0..<total {
+                let pip = SKShapeNode(circleOfRadius: pipRadius)
+                pip.strokeColor = SKColor(white: 0.9, alpha: 0.6)
+                pip.lineWidth = 1
+                pip.fillColor = SKColor(white: 0.2, alpha: 0.6)
+                pip.position = CGPoint(x: startX + CGFloat(i) * spacing, y: -15)
+                pip.zPosition = 1
+                bombButton.addChild(pip)
+                bombPips.append(pip)
+            }
+        }
+
+        // Update colors only
+        for (i, pip) in bombPips.enumerated() {
+            pip.fillColor = i < ready
+                ? SKColor(red: 1.0, green: 0.4, blue: 0.3, alpha: 1.0)
+                : SKColor(white: 0.2, alpha: 0.6)
+        }
     }
 
     private func setupHealthBar() {
@@ -106,7 +305,7 @@ class GameHUD3D: SKScene {
         healthBarBg.fillColor = SKColor(white: 0.15, alpha: 0.7)
         healthBarBg.strokeColor = SKColor(white: 0.8, alpha: 0.7)
         healthBarBg.lineWidth = 1.5
-        healthBarBg.position = CGPoint(x: size.width / 2, y: size.height - 22)
+        healthBarBg.position = CGPoint(x: size.width / 2, y: size.height - safeTop - 10)
         healthBarBg.zPosition = 10
         addChild(healthBarBg)
 
@@ -121,7 +320,7 @@ class GameHUD3D: SKScene {
         hpLabel.text = "HP"
         hpLabel.fontSize = 10
         hpLabel.fontColor = .white
-        hpLabel.position = CGPoint(x: size.width / 2 - 82, y: size.height - 27)
+        hpLabel.position = CGPoint(x: size.width / 2 - 82, y: size.height - safeTop - 15)
         hpLabel.zPosition = 10
         addChild(hpLabel)
     }
@@ -132,7 +331,7 @@ class GameHUD3D: SKScene {
         scoreLabel.fontSize = 20
         scoreLabel.fontColor = .white
         scoreLabel.horizontalAlignmentMode = .right
-        scoreLabel.position = CGPoint(x: size.width - 20, y: size.height - 30)
+        scoreLabel.position = CGPoint(x: size.width - safeRight - 20, y: size.height - safeTop - 18)
         scoreLabel.zPosition = 10
         addChild(scoreLabel)
 
@@ -141,7 +340,7 @@ class GameHUD3D: SKScene {
         scoreIcon.fontSize = 10
         scoreIcon.fontColor = SKColor(white: 0.8, alpha: 0.8)
         scoreIcon.horizontalAlignmentMode = .right
-        scoreIcon.position = CGPoint(x: size.width - 20, y: size.height - 14)
+        scoreIcon.position = CGPoint(x: size.width - safeRight - 20, y: size.height - safeTop - 2)
         scoreIcon.zPosition = 10
         addChild(scoreIcon)
     }
@@ -157,9 +356,9 @@ class GameHUD3D: SKScene {
         let offset = (1 - clamped) * fullWidth / 2
         healthBarFill.position.x = healthBarBg.position.x - offset
 
-        if ratio > 0.6 {
+        if clamped > 0.6 {
             healthBarFill.fillColor = SKColor(red: 0.2, green: 0.8, blue: 0.2, alpha: 1)
-        } else if ratio > 0.3 {
+        } else if clamped > 0.3 {
             healthBarFill.fillColor = SKColor(red: 0.9, green: 0.7, blue: 0.1, alpha: 1)
         } else {
             healthBarFill.fillColor = SKColor(red: 0.9, green: 0.2, blue: 0.1, alpha: 1)
@@ -234,6 +433,7 @@ class GameHUD3D: SKScene {
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
             let loc = touch.location(in: self)
+            let tappedNodes = nodes(at: loc)
 
             // Game over tap
             if gameOverOverlay != nil && canRestart {
@@ -241,11 +441,39 @@ class GameHUD3D: SKScene {
                 return
             }
 
-            // Joystick
-            let joystickDist = hypot(loc.x - joystickBase.position.x, loc.y - joystickBase.position.y)
-            if joystickDist <= joystickRadius * 1.5 && joystickTouch == nil {
+            // Pause menu interactions
+            if pauseOverlay != nil {
+                for node in tappedNodes {
+                    let name = node.name ?? node.parent?.name ?? ""
+                    if name == "resumeBtn" {
+                        hidePauseMenu()
+                        return
+                    }
+                    if name == "exitBtn" {
+                        hidePauseMenu()
+                        shouldExitToMenu = true
+                        return
+                    }
+                }
+                return // Absorb all touches while paused
+            }
+
+            // Pause button
+            if tappedNodes.contains(where: { ($0.name ?? $0.parent?.name ?? "") == "pauseBtn" }) {
+                showPauseMenu()
+                return
+            }
+
+            // Joystick — spawns at touch location on the left half of screen
+            if loc.x < size.width / 2 && joystickTouch == nil {
                 joystickTouch = touch
-                updateJoystick(touch: touch)
+                // Move joystick base to where the thumb landed
+                joystickBase.removeAllActions()
+                joystickKnob.removeAllActions()
+                joystickBase.position = loc
+                joystickKnob.position = loc
+                joystickBase.alpha = 1
+                joystickKnob.alpha = 1
                 continue
             }
 
@@ -254,6 +482,7 @@ class GameHUD3D: SKScene {
             if fireDist <= 50 {
                 isFiring = true
                 fireTouch = touch
+                pressButton(fireButton)
                 continue
             }
 
@@ -261,6 +490,12 @@ class GameHUD3D: SKScene {
             let bombDist = hypot(loc.x - bombButton.position.x, loc.y - bombButton.position.y)
             if bombDist <= 50 {
                 shouldDropBomb = true
+                pressButton(bombButton)
+                // Release after a short moment since bomb is a single tap
+                bombButton.run(.sequence([
+                    .wait(forDuration: 0.15),
+                    .run { [weak self] in self?.releaseButton(self?.bombButton) }
+                ]))
                 continue
             }
         }
@@ -278,19 +513,47 @@ class GameHUD3D: SKScene {
         for touch in touches {
             if touch == joystickTouch {
                 joystickTouch = nil
-                joystickKnob.position = joystickBase.position
                 steeringX = 0
                 hasSteeringInput = false
+                // Fade out joystick
+                let fadeOut = SKAction.fadeAlpha(to: 0, duration: 0.2)
+                joystickBase.run(fadeOut)
+                joystickKnob.run(fadeOut)
             }
             if touch == fireTouch {
                 isFiring = false
                 fireTouch = nil
+                releaseButton(fireButton)
             }
         }
     }
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         touchesEnded(touches, with: event)
+    }
+
+    private func pressButton(_ button: SKShapeNode) {
+        button.removeAllActions()
+        button.run(.group([
+            .scale(to: 0.85, duration: 0.06),
+            .run { button.fillColor = button.fillColor.withAlphaComponent(0.9) }
+        ]))
+    }
+
+    private func releaseButton(_ button: SKShapeNode?) {
+        guard let button = button else { return }
+        button.removeAllActions()
+        button.run(.group([
+            .scale(to: 1.0, duration: 0.1),
+            .run {
+                // Restore original alpha
+                if button.name == "fireBtn" {
+                    button.fillColor = SKColor(red: 0.8, green: 0.5, blue: 0.1, alpha: 0.5)
+                } else {
+                    button.fillColor = SKColor(red: 0.7, green: 0.2, blue: 0.2, alpha: 0.5)
+                }
+            }
+        ]))
     }
 
     private func updateJoystick(touch: UITouch) {
@@ -316,12 +579,7 @@ class GameHUD3D: SKScene {
         steeringX = max(-1, min(1, steeringX))
 
         // Flight angle: atan2(dy, dx) so right=0 (level), up=π/2 (climb), down=-π/2 (dive)
-        let deadzone: CGFloat = 8
-        if dist > deadzone {
-            hasSteeringInput = true
-            steeringAngle = atan2(dy, dx)
-        } else {
-            hasSteeringInput = false
-        }
+        hasSteeringInput = true
+        steeringAngle = atan2(dy, dx)
     }
 }

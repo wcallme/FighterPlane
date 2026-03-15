@@ -22,12 +22,17 @@ struct ContentView: View {
 struct MenuSpriteView: UIViewRepresentable {
     func makeUIView(context: Context) -> SKView {
         let view = SKView()
-        let size = UIScreen.main.bounds.size
-        let scene = HangarScene(size: size)
-        scene.scaleMode = .aspectFill
-        view.presentScene(scene)
+        view.presentScene(nil) // scene set in updateUIView once layout is known
         return view
     }
 
-    func updateUIView(_ uiView: SKView, context: Context) {}
+    func updateUIView(_ uiView: SKView, context: Context) {
+        if uiView.scene == nil {
+            let size = uiView.bounds.size.width > 0 ? uiView.bounds.size : UIScreen.main.bounds.size
+            let scene = HangarScene(size: size)
+            scene.scaleMode = .aspectFill
+            uiView.presentScene(scene)
+        }
+    }
 }
+

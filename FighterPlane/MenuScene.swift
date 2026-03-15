@@ -2,7 +2,8 @@ import SpriteKit
 
 class MenuScene: SKScene {
 
-    private var parallax: ParallaxBackground!
+    private var parallax: ParallaxBackground?
+    private var lastUpdateTime: TimeInterval = 0
 
     static func create(size: CGSize) -> MenuScene {
         let scene = MenuScene(size: size)
@@ -132,7 +133,10 @@ class MenuScene: SKScene {
     }
 
     override func update(_ currentTime: TimeInterval) {
-        parallax?.update(deltaTime: 1.0 / 60.0)
+        let dt = lastUpdateTime == 0 ? 0 : currentTime - lastUpdateTime
+        lastUpdateTime = currentTime
+        guard dt > 0 && dt < 1.0 else { return }
+        parallax?.update(deltaTime: dt)
     }
 
     // MARK: - Touch

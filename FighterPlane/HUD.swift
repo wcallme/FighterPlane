@@ -139,11 +139,13 @@ class HUD: SKNode {
     func updateScore(_ score: Int) {
         scoreLabel.text = "\(score)"
 
-        // Pop animation
+        // Pop animation — cancel previous to prevent pile-up (#22)
+        scoreLabel.removeAction(forKey: "scorePop")
+        scoreLabel.setScale(1.0)
         scoreLabel.run(.sequence([
             .scale(to: 1.2, duration: 0.1),
             .scale(to: 1.0, duration: 0.1)
-        ]))
+        ]), withKey: "scorePop")
     }
 
     func showBombCooldown(duration: TimeInterval) {
