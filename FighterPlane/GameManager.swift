@@ -32,18 +32,54 @@ class GameManager {
     private var elapsedTime: TimeInterval = 0
     private let difficultyInterval: TimeInterval = 30.0 // increase every 30 seconds
 
-    // Spawn rates (modified by difficulty)
+    // MARK: - Infinite Battle Scaling
+
+    // Spawn rates — accelerate with difficulty
     var groundSpawnInterval: TimeInterval {
-        max(0.6, GameConfig.groundEnemySpawnInterval - Double(difficultyLevel - 1) * 0.15)
+        // Starts at 1.8s, drops faster as difficulty climbs, floors at 0.35s
+        max(0.35, GameConfig.groundEnemySpawnInterval - Double(difficultyLevel - 1) * 0.12)
     }
 
     var airSpawnInterval: TimeInterval {
-        max(2.0, GameConfig.airEnemySpawnInterval - Double(difficultyLevel - 1) * 0.4)
+        // Starts at 6.0s, floors at 1.2s
+        max(1.2, GameConfig.airEnemySpawnInterval - Double(difficultyLevel - 1) * 0.35)
     }
 
     // Enemy health bonus from difficulty
     var enemyHealthBonus: Int {
         (difficultyLevel - 1) / 3 // +1 health every 3 difficulty levels
+    }
+
+    // AA gun accuracy — jitter shrinks as difficulty rises, making shots deadlier
+    // At level 1: ±1.0 Y, ±0.5 Z (easy to dodge)
+    // By level 10: ±0.25 Y, ±0.12 Z (near-perfect aim)
+    var aaJitterY: Float {
+        max(0.15, 1.0 - Float(difficultyLevel - 1) * 0.09)
+    }
+
+    var aaJitterZ: Float {
+        max(0.08, 0.5 - Float(difficultyLevel - 1) * 0.05)
+    }
+
+    // Enemy fire rate multiplier — guns shoot faster at higher difficulty
+    // Level 1: 1.0x (normal), Level 5: 0.7x (30% faster), Level 10: 0.5x (2x speed)
+    var fireRateMultiplier: Float {
+        max(0.4, 1.0 - Float(difficultyLevel - 1) * 0.06)
+    }
+
+    // Enemy bullet speed scales up slightly
+    var enemyBulletSpeedMultiplier: Float {
+        min(1.8, 1.0 + Float(difficultyLevel - 1) * 0.06)
+    }
+
+    // Number of simultaneous ground enemies per spawn wave (more targets at once)
+    var groundSpawnCount: Int {
+        switch difficultyLevel {
+        case 1...3: return 1
+        case 4...6: return Int.random(in: 1...2)
+        case 7...9: return Int.random(in: 1...3)
+        default:    return Int.random(in: 2...3)
+        }
     }
 
     private init() {}
