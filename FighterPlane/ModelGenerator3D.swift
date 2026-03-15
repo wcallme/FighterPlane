@@ -7,18 +7,12 @@ enum ModelGenerator3D {
 
     static func selectedPlayerPlane() -> SCNNode {
         let planeId = PlayerData.shared.selectedPlaneId
-        if planeId == "default" {
-            return playerPlane()
-        }
-        return loadUSDZPlane(named: planeId) ?? playerPlane()
+        return loadUSDZPlane(named: planeId) ?? loadUSDZPlane(named: "F16")!
     }
 
     /// Load a plane model for hangar/UI display (no game orientation correction)
     static func hangarPlane(forId planeId: String) -> SCNNode {
-        if planeId == "default" {
-            return playerPlane()
-        }
-        return loadHangarUSDZPlane(named: planeId) ?? playerPlane()
+        return loadHangarUSDZPlane(named: planeId) ?? loadHangarUSDZPlane(named: "F16")!
     }
 
     private static func loadHangarUSDZPlane(named name: String) -> SCNNode? {
@@ -113,82 +107,6 @@ enum ModelGenerator3D {
         return root
     }
 
-    // MARK: - Player Plane (Default)
-
-    static func playerPlane() -> SCNNode {
-        let root = SCNNode()
-        root.name = "player"
-
-        // Fuselage
-        let fuselage = SCNBox(width: 0.8, height: 0.35, length: 2.8, chamferRadius: 0.12)
-        fuselage.firstMaterial?.diffuse.contents = UIColor(red: 0.18, green: 0.42, blue: 0.15, alpha: 1)
-        let fuselageNode = SCNNode(geometry: fuselage)
-        root.addChildNode(fuselageNode)
-
-        // Nose cone
-        let nose = SCNCone(topRadius: 0, bottomRadius: 0.35, height: 0.8)
-        nose.firstMaterial?.diffuse.contents = UIColor(red: 0.22, green: 0.48, blue: 0.18, alpha: 1)
-        let noseNode = SCNNode(geometry: nose)
-        noseNode.eulerAngles.x = -.pi / 2
-        noseNode.position = SCNVector3(0, 0, 1.8)
-        root.addChildNode(noseNode)
-
-        // Wings
-        let wing = SCNBox(width: 5.5, height: 0.08, length: 1.1, chamferRadius: 0.03)
-        wing.firstMaterial?.diffuse.contents = UIColor(red: 0.22, green: 0.48, blue: 0.18, alpha: 1)
-        let wingNode = SCNNode(geometry: wing)
-        wingNode.position = SCNVector3(0, 0.05, -0.1)
-        root.addChildNode(wingNode)
-
-        // Tail wings
-        let tail = SCNBox(width: 2.2, height: 0.06, length: 0.55, chamferRadius: 0.02)
-        tail.firstMaterial?.diffuse.contents = UIColor(red: 0.22, green: 0.48, blue: 0.18, alpha: 1)
-        let tailNode = SCNNode(geometry: tail)
-        tailNode.position = SCNVector3(0, 0.15, -1.3)
-        root.addChildNode(tailNode)
-
-        // Vertical stabilizer
-        let vStab = SCNBox(width: 0.08, height: 0.7, length: 0.55, chamferRadius: 0.02)
-        vStab.firstMaterial?.diffuse.contents = UIColor(red: 0.2, green: 0.45, blue: 0.16, alpha: 1)
-        let vStabNode = SCNNode(geometry: vStab)
-        vStabNode.position = SCNVector3(0, 0.45, -1.3)
-        root.addChildNode(vStabNode)
-
-        // Cockpit
-        let cockpit = SCNSphere(radius: 0.28)
-        cockpit.firstMaterial?.diffuse.contents = UIColor(red: 0.5, green: 0.75, blue: 0.95, alpha: 0.85)
-        cockpit.firstMaterial?.transparency = 0.85
-        let cockpitNode = SCNNode(geometry: cockpit)
-        cockpitNode.position = SCNVector3(0, 0.3, 0.4)
-        root.addChildNode(cockpitNode)
-
-        // Engine nacelles
-        for x: Float in [-1.3, 1.3] {
-            let engine = SCNCylinder(radius: 0.18, height: 0.7)
-            engine.firstMaterial?.diffuse.contents = UIColor(red: 0.25, green: 0.25, blue: 0.22, alpha: 1)
-            let engineNode = SCNNode(geometry: engine)
-            engineNode.eulerAngles.x = .pi / 2
-            engineNode.position = SCNVector3(x, 0, 0.3)
-            root.addChildNode(engineNode)
-
-            // Propeller disc
-            let prop = SCNCylinder(radius: 0.4, height: 0.03)
-            prop.firstMaterial?.diffuse.contents = UIColor(white: 0.5, alpha: 0.4)
-            prop.firstMaterial?.transparency = 0.4
-            let propNode = SCNNode(geometry: prop)
-            propNode.eulerAngles.x = .pi / 2
-            propNode.position = SCNVector3(x, 0, 0.7)
-            propNode.runAction(.repeatForever(.rotateBy(x: 0, y: 0, z: .pi * 2, duration: 0.08)))
-            root.addChildNode(propNode)
-
-            // Afterburner trail behind each engine
-            let trail = afterburnerTrail(scale: 0.7)
-            trail.position = SCNVector3(x, 0, -0.1)
-            root.addChildNode(trail)
-        }
-
-        return root
-    }
 
     // MARK: - Afterburner Trail
 

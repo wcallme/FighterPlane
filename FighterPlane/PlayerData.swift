@@ -1,5 +1,33 @@
 import Foundation
 
+struct PlaneInfo {
+    let id: String
+    let name: String
+}
+
+enum PlaneCatalog {
+    static let all: [PlaneInfo] = [
+        PlaneInfo(id: "F16", name: "F-16 Falcon"),
+        PlaneInfo(id: "F22", name: "F-22 Raptor"),
+        PlaneInfo(id: "B2", name: "B-2 Spirit"),
+        PlaneInfo(id: "B3", name: "B-3 Phantom"),
+    ]
+
+    static func plane(byId id: String) -> PlaneInfo? {
+        all.first { $0.id == id }
+    }
+
+    static func nextPlane(after id: String) -> PlaneInfo {
+        guard let idx = all.firstIndex(where: { $0.id == id }) else { return all[0] }
+        return all[(idx + 1) % all.count]
+    }
+
+    static func previousPlane(before id: String) -> PlaneInfo {
+        guard let idx = all.firstIndex(where: { $0.id == id }) else { return all[0] }
+        return all[(idx - 1 + all.count) % all.count]
+    }
+}
+
 class PlayerData {
 
     static let shared = PlayerData()
@@ -18,11 +46,43 @@ class PlayerData {
         set { defaults.set(newValue, forKey: "pd_gems") }
     }
 
+    // MARK: - Plane Selection
+
+    var selectedPlaneId: String {
+        get {
+            let id = defaults.string(forKey: "pd_selectedPlane") ?? "F16"
+            // Migrate legacy "default" plane to F16
+            if id == "default" { defaults.set("F16", forKey: "pd_selectedPlane"); return "F16" }
+            return id
+        }
+        set { defaults.set(newValue, forKey: "pd_selectedPlane") }
+    }
+
+    var selectedPlaneName: String {
+        PlaneCatalog.plane(byId: selectedPlaneId)?.name ?? "F-16 Falcon"
+    }
+
     // MARK: - Weapons
 
+    /// Stores owned weapons as a flat list allowing duplicates (e.g. ["bomb","bomb","basic_gun"])
     var ownedWeaponIds: [String] {
         get { defaults.stringArray(forKey: "pd_ownedWeapons") ?? ["basic_gun", "bomb"] }
         set { defaults.set(newValue, forKey: "pd_ownedWeapons") }
+    }
+
+    /// How many copies of a weapon the player owns
+    func ownedCount(of weaponId: String) -> Int {
+        ownedWeaponIds.filter { $0 == weaponId }.count
+    }
+
+    /// How many copies are currently equipped in the loadout
+    func equippedCount(of weaponId: String) -> Int {
+        loadout.compactMap { $0 }.filter { $0 == weaponId }.count
+    }
+
+    /// How many unequipped copies are available
+    func availableCount(of weaponId: String) -> Int {
+        ownedCount(of: weaponId) - equippedCount(of: weaponId)
     }
 
     /// 6 loadout slots, nil means empty
@@ -31,7 +91,11 @@ class PlayerData {
             guard let raw = defaults.stringArray(forKey: "pd_loadout") else {
                 return ["basic_gun", "bomb", nil, nil, nil, nil]
             }
-            return raw.map { $0.isEmpty ? nil : $0 }
+            var result = raw.map { $0.isEmpty ? nil : $0 } as [String?]
+            // Ensure exactly 6 slots
+            while result.count < 6 { result.append(nil) }
+            if result.count > 6 { result = Array(result.prefix(6)) }
+            return result
         }
         set {
             let raw = newValue.map { $0 ?? "" }
@@ -66,12 +130,13 @@ class PlayerData {
     var experience: Int {
         get { defaults.integer(forKey: "pd_experience") }
         set {
-            defaults.set(newValue, forKey: "pd_experience")
+            var xp = newValue
+            defaults.set(xp, forKey: "pd_experience")
             // Auto level-up
-            while newValue >= xpForNextLevel {
-                let overflow = newValue - xpForNextLevel
+            while xp >= xpForNextLevel {
+                xp -= xpForNextLevel
                 playerLevel += 1
-                defaults.set(overflow, forKey: "pd_experience")
+                defaults.set(xp, forKey: "pd_experience")
             }
         }
     }
@@ -115,6 +180,14 @@ class PlayerData {
         return bombs.max(by: { $0.damage < $1.damage }) ?? WeaponCatalog.bomb
     }
 
+    /// All equipped bombs in loadout order (for multi-bomb system)
+    var equippedBombs: [WeaponInfo] {
+        let bombs = loadout.compactMap { $0 }
+            .compactMap { WeaponCatalog.weapon(byId: $0) }
+            .filter { $0.isBomb }
+        return bombs.isEmpty ? [WeaponCatalog.bomb] : bombs
+    }
+
     /// All equipped specials
     var equippedSpecials: [WeaponInfo] {
         loadout.compactMap { $0 }
@@ -122,12 +195,17 @@ class PlayerData {
             .filter { $0.isSpecial }
     }
 
-    /// Count of all equipped guns (for multi-barrel display)
-    var equippedGunCount: Int {
-        loadout.compactMap { $0 }
+    /// All equipped guns in loadout order (for multi-gun firing)
+    var equippedGuns: [WeaponInfo] {
+        let guns = loadout.compactMap { $0 }
             .compactMap { WeaponCatalog.weapon(byId: $0) }
             .filter { $0.isGun }
-            .count
+        return guns.isEmpty ? [WeaponCatalog.basicGun] : guns
+    }
+
+    /// Count of all equipped guns (for multi-barrel display)
+    var equippedGunCount: Int {
+        equippedGuns.count
     }
 
     private func gunScore(_ w: WeaponInfo) -> Double {
@@ -141,7 +219,6 @@ class PlayerData {
     }
 
     func buyWeapon(_ weapon: WeaponInfo) -> Bool {
-        guard !ownsWeapon(weapon.id) else { return false }
         guard gems >= weapon.gemCost else { return false }
         gems -= weapon.gemCost
         var owned = ownedWeaponIds
@@ -152,12 +229,9 @@ class PlayerData {
 
     func equipWeapon(_ weaponId: String, toSlot slot: Int) {
         guard slot >= 0 && slot < 6 else { return }
-        guard ownsWeapon(weaponId) else { return }
+        // Must have an unequipped copy available
+        guard availableCount(of: weaponId) > 0 else { return }
         var current = loadout
-        // Remove from any other slot first
-        for i in 0..<current.count {
-            if current[i] == weaponId { current[i] = nil }
-        }
         current[slot] = weaponId
         loadout = current
     }
@@ -198,8 +272,8 @@ class PlayerData {
 
     func ensureDefaults() {
         if defaults.object(forKey: "pd_coins") == nil {
-            coins = 1000
-            gems = 50
+            coins = 30000
+            gems = 1000
             ownedWeaponIds = ["basic_gun", "bomb"]
             loadout = ["basic_gun", "bomb", nil, nil, nil, nil]
             playerLevel = 1
