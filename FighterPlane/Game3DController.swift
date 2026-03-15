@@ -25,11 +25,15 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     private let playerMaxHealth: Int
     private let playerSpeed: Float = 14.0
     private let minAltitude: Float = 2.0
-    private let maxAltitude: Float = 98.0
-    private var smoothFlipY: Float = 0    // smoothed Y euler for flip animation
+    private let maxAltitude: Float = 65.0
+    private var currentFlipRoll: Float = 0      // child roll offset, decays toward 0
+    private var smoothPitch: Float = 0            // smoothed pitch euler
+    private let playerRollNode = SCNNode()        // child node for roll
+    private var lastFacingRight = true
     private var isInvincible = false
     private var canShoot = true
-    private var canBomb = true
+    private var shootCooldownTimer: TimeInterval = 0
+    private var bombCooldownTimers: [TimeInterval] = []
 
     // Water
     private let waterNode: SCNNode
@@ -54,6 +58,12 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
     // Bombs
     private var activeBombs: [Bomb3D] = []
+    private let trajectoryNode = SCNNode()
+    private let trajectorySamples = 18
+    private let bombGravity: Float = 15.0
+
+    // Gun aiming guide
+    private let gunGuideNode = SCNNode()
 
     // SAM Missiles
     private var activeSAMs: [SAMMissile3D] = []
@@ -65,7 +75,17 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
     // Equipped weapon cache
     private let equippedGun: WeaponInfo
-    private let equippedBomb: WeaponInfo
+    private let equippedGuns: [WeaponInfo]
+    private let equippedBombs: [WeaponInfo]
+    private var bombReady: [Bool]
+
+    // Mission mode (TODO: re-enable when MissionData is ready)
+    // private let missionData: MissionData?
+    private var isMissionMode: Bool { false }
+    // private var spawnedMissionEnemyIndices: Set<Int> = []
+    // private var missionEnemyTotal: Int = 0
+    // private var missionEnemiesDestroyed: Int = 0
+    // private var missionObjectPlaced = false
 
     // MARK: - Data Structs
 
@@ -73,8 +93,10 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         let node: SCNNode
         let type: EnemyType
         var health: Int
+        let maxHealth: Int
         var lastFireTime: TimeInterval
         let isAir: Bool
+        let healthBarNode: SCNNode
     }
 
     struct Bullet3D {
@@ -86,10 +108,12 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     struct Bomb3D {
         let node: SCNNode
         let shadowNode: SCNNode
-        var fallSpeed: Float
-        let groundY: Float
+        var velocityY: Float   // full Y velocity (inherited + gravity)
+        var velocityZ: Float   // Z velocity (inherited from plane)
         let damage: Int
         let blastRadius: Float
+        var clusterCount: Int = 0  // >0 means this bomb splits into sub-bomblets on impact
+        var timeAlive: Float = 0
     }
 
     struct SAMMissile3D {
@@ -107,15 +131,18 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         playerMaxHealth = data.maxHealth
         playerHealth = playerMaxHealth
         equippedGun = data.equippedGun
-        equippedBomb = data.equippedBomb
+        equippedGuns = data.equippedGuns
+        equippedBombs = data.equippedBombs
+        bombReady = Array(repeating: true, count: data.equippedBombs.count)
+        bombCooldownTimers = Array(repeating: 0, count: data.equippedBombs.count)
 
         // HUD
         let hudSize = UIScreen.main.bounds.size
         hud = GameHUD3D(size: hudSize)
         hud.scaleMode = .resizeFill
 
-        // Player model
-        playerNode = ModelGenerator3D.playerPlane()
+        // Player model (uses selected plane from hangar)
+        playerNode = ModelGenerator3D.selectedPlayerPlane()
 
         // Water – large flat plane
         waterNode = ModelGenerator3D.waterPlane(width: 200, length: 600)
@@ -125,6 +152,9 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         setupScene()
         GameManager.shared.resetSession()
     }
+
+    // TODO: re-enable when MissionData is ready
+    // init(mission: MissionData) { ... }
 
     // MARK: - Scene Setup
 
@@ -139,6 +169,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         setupLighting()
         setupWater()
         setupPlayer()
+        setupTrajectory()
         generateInitialTerrain()
     }
 
@@ -175,20 +206,266 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         let ambientNode = SCNNode()
         ambientNode.light = ambient
         scene.rootNode.addChildNode(ambientNode)
+
+        // Environment lighting for PBR materials (USDZ models)
+        scene.lightingEnvironment.contents = UIColor(red: 0.55, green: 0.78, blue: 0.95, alpha: 1.0)
+        scene.lightingEnvironment.intensity = 1.5
     }
 
     private func setupWater() {
-        waterNode.position = SCNVector3(0, -0.2, 0)
+        let waterY: Float = -0.2
+        waterNode.position = SCNVector3(0, waterY, 0)
         scene.rootNode.addChildNode(waterNode)
     }
 
     private func setupPlayer() {
+        // Wrap model geometry in a roll node so barrel roll rotates
+        // around the model's forward axis (Z), independent of heading/pitch
+        for child in playerNode.childNodes {
+            child.removeFromParentNode()
+            playerRollNode.addChildNode(child)
+        }
+        playerNode.addChildNode(playerRollNode)
+
         playerNode.position = SCNVector3(0, playerY, playerZ)
         scene.rootNode.addChildNode(playerNode)
     }
 
+    private func setupTrajectory() {
+        trajectoryNode.renderingOrder = 100
+        scene.rootNode.addChildNode(trajectoryNode)
+
+        gunGuideNode.renderingOrder = 100
+        scene.rootNode.addChildNode(gunGuideNode)
+    }
+
+    private func updateTrajectory() {
+        // Hide when plane is pointing more than 45° nose up
+        let pitchUp = sin(playerAngle)
+        let fadeStart = sin(Float(35.0) * .pi / 180.0)  // begin fade at 35°
+        let fadeEnd = sin(Float(50.0) * .pi / 180.0)    // fully hidden at 50°
+        let guideFade: Float
+        if pitchUp <= fadeStart {
+            guideFade = 1.0
+        } else if pitchUp >= fadeEnd {
+            guideFade = 0.0
+        } else {
+            guideFade = 1.0 - (pitchUp - fadeStart) / (fadeEnd - fadeStart)
+        }
+        trajectoryNode.opacity = CGFloat(guideFade * 0.2)
+
+        if guideFade <= 0.001 {
+            trajectoryNode.geometry = nil
+            return
+        }
+
+        let speedMult = Float(PlayerData.shared.speedMultiplier)
+        let fwdSpeed = playerSpeed * speedMult
+
+        // Bomb inherits plane velocity, then gravity pulls it down
+        let vz = cos(playerAngle) * fwdSpeed
+        var simVY = sin(playerAngle) * fwdSpeed
+
+        var simY = playerY
+        var simZ = playerZ
+        let simDt: Float = 1.0 / 30.0
+        var simTime: Float = 0
+
+        var points: [SCNVector3] = [SCNVector3(0, simY, simZ)]
+
+        for _ in 0..<trajectorySamples {
+            for _ in 0..<2 {
+                simTime += simDt
+                let ramp = min(1.0 as Float, 0.3 + simTime * 1.4)
+                simVY -= bombGravity * simDt   // gravity pulls bomb down
+                simY += simVY * simDt * ramp
+                simZ += vz * simDt * ramp
+            }
+
+            let groundH = groundHeight(x: 0, z: simZ)
+            let groundLevel = max(Float(0.1), groundH)
+
+            if simY <= groundLevel {
+                points.append(SCNVector3(0, groundLevel + 0.05, simZ))
+                break
+            }
+            points.append(SCNVector3(0, simY, simZ))
+        }
+
+        trajectoryNode.geometry = buildTrajectoryRibbon(points: points)
+    }
+
+    private func updateGunGuide() {
+        // Gun guide removed
+    }
+
+    private func buildGunGuideGeometry(points: [SCNVector3]) -> SCNGeometry? {
+        guard points.count >= 2 else { return nil }
+
+        var vertices: [SCNVector3] = []
+        var colors: [Float] = []
+        var indices: [Int32] = []
+
+        for i in 0..<points.count {
+            let t = Float(i) / Float(points.count - 1)
+            let p = points[i]
+
+            // Thin ribbon in X direction (perpendicular to Y-Z travel plane)
+            let width: Float = 0.06
+            vertices.append(SCNVector3(p.x - width, p.y, p.z))
+            vertices.append(SCNVector3(p.x + width, p.y, p.z))
+
+            // Fade from visible to invisible along length
+            let alpha = max(Float(0), 0.35 * (1.0 - t))
+            colors.append(contentsOf: [1, 1, 1, alpha])
+            colors.append(contentsOf: [1, 1, 1, alpha])
+        }
+
+        for i in 0..<(points.count - 1) {
+            let base = Int32(i * 2)
+            indices.append(contentsOf: [base, base + 1, base + 2, base + 2, base + 1, base + 3])
+        }
+
+        let vertexSource = SCNGeometrySource(vertices: vertices)
+        let colorData = Data(bytes: colors, count: colors.count * MemoryLayout<Float>.size)
+        let colorSource = SCNGeometrySource(
+            data: colorData,
+            semantic: .color,
+            vectorCount: vertices.count,
+            usesFloatComponents: true,
+            componentsPerVector: 4,
+            bytesPerComponent: MemoryLayout<Float>.size,
+            dataOffset: 0,
+            dataStride: MemoryLayout<Float>.size * 4
+        )
+
+        let indexData = Data(bytes: indices, count: indices.count * MemoryLayout<Int32>.size)
+        let element = SCNGeometryElement(
+            data: indexData,
+            primitiveType: .triangles,
+            primitiveCount: indices.count / 3,
+            bytesPerIndex: MemoryLayout<Int32>.size
+        )
+
+        let geometry = SCNGeometry(sources: [vertexSource, colorSource], elements: [element])
+        let material = SCNMaterial()
+        material.diffuse.contents = UIColor.white
+        material.emission.contents = UIColor(white: 1.0, alpha: 0.4)
+        material.lightingModel = .constant
+        material.isDoubleSided = true
+        material.writesToDepthBuffer = false
+        material.readsFromDepthBuffer = true
+        material.transparencyMode = .aOne
+        material.blendMode = .alpha
+        geometry.materials = [material]
+
+        return geometry
+    }
+
+    private func buildTrajectoryRibbon(points: [SCNVector3]) -> SCNGeometry? {
+        guard points.count >= 2 else { return nil }
+
+        var vertices: [SCNVector3] = []
+        var colors: [Float] = []
+        var indices: [Int32] = []
+
+        let maxWidth: Float = 0.21
+
+        for i in 0..<points.count {
+            let t = Float(i) / Float(points.count - 1)
+
+            // Tangent direction (in Y-Z plane)
+            let tanY: Float
+            let tanZ: Float
+            if i == 0 {
+                tanY = points[1].y - points[0].y
+                tanZ = points[1].z - points[0].z
+            } else if i == points.count - 1 {
+                tanY = points[i].y - points[i - 1].y
+                tanZ = points[i].z - points[i - 1].z
+            } else {
+                tanY = points[i + 1].y - points[i - 1].y
+                tanZ = points[i + 1].z - points[i - 1].z
+            }
+
+            let tanLen = sqrt(tanY * tanY + tanZ * tanZ)
+            let normY: Float
+            let normZ: Float
+            if tanLen > 0.001 {
+                // Perpendicular in Y-Z plane
+                normY = -tanZ / tanLen
+                normZ = tanY / tanLen
+            } else {
+                normY = 1; normZ = 0
+            }
+
+            // Taper: full width at start, narrow at end
+            let width = maxWidth * (1.0 - t * 0.8)
+
+            let p = points[i]
+            vertices.append(SCNVector3(p.x, p.y + normY * width, p.z + normZ * width))
+            vertices.append(SCNVector3(p.x, p.y - normY * width, p.z - normZ * width))
+
+            // Vertex color: 0% at both ends (near plane & ground), peaks at middle
+            let alpha = 0.15 * sin(t * .pi)
+            colors.append(contentsOf: [1, 1, 1, alpha])
+            colors.append(contentsOf: [1, 1, 1, alpha])
+        }
+
+        // Triangle strip as indexed triangles
+        for i in 0..<(points.count - 1) {
+            let base = Int32(i * 2)
+            indices.append(contentsOf: [base, base + 1, base + 2, base + 2, base + 1, base + 3])
+        }
+
+        let vertexSource = SCNGeometrySource(vertices: vertices)
+        let colorData = Data(bytes: colors, count: colors.count * MemoryLayout<Float>.size)
+        let colorSource = SCNGeometrySource(
+            data: colorData,
+            semantic: .color,
+            vectorCount: vertices.count,
+            usesFloatComponents: true,
+            componentsPerVector: 4,
+            bytesPerComponent: MemoryLayout<Float>.size,
+            dataOffset: 0,
+            dataStride: MemoryLayout<Float>.size * 4
+        )
+
+        let indexData = Data(bytes: indices, count: indices.count * MemoryLayout<Int32>.size)
+        let element = SCNGeometryElement(
+            data: indexData,
+            primitiveType: .triangles,
+            primitiveCount: indices.count / 3,
+            bytesPerIndex: MemoryLayout<Int32>.size
+        )
+
+        let geometry = SCNGeometry(sources: [vertexSource, colorSource], elements: [element])
+        let material = SCNMaterial()
+        material.diffuse.contents = UIColor.white
+        material.emission.contents = UIColor(white: 1.0, alpha: 0.15)
+        material.lightingModel = .constant
+        material.isDoubleSided = true
+        material.writesToDepthBuffer = false
+        material.readsFromDepthBuffer = true
+        material.transparencyMode = .aOne
+        material.blendMode = .alpha
+        geometry.materials = [material]
+
+        return geometry
+    }
+
     private func generateInitialTerrain() {
         manageTerrain()
+    }
+
+    // MARK: - Terrain Height Helper
+
+    private func groundHeight(x: Float, z: Float) -> Float {
+        // TODO: re-enable mission terrain height when MissionData is ready
+        // if let mission = missionData {
+        //     return ModelGenerator3D.missionTerrainHeight(terrainData: mission.terrain, x: x, z: z)
+        // }
+        return ModelGenerator3D.terrainHeight(x: x, z: z)
     }
 
     // MARK: - Terrain Management (Z-Strip, Bidirectional)
@@ -198,6 +475,12 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     }
 
     private func manageTerrain() {
+        // TODO: re-enable when MissionData is ready
+        // if isMissionMode {
+        //     manageMissionTerrain()
+        //     return
+        // }
+
         let currentSlot = slotForZ(playerZ)
         let minSlot = currentSlot - chunksBehind
         let maxSlot = currentSlot + chunksAhead
@@ -232,13 +515,35 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         }
     }
 
+    // TODO: re-enable when MissionData is ready
+    // private func manageMissionTerrain() { ... }
+
     // MARK: - Game Loop
 
     func renderer(_ renderer: SCNSceneRenderer, updateAtTime time: TimeInterval) {
+        // Handle exit to menu (from pause menu or game over)
+        if hud.shouldExitToMenu {
+            hud.shouldExitToMenu = false
+            DispatchQueue.main.async {
+                NavigationManager.shared.isInGame = false
+            }
+            return
+        }
+
+        // Handle pause — also pause SCNActions so animations freeze
+        if hud.isGamePaused {
+            if !scene.isPaused { scene.isPaused = true }
+            lastUpdateTime = 0 // Reset so dt doesn't spike on resume
+            return
+        } else if scene.isPaused {
+            scene.isPaused = false
+        }
+
         guard gameState == .playing else {
             if hud.shouldRestart {
                 hud.shouldRestart = false
                 DispatchQueue.main.async {
+                    // NavigationManager.shared.activeMission = nil
                     NavigationManager.shared.isInGame = false
                 }
             }
@@ -253,6 +558,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             lastGroundSpawn = time
             lastAirSpawn = time
             spawnTimersInitialized = true
+            hud.updateBombIndicator(ready: equippedBombs.count, total: equippedBombs.count)
         }
 
         let floatDt = Float(dt)
@@ -261,6 +567,10 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
         // Update player from joystick angle
         updatePlayer(dt: floatDt)
+
+        // Update trajectory indicators
+        updateTrajectory()
+        updateGunGuide()
 
         // Update camera to track player from the side
         updateCamera(dt: floatDt)
@@ -274,8 +584,10 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         // Spawn enemies
         spawnEnemies(time: time)
 
-        // Auto-fire (always shooting)
-        fireGun()
+        // Fire when button is held
+        if hud.isFiring {
+            fireGun()
+        }
 
         // Drop bomb
         if hud.shouldDropBomb {
@@ -297,6 +609,25 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
         // Collision detection
         checkCollisions()
+
+        // Weapon cooldown timers
+        if !canShoot {
+            shootCooldownTimer -= dt
+            if shootCooldownTimer <= 0 {
+                canShoot = true
+            }
+        }
+        for si in bombCooldownTimers.indices {
+            if bombCooldownTimers[si] > 0 {
+                bombCooldownTimers[si] -= dt
+                if bombCooldownTimers[si] <= 0 {
+                    bombCooldownTimers[si] = 0
+                    bombReady[si] = true
+                    let readyCount = bombReady.filter({ $0 }).count
+                    hud.updateBombIndicator(ready: readyCount, total: equippedBombs.count)
+                }
+            }
+        }
 
         // Invincibility timer
         if isInvincible {
@@ -346,7 +677,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         playerY += sin(playerAngle) * speed * dt
 
         // Altitude clamping
-        let groundH = ModelGenerator3D.terrainHeight(x: 0, z: playerZ)
+        let groundH = groundHeight(x: 0, z: playerZ)
         let groundMin = max(minAltitude, groundH + 1.5)
         if playerY < groundMin {
             playerY = groundMin
@@ -357,29 +688,50 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         // Update node position
         playerNode.position = SCNVector3(0, playerY, playerZ)
 
-        // Visual rotation: smooth flip when changing direction
+        // --- Visual rotation: 180° half-roll on direction change ---
+        //
+        // At the crossing point (90°/270°), heading=0+roll=0 and heading=π+roll=π
+        // produce the IDENTICAL orientation. So on every direction change we:
+        //   1. Snap heading to the new value immediately
+        //   2. Add π to currentFlipRoll to compensate (snap is invisible)
+        //   3. Smoothly decay currentFlipRoll toward 0 — this IS the visible roll
+        //
         let facingRight = cos(playerAngle) >= 0
-        let targetFlipY: Float = facingRight ? 0 : .pi
 
-        // Smooth the Y rotation for a nice flip animation
-        var flipDiff = targetFlipY - smoothFlipY
-        // Shortest path through the angle
-        while flipDiff > .pi { flipDiff -= 2 * .pi }
-        while flipDiff < -.pi { flipDiff += 2 * .pi }
-        smoothFlipY += flipDiff * min(1.0, 5.0 * dt)
-        // Normalize
-        while smoothFlipY > .pi { smoothFlipY -= 2 * .pi }
-        while smoothFlipY < -.pi { smoothFlipY += 2 * .pi }
-
-        playerNode.eulerAngles.y = smoothFlipY
-
-        // Pitch based on current facing
-        if facingRight {
-            playerNode.eulerAngles.x = -playerAngle
-        } else {
-            let localAngle = atan2(sin(playerAngle), -cos(playerAngle))
-            playerNode.eulerAngles.x = -localAngle
+        if facingRight != lastFacingRight {
+            lastFacingRight = facingRight
+            // Compensating roll: pick the sign that minimizes remaining animation
+            if abs(currentFlipRoll) < 0.01 {
+                currentFlipRoll = .pi           // fresh flip
+            } else if currentFlipRoll > 0 {
+                currentFlipRoll -= .pi          // partially rolled +ve → bring closer to 0
+            } else {
+                currentFlipRoll += .pi          // partially rolled -ve → bring closer to 0
+            }
         }
+
+        // Smoothly decay roll toward 0
+        currentFlipRoll *= max(0, 1.0 - 7.0 * dt)
+        if abs(currentFlipRoll) < 0.001 { currentFlipRoll = 0 }
+
+        // Pitch: smoothly interpolate
+        let targetPitch: Float
+        if facingRight {
+            targetPitch = -playerAngle
+        } else {
+            targetPitch = -atan2(sin(playerAngle), -cos(playerAngle))
+        }
+        do {
+            var diff = targetPitch - smoothPitch
+            while diff > .pi  { diff -= 2 * .pi }
+            while diff < -.pi { diff += 2 * .pi }
+            smoothPitch += diff * min(1.0, 8.0 * dt)
+        }
+
+        // Apply: heading set directly each frame, roll on child node
+        let headingY: Float = facingRight ? 0 : .pi
+        playerNode.eulerAngles = SCNVector3(smoothPitch, headingY, 0)
+        playerRollNode.eulerAngles = SCNVector3(0, 0, currentFlipRoll)
     }
 
     private var smoothLeadZ: Float = 15.0
@@ -413,85 +765,106 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
         GameManager.shared.shotsFired += 1
 
-        let bulletCount = equippedGun.bulletCount
-        let spread = equippedGun.bulletSpread
-        // Bullet speed = 3x the plane's current speed
         let speedMult = Float(PlayerData.shared.speedMultiplier)
-        let speed = playerSpeed * speedMult * 3.0
+        let baseSpeed = playerSpeed * speedMult * 5.0 / 60.0
 
-        for i in 0..<bulletCount {
-            let bullet = ModelGenerator3D.playerBullet()
-            bullet.position = playerNode.position
+        // Fire all equipped guns simultaneously
+        for (gunIndex, gun) in equippedGuns.enumerated() {
+            let bulletCount = gun.bulletCount
+            let spread = gun.bulletSpread
+            let speed = Float(gun.projectileSpeed) / 60.0 * speedMult
 
-            // Bullets fire in the direction the plane faces (playerAngle in Y-Z plane)
-            var angle = playerAngle
-            if bulletCount > 1 {
-                let offset = Float(i) - Float(bulletCount - 1) / 2.0
-                angle += offset * Float(spread)
-            } else if spread > 0 {
-                angle += Float.random(in: -Float(spread)...Float(spread))
+            // Slight X offset per gun to simulate multiple barrel positions
+            let gunSpacing: Float = equippedGuns.count > 1 ? 0.8 : 0
+            let xOffset = (Float(gunIndex) - Float(equippedGuns.count - 1) / 2.0) * gunSpacing
+
+            for i in 0..<bulletCount {
+                let bullet = ModelGenerator3D.playerBullet(weaponId: gun.id)
+
+                let spawnOffset: Float = 2.5
+                bullet.position = SCNVector3(
+                    xOffset,
+                    playerY + sin(playerAngle) * spawnOffset,
+                    playerZ + cos(playerAngle) * spawnOffset
+                )
+
+                var angle = playerAngle
+                if bulletCount > 1 {
+                    let offset = Float(i) - Float(bulletCount - 1) / 2.0
+                    angle += offset * Float(spread)
+                } else if spread > 0 {
+                    angle += Float.random(in: -Float(spread)...Float(spread))
+                }
+
+                let vz = cos(angle) * speed
+                let vy = sin(angle) * speed
+
+                bullet.eulerAngles.x = (.pi / 2) - angle
+
+                scene.rootNode.addChildNode(bullet)
+                playerBullets.append(Bullet3D(
+                    node: bullet,
+                    velocity: SCNVector3(0, vy, vz),
+                    damage: gun.damage
+                ))
             }
-
-            let vz = cos(angle) * speed
-            let vy = sin(angle) * speed
-
-            // Tilt the stick to match flight direction
-            bullet.eulerAngles.x = (.pi / 2) - angle
-
-            scene.rootNode.addChildNode(bullet)
-            playerBullets.append(Bullet3D(
-                node: bullet,
-                velocity: SCNVector3(0, vy, vz),
-                damage: equippedGun.damage
-            ))
         }
 
-        // Cooldown
-        DispatchQueue.main.asyncAfter(deadline: .now() + equippedGun.fireRate) { [weak self] in
-            self?.canShoot = true
-        }
+        // Use fastest fire rate among equipped guns
+        let fastestFireRate = equippedGuns.map(\.fireRate).min() ?? equippedGun.fireRate
+        shootCooldownTimer = fastestFireRate
     }
 
     // MARK: - Bombing
 
     private func dropBomb() {
-        guard canBomb else { return }
-        canBomb = false
+        // Find first ready bomb slot
+        guard let slotIndex = bombReady.firstIndex(of: true) else { return }
+        bombReady[slotIndex] = false
+
+        let bombWeapon = equippedBombs[slotIndex]
 
         GameManager.shared.bombsDropped += 1
 
-        let bombCount = equippedBomb.bulletCount
-        for i in 0..<bombCount {
-            let bomb = ModelGenerator3D.bomb3D()
-            bomb.position = playerNode.position
+        // Bomb inherits the plane's forward velocity
+        let speedMult = Float(PlayerData.shared.speedMultiplier)
+        let fwdSpeed = playerSpeed * speedMult
+        let dropVZ = cos(playerAngle) * fwdSpeed
 
-            if bombCount > 1 {
-                bomb.position.z += Float(i - bombCount / 2) * 2.5
-            }
+        // Clamp so bomb never kicks upward — it should only fall
+        let clampedDropVY = min(sin(playerAngle) * fwdSpeed, 0.0 as Float)
 
-            let shadow = ModelGenerator3D.bombShadow3D()
-            let shadowZ = bomb.position.z + 8
-            let groundY = ModelGenerator3D.terrainHeight(x: 0, z: shadowZ)
-            shadow.position = SCNVector3(0, max(0.1, groundY + 0.1), shadowZ)
-            shadow.scale = SCNVector3(0.3, 0.3, 0.3)
+        let bomb = ModelGenerator3D.bomb3D(weaponId: bombWeapon.id)
+        bomb.position = playerNode.position
 
-            scene.rootNode.addChildNode(bomb)
-            scene.rootNode.addChildNode(shadow)
+        let shadow = ModelGenerator3D.bombShadow3D()
+        let shadowZ = bomb.position.z
+        let groundY = groundHeight(x: 0, z: shadowZ)
+        shadow.position = SCNVector3(0, max(0.1, groundY + 0.1), shadowZ)
+        shadow.scale = SCNVector3(0.3, 0.3, 0.3)
 
-            activeBombs.append(Bomb3D(
-                node: bomb,
-                shadowNode: shadow,
-                fallSpeed: 0.5,
-                groundY: max(0.1, groundY),
-                damage: equippedBomb.damage,
-                blastRadius: Float(equippedBomb.blastRadius) * 0.15
-            ))
-        }
+        // Orient bomb nose along velocity (-Y axis is nose)
+        bomb.eulerAngles.x = atan2(-dropVZ, -clampedDropVY)
 
-        // Cooldown
-        DispatchQueue.main.asyncAfter(deadline: .now() + equippedBomb.fireRate) { [weak self] in
-            self?.canBomb = true
-        }
+        scene.rootNode.addChildNode(bomb)
+        scene.rootNode.addChildNode(shadow)
+
+        let clusterCount = bombWeapon.bulletCount > 1 ? bombWeapon.bulletCount : 0
+
+        activeBombs.append(Bomb3D(
+            node: bomb,
+            shadowNode: shadow,
+            velocityY: clampedDropVY,
+            velocityZ: dropVZ,
+            damage: bombWeapon.damage,
+            blastRadius: Float(bombWeapon.blastRadius) * 0.15,
+            clusterCount: clusterCount
+        ))
+
+        // Per-slot cooldown (timer-based, updated on render thread)
+        bombCooldownTimers[slotIndex] = bombWeapon.fireRate
+        let readyCount = bombReady.filter({ $0 }).count
+        hud.updateBombIndicator(ready: readyCount, total: equippedBombs.count)
     }
 
     // MARK: - Update Systems
@@ -504,7 +877,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             bullet.node.position.z += bullet.velocity.z * dt * 60
 
             let dz = bullet.node.position.z - playerZ
-            if dz > 150 || dz < -30 {
+            if abs(dz) > 150 {
                 bullet.node.removeFromParentNode()
                 return true
             }
@@ -528,18 +901,39 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
     private func updateBombs(dt: Float) {
         for i in activeBombs.indices {
-            activeBombs[i].fallSpeed += 15.0 * dt
-            activeBombs[i].node.position.y -= activeBombs[i].fallSpeed * dt
-            // Drift forward slightly with momentum
-            activeBombs[i].node.position.z += playerSpeed * dt * 0.3
+            activeBombs[i].timeAlive += dt
+            let ramp = min(1.0 as Float, 0.3 + activeBombs[i].timeAlive * 1.4)
 
-            let progress = 1.0 - (activeBombs[i].node.position.y - activeBombs[i].groundY) / (playerY - activeBombs[i].groundY)
-            let shadowScale = 0.3 + max(0, min(1, progress)) * 0.7
+            // Apply gravity to vertical velocity
+            activeBombs[i].velocityY -= bombGravity * dt
+
+            activeBombs[i].node.position.y += activeBombs[i].velocityY * dt * ramp
+            activeBombs[i].node.position.z += activeBombs[i].velocityZ * dt * ramp
+
+            // Rotate bomb nose to follow velocity direction
+            activeBombs[i].node.eulerAngles.x = atan2(-activeBombs[i].velocityZ, -activeBombs[i].velocityY)
+
+            // Update shadow to track directly below the bomb
+            let bombPos = activeBombs[i].node.position
+            let groundH = groundHeight(x: 0, z: bombPos.z)
+            let groundLevel = max(Float(0.1), groundH)
+            activeBombs[i].shadowNode.position = SCNVector3(0, groundLevel + 0.1, bombPos.z)
+
+            let heightAbove = bombPos.y - groundLevel
+            let totalDrop = max(Float(1.0), playerY - groundLevel)
+            let progress = 1.0 - heightAbove / totalDrop
+            let clamped = max(Float(0), min(Float(1), progress))
+            let shadowScale: Float = 0.3 + clamped * 0.7
             activeBombs[i].shadowNode.scale = SCNVector3(shadowScale, shadowScale, shadowScale)
-            activeBombs[i].shadowNode.opacity = CGFloat(0.3 + max(0, min(1, progress)) * 0.4)
+            activeBombs[i].shadowNode.opacity = CGFloat(0.3 + clamped * 0.4)
 
-            if activeBombs[i].node.position.y <= activeBombs[i].groundY + 0.3 {
+            // Remove on ground hit or if too far from player
+            let dz = bombPos.z - playerZ
+            if bombPos.y <= groundLevel + 0.3 {
                 handleBombImpact(bomb: activeBombs[i])
+                activeBombs[i].node.removeFromParentNode()
+                activeBombs[i].shadowNode.removeFromParentNode()
+            } else if abs(dz) > 150 || bombPos.y > maxAltitude + 20 {
                 activeBombs[i].node.removeFromParentNode()
                 activeBombs[i].shadowNode.removeFromParentNode()
             }
@@ -549,17 +943,55 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
     private func handleBombImpact(bomb: Bomb3D) {
         let pos = bomb.node.position
+        let groundY = max(Float(0.1), groundHeight(x: pos.x, z: pos.z))
+
+        // Cluster bomb: spawn sub-bomblets that radiate outward from center
+        if bomb.clusterCount > 0 {
+            let smallExplosion = ModelGenerator3D.explosion(radius: bomb.blastRadius * 0.4)
+            smallExplosion.position = SCNVector3(pos.x, groundY + 0.3, pos.z)
+            scene.rootNode.addChildNode(smallExplosion)
+
+            let count = bomb.clusterCount
+            for i in 0..<count {
+                // Spread evenly across a fan in the Y-Z plane
+                let t = count > 1 ? Float(i) / Float(count - 1) - 0.5 : Float(0)  // -0.5 to +0.5
+                let spreadZ: Float = t * 16.0
+                let popY: Float = 6.0 + Float.random(in: 0...2.0)
+
+                let bomblet = ModelGenerator3D.bomb3D(weaponId: "cluster_bomb")
+                bomblet.scale = SCNVector3(0.5, 0.5, 0.5)
+                bomblet.position = pos
+
+                let shadow = ModelGenerator3D.bombShadow3D()
+                shadow.position = SCNVector3(0, groundY + 0.1, pos.z)
+                shadow.scale = SCNVector3(0.2, 0.2, 0.2)
+
+                scene.rootNode.addChildNode(bomblet)
+                scene.rootNode.addChildNode(shadow)
+
+                activeBombs.append(Bomb3D(
+                    node: bomblet,
+                    shadowNode: shadow,
+                    velocityY: popY,
+                    velocityZ: bomb.velocityZ * 0.3 + spreadZ,
+                    damage: bomb.damage,
+                    blastRadius: bomb.blastRadius * 0.6
+                ))
+            }
+            return
+        }
+
         let explosion = ModelGenerator3D.explosion(radius: bomb.blastRadius)
-        explosion.position = SCNVector3(pos.x, bomb.groundY + 0.5, pos.z)
+        explosion.position = SCNVector3(pos.x, groundY + 0.5, pos.z)
         scene.rootNode.addChildNode(explosion)
 
-        // Damage nearby ground enemies
+        // Damage all nearby enemies (ground and air) – use Y-Z distance
         for i in enemies.indices {
-            guard enemies[i].type.isGround && enemies[i].node.parent != nil else { continue }
-            let ex = enemies[i].node.position
-            let dist = sqrt(pow(ex.x - pos.x, 2) + pow(ex.z - pos.z, 2))
+            guard enemies[i].node.parent != nil else { continue }
+            let dist = distanceYZ(enemies[i].node.position, pos)
             if dist <= bomb.blastRadius * 1.5 {
                 enemies[i].health -= bomb.damage
+                updateHealthBar(for: enemies[i])
                 if enemies[i].health <= 0 {
                     destroyEnemy(at: i)
                 }
@@ -570,6 +1002,12 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     // MARK: - Enemies
 
     private func spawnEnemies(time: TimeInterval) {
+        // TODO: re-enable when MissionData is ready
+        // if isMissionMode {
+        //     spawnMissionEnemies()
+        //     return
+        // }
+
         let manager = GameManager.shared
 
         // Ground enemies
@@ -585,6 +1023,21 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         }
     }
 
+    // TODO: re-enable when MissionData is ready
+    // private func spawnMissionEnemies() { ... }
+
+    private func modelForEnemyType(_ type: EnemyType) -> SCNNode {
+        switch type {
+        case .tank: return ModelGenerator3D.tank()
+        case .aaGun: return ModelGenerator3D.aaGun()
+        case .building: return ModelGenerator3D.building()
+        case .samLauncher: return ModelGenerator3D.samLauncher()
+        case .fighter: return ModelGenerator3D.enemyPlane()
+        case .truck: return ModelGenerator3D.truck()
+        case .radioTower: return ModelGenerator3D.radioTower()
+        }
+    }
+
     private func spawnGroundEnemy() {
         // SAM launchers appear after difficulty 3
         let types: [EnemyType]
@@ -595,19 +1048,12 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         }
         let type = types.randomElement()!
 
-        let node: SCNNode
-        switch type {
-        case .tank: node = ModelGenerator3D.tank()
-        case .aaGun: node = ModelGenerator3D.aaGun()
-        case .building: node = ModelGenerator3D.building()
-        case .samLauncher: node = ModelGenerator3D.samLauncher()
-        default: return
-        }
+        let node = modelForEnemyType(type)
 
         // Place on terrain ahead of player, near center X for visibility
         let x = Float.random(in: -12...12)
         let z = playerZ + 80 + Float.random(in: 0...40)
-        let h = ModelGenerator3D.terrainHeight(x: x, z: z)
+        let h = groundHeight(x: x, z: z)
 
         // Only place on land
         guard h > 0.5 else { return }
@@ -615,13 +1061,44 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         node.position = SCNVector3(x, h, z)
         scene.rootNode.addChildNode(node)
 
+        // Detection range ring for AA guns and SAM launchers
+        if type == .aaGun || type == .samLauncher {
+            let range = type.fireRange
+            let ring = SCNTorus(ringRadius: CGFloat(range), pipeRadius: 0.12)
+            let mat = SCNMaterial()
+            let color = type == .samLauncher
+                ? UIColor(red: 1.0, green: 0.15, blue: 0.1, alpha: 1.0)
+                : UIColor(red: 1.0, green: 0.6, blue: 0.1, alpha: 1.0)
+            mat.diffuse.contents = color
+            mat.emission.contents = color
+            mat.lightingModel = .constant
+            mat.isDoubleSided = true
+            ring.firstMaterial = mat
+            let ringNode = SCNNode(geometry: ring)
+            // Stand the ring upright in the Y-Z plane (rotate 90° around Z)
+            // so it shows the vertical detection sphere around the enemy
+            ringNode.eulerAngles = SCNVector3(0, 0, Float.pi / 2)
+            ringNode.opacity = 0.10
+            node.addChildNode(ringNode)
+        }
+
         let bonus = GameManager.shared.enemyHealthBonus
+        let totalHealth = type.health + bonus
+
+        let healthBar = ModelGenerator3D.healthBar()
+        // Position above the enemy (height varies by type)
+        let barHeight: Float = type == .building ? 2.8 : 1.5
+        healthBar.position = SCNVector3(0, barHeight, 0)
+        node.addChildNode(healthBar)
+
         enemies.append(Enemy3D(
             node: node,
             type: type,
-            health: type.health + bonus,
+            health: totalHealth,
+            maxHealth: totalHealth,
             lastFireTime: -1,
-            isAir: false
+            isAir: false,
+            healthBarNode: healthBar
         ))
     }
 
@@ -633,12 +1110,20 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         node.position = SCNVector3(x, playerY + Float.random(in: -3...3), z)
         scene.rootNode.addChildNode(node)
 
+        let bonus = GameManager.shared.enemyHealthBonus
+        let hp = EnemyType.fighter.health + bonus
+        let healthBar = ModelGenerator3D.healthBar()
+        healthBar.position = SCNVector3(0, 1.2, 0)
+        node.addChildNode(healthBar)
+
         enemies.append(Enemy3D(
             node: node,
             type: .fighter,
-            health: EnemyType.fighter.health,
+            health: hp,
+            maxHealth: hp,
             lastFireTime: -1,
-            isAir: true
+            isAir: true,
+            healthBarNode: healthBar
         ))
     }
 
@@ -670,20 +1155,14 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 enemies[i].lastFireTime = time
             }
 
-            // Distance check for firing range
-            let dist = distance3D(enemies[i].node.position, playerNode.position)
+            // Distance check for firing range (use Y-Z; X is visual depth only)
+            let dist = distanceYZ(enemies[i].node.position, playerNode.position)
             let range = enemies[i].type.fireRange
             guard range > 0 && dist <= range else { continue }
 
             // Fire intervals per type
-            let fireInterval: TimeInterval
-            switch enemies[i].type {
-            case .tank:        fireInterval = 3.0
-            case .aaGun:       fireInterval = 1.5
-            case .samLauncher: fireInterval = 5.0
-            case .fighter:     fireInterval = 2.5
-            case .building:    continue
-            }
+            let fireInterval = enemies[i].type.fireRate
+            guard fireInterval > 0 else { continue }
 
             if time - enemies[i].lastFireTime >= fireInterval {
                 enemies[i].lastFireTime = time
@@ -701,37 +1180,40 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         guard enemy.type == .tank || enemy.type == .aaGun || enemy.type == .fighter else { return }
 
         let bullet = ModelGenerator3D.enemyBullet()
-        bullet.position = enemy.node.position
+        // Spawn at X=0 so bullet stays in the Y-Z gameplay plane
+        // (enemies have visual X spread for the side camera but gameplay is Y-Z)
+        bullet.position = SCNVector3(0, enemy.node.position.y, enemy.node.position.z)
 
-        // Aim at player with slight inaccuracy for fairness
+        // Aim at player in Y-Z only, with slight inaccuracy for fairness
         let jitterY = Float.random(in: -1.0...1.0)
         let jitterZ = Float.random(in: -0.5...0.5)
 
-        let targetX = playerNode.position.x
         let targetY = playerNode.position.y + jitterY
         let targetZ = playerNode.position.z + jitterZ
 
-        let dx = targetX - bullet.position.x
         let dy = targetY - bullet.position.y
         let dz = targetZ - bullet.position.z
-        let dist = sqrt(dx * dx + dy * dy + dz * dz)
+        let dist = sqrt(dy * dy + dz * dz)
         guard dist > 1 else { return }
 
         // Tanks shoot slower, heavier shells; AA guns shoot faster
         let speed: Float = enemy.type == .tank ? 0.3 : 0.4
 
-        let vx = (dx / dist) * speed
         let vy = (dy / dist) * speed
         let vz = (dz / dist) * speed
 
+        // Orient tracer along its velocity direction in the Y-Z plane
+        // SCNCylinder default axis is +Y, so rotate X by atan2(vz, vy)
+        bullet.eulerAngles = SCNVector3(atan2(vz, vy), 0, 0)
+
         scene.rootNode.addChildNode(bullet)
-        enemyBullets.append(Bullet3D(node: bullet, velocity: SCNVector3(vx, vy, vz), damage: GameConfig.enemyBulletDamage))
+        enemyBullets.append(Bullet3D(node: bullet, velocity: SCNVector3(0, vy, vz), damage: GameConfig.enemyBulletDamage))
     }
 
     private func fireSAMMissile(from enemy: Enemy3D) {
         let missile = ModelGenerator3D.samMissile()
-        missile.position = enemy.node.position
-        missile.position.y += 1.0 // launch from top of launcher
+        // Spawn at X=0 so missile stays in the Y-Z gameplay plane
+        missile.position = SCNVector3(0, enemy.node.position.y + 1.0, enemy.node.position.z)
 
         // Initial velocity: upward at ~60° angle toward the player's Z direction
         let toPlayerZ = playerNode.position.z - enemy.node.position.z
@@ -745,8 +1227,8 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             node: missile,
             velocity: SCNVector3(0, vy, vz),
             damage: GameConfig.samMissileDamage,
-            lifetime: 5.0,
-            turnRate: 2.5
+            lifetime: 6.0,
+            turnRate: 3.5
         ))
     }
 
@@ -772,52 +1254,57 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 continue
             }
 
-            // Homing: steer toward player
-            let target = playerNode.position
+            // Homing with lead-target prediction in Y-Z plane only (X=0 always)
             let pos = activeSAMs[i].node.position
-            let dx = target.x - pos.x
-            let dy = target.y - pos.y
-            let dzToTarget = target.z - pos.z
-            let distToTarget = sqrt(dx * dx + dy * dy + dzToTarget * dzToTarget)
+            let speed: Float = 0.37
+            let missileSpeed = speed * 60.0  // world-units per second
+
+            // Estimate player velocity from angle & speed
+            let pVelY = sin(playerAngle) * playerSpeed
+            let pVelZ = cos(playerAngle) * playerSpeed
+
+            // Predict where player will be when missile arrives
+            let rawDy = playerNode.position.y - pos.y
+            let rawDz = playerNode.position.z - pos.z
+            let rawDist = sqrt(rawDy * rawDy + rawDz * rawDz)
+            let timeToIntercept = min(rawDist / max(missileSpeed, 1.0), 1.5)
+
+            let predictedY = playerNode.position.y + pVelY * timeToIntercept
+            let predictedZ = playerNode.position.z + pVelZ * timeToIntercept
+
+            let dy = predictedY - pos.y
+            let dzToTarget = predictedZ - pos.z
+            let distToTarget = sqrt(dy * dy + dzToTarget * dzToTarget)
 
             if distToTarget > 0.5 {
-                let speed: Float = 0.35
-                let desiredX = dx / distToTarget * speed
                 let desiredY = dy / distToTarget * speed
                 let desiredZ = dzToTarget / distToTarget * speed
 
                 let t = min(1.0, activeSAMs[i].turnRate * dt)
-                activeSAMs[i].velocity.x += (desiredX - activeSAMs[i].velocity.x) * t
+                activeSAMs[i].velocity.x = 0
                 activeSAMs[i].velocity.y += (desiredY - activeSAMs[i].velocity.y) * t
                 activeSAMs[i].velocity.z += (desiredZ - activeSAMs[i].velocity.z) * t
 
                 // Normalize to maintain constant speed
-                let vx = activeSAMs[i].velocity.x
                 let vy = activeSAMs[i].velocity.y
                 let vz2 = activeSAMs[i].velocity.z
-                let curSpeed = sqrt(vx * vx + vy * vy + vz2 * vz2)
+                let curSpeed = sqrt(vy * vy + vz2 * vz2)
                 if curSpeed > 0.01 {
-                    activeSAMs[i].velocity.x = vx / curSpeed * speed
+                    activeSAMs[i].velocity.x = 0
                     activeSAMs[i].velocity.y = vy / curSpeed * speed
                     activeSAMs[i].velocity.z = vz2 / curSpeed * speed
                 }
             }
 
-            // Move
-            activeSAMs[i].node.position.x += activeSAMs[i].velocity.x * dt * 60
+            // Move in Y-Z plane only
             activeSAMs[i].node.position.y += activeSAMs[i].velocity.y * dt * 60
             activeSAMs[i].node.position.z += activeSAMs[i].velocity.z * dt * 60
 
-            // Orient missile in direction of travel
-            let vx = activeSAMs[i].velocity.x
+            // Orient missile to face direction of travel (pitch only, in Y-Z plane)
+            // SCNCapsule default axis is +Y (nose at top), so rotate X by atan2(vz, vy)
             let vy = activeSAMs[i].velocity.y
             let vz2 = activeSAMs[i].velocity.z
-            let hLen = sqrt(vx * vx + vz2 * vz2)
-            activeSAMs[i].node.eulerAngles = SCNVector3(
-                -atan2(vy, hLen),
-                atan2(vx, vz2),
-                0
-            )
+            activeSAMs[i].node.eulerAngles = SCNVector3(atan2(vz2, vy), 0, 0)
         }
     }
 
@@ -833,21 +1320,64 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         explosion.position = enemy.node.position
         scene.rootNode.addChildNode(explosion)
 
+        enemy.healthBarNode.removeFromParentNode()
         enemy.node.removeFromParentNode()
+
+        // TODO: re-enable when MissionData is ready
+        // if isMissionMode {
+        //     missionEnemiesDestroyed += 1
+        //     if missionEnemiesDestroyed >= missionEnemyTotal {
+        //         missionComplete()
+        //     }
+        // }
+    }
+
+    // TODO: re-enable when MissionData is ready
+    // private func missionComplete() { ... }
+
+    private func updateHealthBar(for enemy: Enemy3D) {
+        let ratio = Float(enemy.health) / Float(max(1, enemy.maxHealth))
+        let clamped = max(0, min(1, ratio))
+
+        // Show on first damage
+        if enemy.health < enemy.maxHealth {
+            enemy.healthBarNode.isHidden = false
+        }
+
+        // Update fill bar scale and position
+        if let fill = enemy.healthBarNode.childNode(withName: "healthBarFill", recursively: false) {
+            fill.scale = SCNVector3(clamped, 1, 1)
+            // Shift left so bar depletes from the right
+            let barWidth: Float = 1.75
+            fill.position = SCNVector3(-(1 - clamped) * barWidth / 2, 0, 0)
+
+            // Color: green → yellow → red
+            if let mat = (fill.geometry as? SCNPlane)?.firstMaterial {
+                if ratio > 0.6 {
+                    mat.diffuse.contents = UIColor(red: 0.2, green: 0.8, blue: 0.2, alpha: 1)
+                } else if ratio > 0.3 {
+                    mat.diffuse.contents = UIColor(red: 0.9, green: 0.7, blue: 0.1, alpha: 1)
+                } else {
+                    mat.diffuse.contents = UIColor(red: 0.9, green: 0.2, blue: 0.1, alpha: 1)
+                }
+            }
+        }
     }
 
     // MARK: - Collisions
 
     private func checkCollisions() {
-        // Player bullets vs enemies
+        // Player bullets vs enemies (use Y-Z distance; bullets travel at X=0
+        // but enemies have visual X spread for the side-view camera)
         for bi in playerBullets.indices.reversed() {
             guard playerBullets[bi].node.parent != nil else { continue }
             for ei in enemies.indices.reversed() {
                 guard enemies[ei].node.parent != nil else { continue }
-                let dist = distance3D(playerBullets[bi].node.position, enemies[ei].node.position)
-                let hitRadius: Float = enemies[ei].isAir ? 2.5 : 2.0
+                let dist = distanceYZ(playerBullets[bi].node.position, enemies[ei].node.position)
+                let hitRadius: Float = enemies[ei].isAir ? 2.5 : 3.0
                 if dist < hitRadius {
                     enemies[ei].health -= playerBullets[bi].damage
+                    updateHealthBar(for: enemies[ei])
                     playerBullets[bi].node.removeFromParentNode()
 
                     let hit = ModelGenerator3D.explosion(radius: 0.5)
@@ -866,8 +1396,8 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         for bi in playerBullets.indices.reversed() {
             guard playerBullets[bi].node.parent != nil else { continue }
             for si in activeSAMs.indices.reversed() {
-                let dist = distance3D(playerBullets[bi].node.position, activeSAMs[si].node.position)
-                if dist < 1.5 {
+                let dist = distanceYZ(playerBullets[bi].node.position, activeSAMs[si].node.position)
+                if dist < 2.5 {
                     let explosion = ModelGenerator3D.explosion(radius: 0.8)
                     explosion.position = activeSAMs[si].node.position
                     scene.rootNode.addChildNode(explosion)
@@ -880,11 +1410,11 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         }
         playerBullets.removeAll { $0.node.parent == nil }
 
-        // Enemy bullets vs player
+        // Enemy bullets vs player (Y-Z distance since projectiles travel in gameplay plane)
         if !isInvincible {
             for bi in enemyBullets.indices.reversed() {
                 guard enemyBullets[bi].node.parent != nil else { continue }
-                let dist = distance3D(enemyBullets[bi].node.position, playerNode.position)
+                let dist = distanceYZ(enemyBullets[bi].node.position, playerNode.position)
                 if dist < 2.5 {
                     playerHealth -= enemyBullets[bi].damage
                     enemyBullets[bi].node.removeFromParentNode()
@@ -895,10 +1425,10 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         }
         enemyBullets.removeAll { $0.node.parent == nil }
 
-        // SAM missiles vs player
+        // SAM missiles vs player (Y-Z distance since missiles travel in gameplay plane)
         if !isInvincible {
             for si in activeSAMs.indices.reversed() {
-                let dist = distance3D(activeSAMs[si].node.position, playerNode.position)
+                let dist = distanceYZ(activeSAMs[si].node.position, playerNode.position)
                 if dist < 2.5 {
                     playerHealth -= activeSAMs[si].damage
                     let explosion = ModelGenerator3D.explosion(radius: 1.5)
@@ -945,6 +1475,14 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         let dy = a.y - b.y
         let dz = a.z - b.z
         return sqrt(dx * dx + dy * dy + dz * dz)
+    }
+
+    /// Distance ignoring X axis – used for hit detection in this side-view game
+    /// where bullets travel in the Y-Z plane but enemies have visual X spread.
+    private func distanceYZ(_ a: SCNVector3, _ b: SCNVector3) -> Float {
+        let dy = a.y - b.y
+        let dz = a.z - b.z
+        return sqrt(dy * dy + dz * dz)
     }
 
     // MARK: - Game Over
