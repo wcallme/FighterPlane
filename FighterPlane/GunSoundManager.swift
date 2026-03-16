@@ -13,6 +13,7 @@ final class GunSoundManager: NSObject, AVAudioPlayerDelegate {
     private var spinUpPlayer: AVAudioPlayer?
     private var loopPlayer: AVAudioPlayer?
     private var isFiringSound = false
+    private var fadeOutTimer: Timer?
 
     private override init() {
         super.init()
@@ -46,6 +47,11 @@ final class GunSoundManager: NSObject, AVAudioPlayerDelegate {
     // MARK: - Public API
 
     func startFiring() {
+        // Cancel any fade-out in progress and restore volume
+        fadeOutTimer?.invalidate()
+        fadeOutTimer = nil
+        loopPlayer?.volume = 1.0
+
         guard !isFiringSound else { return }
         isFiringSound = true
 
@@ -70,15 +76,50 @@ final class GunSoundManager: NSObject, AVAudioPlayerDelegate {
         guard isFiringSound else { return }
         isFiringSound = false
 
+        // Stop spin-up immediately
         spinUpPlayer?.stop()
-        loopPlayer?.stop()
-
-        // Reset positions for next trigger pull
         spinUpPlayer?.currentTime = 0
-        loopPlayer?.currentTime = 0
-
-        // Re-prepare for low-latency next play
         spinUpPlayer?.prepareToPlay()
+
+        // Fade out the loop over 1 second
+        guard let loop = loopPlayer, loop.isPlaying else {
+            resetLoop()
+            return
+        }
+
+        let fadeSteps = 20
+        let fadeInterval = 1.0 / Double(fadeSteps)
+        let volumeStep = loop.volume / Float(fadeSteps)
+        var remaining = fadeSteps
+
+        fadeOutTimer?.invalidate()
+        fadeOutTimer = Timer.scheduledTimer(withTimeInterval: fadeInterval, repeats: true) { [weak self] timer in
+            remaining -= 1
+            loop.volume -= volumeStep
+            if remaining <= 0 {
+                timer.invalidate()
+                self?.fadeOutTimer = nil
+                self?.resetLoop()
+            }
+        }
+    }
+
+    /// Immediately stop and reset — used for game over, pause, backgrounding
+    func stopFiringImmediate() {
+        fadeOutTimer?.invalidate()
+        fadeOutTimer = nil
+        isFiringSound = false
+
+        spinUpPlayer?.stop()
+        spinUpPlayer?.currentTime = 0
+        spinUpPlayer?.prepareToPlay()
+        resetLoop()
+    }
+
+    private func resetLoop() {
+        loopPlayer?.stop()
+        loopPlayer?.volume = 1.0
+        loopPlayer?.currentTime = 0
         loopPlayer?.prepareToPlay()
     }
 

@@ -682,7 +682,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
         // Handle exit to menu (from pause menu or game over)
         if input.shouldExitToMenu {
-            GunSoundManager.shared.stopFiring()
+            GunSoundManager.shared.stopFiringImmediate()
             wasFiring = false
             gunSpinUpTimer = 0
             DispatchQueue.main.async {
@@ -695,7 +695,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         if input.isGamePaused {
             if !scene.isPaused {
                 scene.isPaused = true
-                GunSoundManager.shared.stopFiring()
+                GunSoundManager.shared.stopFiringImmediate()
                 wasFiring = false
                 gunSpinUpTimer = 0
             }
@@ -1847,7 +1847,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     private func missionComplete() {
         guard gameState == .playing else { return }
         gameState = .missionVictory
-        GunSoundManager.shared.stopFiring()
+        GunSoundManager.shared.stopFiringImmediate()
         wasFiring = false
         gunSpinUpTimer = 0
         missionVictoryTimer = 3.0
@@ -2109,7 +2109,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     private func gameOver() {
         guard gameState == .playing else { return }
         gameState = .gameOver
-        GunSoundManager.shared.stopFiring()
+        GunSoundManager.shared.stopFiringImmediate()
         wasFiring = false
         gunSpinUpTimer = 0
 

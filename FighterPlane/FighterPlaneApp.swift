@@ -21,7 +21,7 @@ struct FighterPlaneApp: App {
         }
         .onChange(of: scenePhase) { newPhase in
             if newPhase != .active {
-                GunSoundManager.shared.stopFiring()
+                GunSoundManager.shared.stopFiringImmediate()
             }
         }
     }
