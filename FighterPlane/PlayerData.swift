@@ -234,6 +234,11 @@ class PlayerData {
         CGFloat(currentPlane.baseEngine) / 100.0 + CGFloat(engineLevel) * 0.05
     }
 
+    /// Turn speed multiplier from engine upgrades (2.5% per level → 25% at B2 max)
+    var turnMultiplier: CGFloat {
+        1.0 + CGFloat(engineLevel) * 0.025
+    }
+
     // MARK: - Equipped Weapon Helpers
 
     /// Best equipped gun (highest damage * fire_rate score), or nil if none equipped

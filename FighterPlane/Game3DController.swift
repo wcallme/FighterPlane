@@ -991,7 +991,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             while diff > .pi { diff -= 2 * .pi }
             while diff < -.pi { diff += 2 * .pi }
 
-            let turnSpeed: Float = 4.0
+            let turnSpeed: Float = 4.0 * Float(PlayerData.shared.turnMultiplier)
             playerAngle += diff * min(1.0, turnSpeed * dt)
 
             // Normalize
