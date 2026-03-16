@@ -248,10 +248,16 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         sun.type = .directional
         sun.color = UIColor(white: 1.0, alpha: 1.0)
         sun.intensity = 1000
+
+        #if targetEnvironment(simulator)
+        sun.castsShadow = false
+        #else
         sun.castsShadow = true
         sun.shadowRadius = 3
         sun.shadowSampleCount = 4
         sun.shadowMapSize = CGSize(width: 2048, height: 2048)
+        #endif
+
         sunNode.light = sun
         sunNode.eulerAngles = SCNVector3(-0.6, 0.3, 0)
         scene.rootNode.addChildNode(sunNode)

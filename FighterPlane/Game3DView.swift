@@ -56,8 +56,13 @@ private struct Game3DSceneView: UIViewRepresentable {
         scnView.isPlaying = true
         scnView.showsStatistics = false
         scnView.backgroundColor = UIColor(red: 0.55, green: 0.78, blue: 0.95, alpha: 1.0)
+        #if targetEnvironment(simulator)
+        scnView.antialiasingMode = .none
+        scnView.preferredFramesPerSecond = 30
+        #else
         scnView.antialiasingMode = .multisampling2X
         scnView.preferredFramesPerSecond = 60
+        #endif
 
         // Keep strong reference
         context.coordinator.controller = controller
