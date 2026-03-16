@@ -1438,7 +1438,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             // Stand the ring upright in the Y-Z plane (rotate 90° around Z)
             // so it shows the vertical detection sphere around the enemy
             ringNode.eulerAngles = SCNVector3(0, 0, Float.pi / 2)
-            ringNode.opacity = 0.10
+            ringNode.opacity = 0.06
             node.addChildNode(ringNode)
         }
 
