@@ -31,6 +31,7 @@ struct TerrainData: Codable {
 struct ObjectsData: Codable {
     let trees: [TreePlacement]
     let rocks: [RockPlacement]
+    let buildings: [BuildingPlacement]?
 }
 
 struct TreePlacement: Codable {
@@ -44,6 +45,13 @@ struct RockPlacement: Codable {
     let x: Float
     let z: Float
     let scale: Float
+}
+
+struct BuildingPlacement: Codable {
+    let x: Float
+    let z: Float
+    let type: String       // "house", "office", "skyscraper", "warehouse", "tower"
+    let rotation: Float?   // Y-axis rotation in degrees (0, 90, 180, 270)
 }
 
 struct EnemyPlacement: Codable {
