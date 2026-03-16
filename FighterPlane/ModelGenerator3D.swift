@@ -963,6 +963,9 @@ enum ModelGenerator3D {
         ringNode.position = SCNVector3(0, 0.32, 0)
         root.addChildNode(ringNode)
 
+        // 25% larger than base size
+        root.scale = SCNVector3(1.25, 1.25, 1.25)
+
         return root
     }
 

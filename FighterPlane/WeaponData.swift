@@ -72,7 +72,7 @@ enum WeaponCatalog {
 
     static let bomb = WeaponInfo(
         id: "bomb", name: "Bomb", category: .bomb,
-        gemCost: 0, damage: 3, fireRate: 4.0,
+        gemCost: 80, damage: 3, fireRate: 4.0,
         blastRadius: 60, bulletCount: 1, bulletSpread: 0,
         projectileSpeed: 0, isHoming: false,
         description: "Standard explosive ordnance."
