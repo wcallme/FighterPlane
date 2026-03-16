@@ -178,8 +178,9 @@ class BombNode: SKNode {
         // Per-type falling animations
         updateBombAnimation(deltaTime: deltaTime, t: Double(t), easedT: Double(easedT))
 
-        // Cluster warhead: split mid-air after 1.4 seconds
-        if weaponId == "cluster_warhead" && !hasSplit && elapsed >= clusterSplitTime {
+        // Cluster warhead: split mid-air after 1.4s OR just before ground impact
+        let isCluster = weaponId == "cluster_warhead" && !hasSplit
+        if isCluster && (elapsed >= clusterSplitTime || t >= 0.85) {
             hasSplit = true
             let splitWorldPos = CGPoint(
                 x: position.x + bombSprite.position.x,

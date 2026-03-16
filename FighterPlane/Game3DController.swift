@@ -1053,8 +1053,11 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             activeBombs[i].shadowNode.scale = SCNVector3(shadowScale, shadowScale, shadowScale)
             activeBombs[i].shadowNode.opacity = CGFloat(0.3 + clamped * 0.4)
 
-            // Cluster warhead: split mid-air after 1.4 seconds
-            if activeBombs[i].clusterCount > 0 && activeBombs[i].timeAlive >= 1.4 {
+            // Cluster warhead: split mid-air after 1.4s OR just before ground impact
+            let isCluster = activeBombs[i].clusterCount > 0
+            let clusterTimerFired = isCluster && activeBombs[i].timeAlive >= 1.4
+            let clusterAboutToHitGround = isCluster && bombPos.y <= groundLevel + 2.0
+            if clusterTimerFired || clusterAboutToHitGround {
                 let bomblets = spawnClusterBomblets(from: activeBombs[i])
                 newBomblets.append(contentsOf: bomblets)
                 activeBombs[i].node.removeFromParentNode()
