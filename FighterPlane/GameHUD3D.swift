@@ -11,6 +11,7 @@ class GameHUD3D: SKScene {
         var isFiring = false
         var shouldDropBomb = false
         var shouldActivateECM = false
+        var shouldFireAIM = false
         var shouldRestart = false
         var shouldExitToMenu = false
         var shouldRetryMission = false
@@ -27,6 +28,7 @@ class GameHUD3D: SKScene {
         let snapshot = _state
         _state.shouldDropBomb = false
         _state.shouldActivateECM = false
+        _state.shouldFireAIM = false
         _state.shouldRestart = false
         _state.shouldExitToMenu = false
         _state.shouldRetryMission = false
@@ -58,6 +60,10 @@ class GameHUD3D: SKScene {
     var shouldActivateECM: Bool {
         get { _lock.lock(); defer { _lock.unlock() }; return _state.shouldActivateECM }
         set { _lock.lock(); _state.shouldActivateECM = newValue; _lock.unlock() }
+    }
+    var shouldFireAIM: Bool {
+        get { _lock.lock(); defer { _lock.unlock() }; return _state.shouldFireAIM }
+        set { _lock.lock(); _state.shouldFireAIM = newValue; _lock.unlock() }
     }
     var shouldRestart: Bool {
         get { _lock.lock(); defer { _lock.unlock() }; return _state.shouldRestart }
@@ -95,6 +101,8 @@ class GameHUD3D: SKScene {
     private var bombPips: [SKShapeNode] = []
     private var ecmButton: SKShapeNode?
     private var ecmCooldownRing: SKShapeNode?
+    private var aimButton: SKShapeNode?
+    private var aimPips: [SKShapeNode] = []
 
     private var healthBarBg: SKShapeNode!
     private var healthBarFill: SKShapeNode!
@@ -577,6 +585,7 @@ class GameHUD3D: SKScene {
         healthBarBg.run(.fadeAlpha(to: 0, duration: 0.5))
         healthBarFill.run(.fadeAlpha(to: 0, duration: 0.5))
         ecmButton?.run(.fadeAlpha(to: 0, duration: 0.5))
+        clearOffscreenIndicators()
     }
 
     func showMissionComplete(score: Int, enemies: Int, coins: Int, gems: Int) {
@@ -650,6 +659,7 @@ class GameHUD3D: SKScene {
     }
 
     func showMissionFailed(score: Int, enemies: Int, total: Int) {
+        clearOffscreenIndicators()
         let hs = DeviceLayout.hudScale
         let overlay = SKNode()
         overlay.zPosition = 50
