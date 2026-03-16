@@ -25,7 +25,7 @@ enum TerrainBiome: Int, CaseIterable {
     /// Water surface color
     var waterColor: UIColor {
         switch self {
-        case .temperate: return UIColor(red: 0.15, green: 0.45, blue: 0.70, alpha: 0.90)
+        case .temperate: return UIColor(red: 0.05, green: 0.65, blue: 0.72, alpha: 0.90)
         case .desert:    return UIColor(red: 0.60, green: 0.52, blue: 0.35, alpha: 0.85)
         case .arctic:    return UIColor(red: 0.30, green: 0.50, blue: 0.65, alpha: 0.92)
         case .volcanic:  return UIColor(red: 0.70, green: 0.22, blue: 0.05, alpha: 0.95)
@@ -1289,34 +1289,34 @@ enum ModelGenerator3D {
 
     // MARK: - Water Splash
 
-    /// Creates a water splash effect: a vertical spray column + expanding ring.
+    /// Creates a small water splash effect: a short spray column + expanding ring.
     static func waterSplash(radius: Float) -> SCNNode {
         let root = SCNNode()
         root.name = "waterSplash"
+        let r = radius * 0.35  // scale splash down significantly
 
-        // Spray column — tall thin cylinder shooting upward
-        let sprayHeight = CGFloat(radius * 3.0)
-        let spray = SCNCylinder(radius: CGFloat(radius * 0.3), height: sprayHeight)
-        spray.radialSegmentCount = 8
+        // Spray column — short thin cylinder shooting upward
+        let sprayHeight = CGFloat(r * 2.5)
+        let spray = SCNCylinder(radius: CGFloat(r * 0.2), height: sprayHeight)
+        spray.radialSegmentCount = 6
         let sprayMat = SCNMaterial()
-        sprayMat.diffuse.contents = UIColor(red: 0.7, green: 0.85, blue: 1.0, alpha: 0.7)
-        sprayMat.emission.contents = UIColor(red: 0.5, green: 0.7, blue: 0.9, alpha: 0.3)
-        sprayMat.transparency = 0.6
+        sprayMat.diffuse.contents = UIColor(red: 0.7, green: 0.9, blue: 1.0, alpha: 0.6)
+        sprayMat.emission.contents = UIColor(red: 0.5, green: 0.75, blue: 0.9, alpha: 0.2)
+        sprayMat.transparency = 0.5
         sprayMat.lightingModel = .constant
         sprayMat.isDoubleSided = true
         spray.materials = [sprayMat]
         let sprayNode = SCNNode(geometry: spray)
-        sprayNode.position.y = Float(sprayHeight) * 0.5  // base at origin
+        sprayNode.position.y = Float(sprayHeight) * 0.5
         root.addChildNode(sprayNode)
 
-        // Splash ring — torus expanding outward
-        let ring = SCNTorus(ringRadius: CGFloat(radius * 0.6), pipeRadius: CGFloat(radius * 0.15))
-        ring.ringSegmentCount = 16
+        // Splash ring — small torus expanding outward
+        let ring = SCNTorus(ringRadius: CGFloat(r * 0.5), pipeRadius: CGFloat(r * 0.1))
+        ring.ringSegmentCount = 12
         ring.pipeSegmentCount = 6
         let ringMat = SCNMaterial()
-        ringMat.diffuse.contents = UIColor(red: 0.8, green: 0.9, blue: 1.0, alpha: 0.6)
-        ringMat.emission.contents = UIColor(red: 0.6, green: 0.8, blue: 1.0, alpha: 0.2)
-        ringMat.transparency = 0.5
+        ringMat.diffuse.contents = UIColor(red: 0.8, green: 0.95, blue: 1.0, alpha: 0.5)
+        ringMat.transparency = 0.4
         ringMat.lightingModel = .constant
         ringMat.isDoubleSided = true
         ring.materials = [ringMat]
@@ -1324,19 +1324,19 @@ enum ModelGenerator3D {
         root.addChildNode(ringNode)
 
         // Animate spray: shoot up then fade
-        let sprayUp = SCNAction.moveBy(x: 0, y: CGFloat(radius * 1.5), z: 0, duration: 0.25)
+        let sprayUp = SCNAction.moveBy(x: 0, y: CGFloat(r * 1.0), z: 0, duration: 0.2)
         sprayUp.timingMode = .easeOut
-        let sprayFade = SCNAction.fadeOut(duration: 0.35)
+        let sprayFade = SCNAction.fadeOut(duration: 0.25)
         sprayNode.runAction(.sequence([sprayUp, sprayFade]))
 
         // Animate ring: expand outward then fade
-        let ringExpand = SCNAction.scale(to: 3.0, duration: 0.5)
+        let ringExpand = SCNAction.scale(to: 2.0, duration: 0.35)
         ringExpand.timingMode = .easeOut
-        let ringFade = SCNAction.fadeOut(duration: 0.3)
+        let ringFade = SCNAction.fadeOut(duration: 0.2)
         ringNode.runAction(.sequence([ringExpand, ringFade]))
 
         // Remove root after animations complete
-        let wait = SCNAction.wait(duration: 0.9)
+        let wait = SCNAction.wait(duration: 0.65)
         let remove = SCNAction.removeFromParentNode()
         root.runAction(.sequence([wait, remove]))
 
@@ -1407,7 +1407,7 @@ enum ModelGenerator3D {
         let plane = SCNPlane(width: width, height: length)
 
         let material = SCNMaterial()
-        material.diffuse.contents = UIColor(red: 0.15, green: 0.45, blue: 0.7, alpha: 0.9)
+        material.diffuse.contents = UIColor(red: 0.05, green: 0.65, blue: 0.72, alpha: 0.9)
         material.transparency = 0.88
         material.isDoubleSided = true
         material.lightingModel = .physicallyBased
