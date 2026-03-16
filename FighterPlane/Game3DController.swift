@@ -1541,8 +1541,8 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
         let node = modelForEnemyType(type)
 
-        // Place on terrain ahead of player, near center X for visibility
-        let x = Float.random(in: -12...12)
+        // Place on terrain ahead of player, near center X so player can target them
+        let x = Float.random(in: -6...6)
         let z = playerZ + 80 + Float.random(in: 0...40)
         let h = groundHeight(x: x, z: z)
 
