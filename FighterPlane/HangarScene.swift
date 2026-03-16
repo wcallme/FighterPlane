@@ -303,6 +303,34 @@ class HangarScene: SKScene {
             .fadeAlpha(to: 0.2, duration: 1.6)
         ])
         planeGlow.run(.repeatForever(glowPulse))
+
+        // Info button below the plane
+        let infoBtn = SKNode()
+        infoBtn.name = "planeInfoButton"
+        infoBtn.position = CGPoint(x: size.width / 2, y: planeAreaCenterY - 70 * s)
+        infoBtn.zPosition = 12
+
+        let infoBg = SKShapeNode(circleOfRadius: 11 * s)
+        infoBg.fillColor = SKColor(white: 0.12, alpha: 0.7)
+        infoBg.strokeColor = SKColor(red: 0.3, green: 0.7, blue: 0.9, alpha: 0.5)
+        infoBg.lineWidth = 1
+        infoBg.name = "planeInfoButton"
+        infoBtn.addChild(infoBg)
+
+        let infoLabel = SKLabelNode(fontNamed: "Menlo-Bold")
+        infoLabel.text = "i"
+        infoLabel.fontSize = DeviceLayout.fontSize(12)
+        infoLabel.fontColor = SKColor(red: 0.4, green: 0.8, blue: 1, alpha: 0.9)
+        infoLabel.verticalAlignmentMode = .center
+        infoLabel.name = "planeInfoButton"
+        infoBtn.addChild(infoLabel)
+
+        let infoPulse = SKAction.sequence([
+            .fadeAlpha(to: 0.5, duration: 1.5),
+            .fadeAlpha(to: 1.0, duration: 1.5)
+        ])
+        infoBtn.run(.repeatForever(infoPulse))
+        addChild(infoBtn)
     }
 
     private static let menuImageMap: [String: String] = [
@@ -799,6 +827,10 @@ class HangarScene: SKScene {
                 cyclePlane(direction: 1)
                 return
             }
+            if name == "planeInfoButton" || name == "planeInfoPanelBg" {
+                showPlaneInfoPanel()
+                return
+            }
             if name == "settingsButton" {
                 showSettingsOverlay()
                 return
@@ -955,6 +987,9 @@ class HangarScene: SKScene {
         // Update the 3D plane render
         updatePlaneSprite(planeId: newPlane.id)
 
+        // Dismiss info panel when switching planes
+        dismissPlaneInfoPanel()
+
         // Refresh loadout and upgrades since they are per-plane
         refreshLoadout()
         refreshUpgrades()
@@ -966,6 +1001,104 @@ class HangarScene: SKScene {
         }
         if let coin = childNode(withName: "coinCount") as? SKLabelNode {
             coin.text = "\(PlayerData.shared.coins)"
+        }
+    }
+
+    // MARK: - Plane Info Panel
+
+    private func planePerks(for planeId: String) -> [(icon: String, text: String)] {
+        switch planeId {
+        case "F16":
+            return [
+                ("5", "5 weapon slots"),
+                ("\u{2694}", "Standard gun damage"),
+                ("\u{26A1}", "Balanced all-rounder"),
+            ]
+        case "F22":
+            return [
+                ("7", "7 weapon slots"),
+                ("\u{2694}", "+20% gun damage"),
+                ("\u{1F3AF}", "Superior firepower"),
+            ]
+        case "B2":
+            return [
+                ("9", "9 weapon slots"),
+                ("\u{1F6E1}", "Stealth: 60% SAM evasion"),
+                ("\u{1F4E6}", "Maximum bomb capacity"),
+            ]
+        default:
+            return []
+        }
+    }
+
+    private func showPlaneInfoPanel() {
+        // Dismiss if already visible
+        if let existing = childNode(withName: "planeInfoPanel") {
+            dismissPlaneInfoPanel()
+            return
+        }
+
+        let s = DeviceLayout.menuScale
+        let planeId = PlayerData.shared.selectedPlaneId
+        let planeName = PlayerData.shared.selectedPlaneName
+        let perks = planePerks(for: planeId)
+
+        let panel = SKNode()
+        panel.name = "planeInfoPanel"
+        panel.zPosition = 50
+        panel.alpha = 0
+
+        // Panel background
+        let panelW: CGFloat = 200 * s
+        let lineH: CGFloat = 18 * s
+        let panelH: CGFloat = CGFloat(perks.count) * lineH + 50 * s
+        let panelY = planeAreaCenterY - 70 * s - 16 * s - panelH / 2
+
+        let bg = SKShapeNode(rectOf: CGSize(width: panelW, height: panelH), cornerRadius: 10 * s)
+        bg.fillColor = SKColor(red: 0.06, green: 0.08, blue: 0.14, alpha: 0.95)
+        bg.strokeColor = SKColor(red: 0.3, green: 0.7, blue: 0.9, alpha: 0.4)
+        bg.lineWidth = 1
+        bg.glowWidth = 2
+        bg.position = CGPoint(x: size.width / 2, y: panelY)
+        bg.name = "planeInfoPanelBg"
+        panel.addChild(bg)
+
+        // Title
+        let title = SKLabelNode(fontNamed: "Menlo-Bold")
+        title.text = planeName.uppercased()
+        title.fontSize = DeviceLayout.fontSize(11)
+        title.fontColor = SKColor(red: 0.4, green: 0.85, blue: 1, alpha: 1)
+        title.position = CGPoint(x: size.width / 2, y: panelY + panelH / 2 - 18 * s)
+        panel.addChild(title)
+
+        // Perk lines
+        for (i, perk) in perks.enumerated() {
+            let lineY = panelY + panelH / 2 - 36 * s - CGFloat(i) * lineH
+
+            let icon = SKLabelNode(fontNamed: "Menlo-Bold")
+            icon.text = perk.icon
+            icon.fontSize = DeviceLayout.fontSize(10)
+            icon.fontColor = SKColor(red: 0.3, green: 0.8, blue: 0.5, alpha: 1)
+            icon.horizontalAlignmentMode = .left
+            icon.position = CGPoint(x: size.width / 2 - panelW / 2 + 14 * s, y: lineY)
+            panel.addChild(icon)
+
+            let label = SKLabelNode(fontNamed: "Menlo")
+            label.text = perk.text
+            label.fontSize = DeviceLayout.fontSize(9)
+            label.fontColor = SKColor(white: 0.8, alpha: 0.9)
+            label.horizontalAlignmentMode = .left
+            label.position = CGPoint(x: size.width / 2 - panelW / 2 + 30 * s, y: lineY)
+            panel.addChild(label)
+        }
+
+        addChild(panel)
+        panel.run(.fadeIn(withDuration: 0.2))
+    }
+
+    private func dismissPlaneInfoPanel() {
+        if let panel = childNode(withName: "planeInfoPanel") {
+            panel.run(.sequence([.fadeOut(withDuration: 0.15), .removeFromParent()]))
         }
     }
 
