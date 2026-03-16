@@ -139,11 +139,10 @@ class PlayerNode: SKNode {
     }
 
     func fireBullets() -> [SKNode] {
-        guard canShoot else { return [] }
+        let guns = PlayerData.shared.equippedGuns
+        guard canShoot, !guns.isEmpty else { return [] }
         canShoot = false
         burstShotCount += 1
-
-        let guns = PlayerData.shared.equippedGuns
         // Use the fastest fire rate among all equipped guns for cooldown
         let fastestFireRate = guns.map(\.fireRate).min() ?? 0.22
 

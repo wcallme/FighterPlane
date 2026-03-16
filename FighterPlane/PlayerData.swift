@@ -66,7 +66,7 @@ class PlayerData {
 
     /// Stores owned weapons as a flat list allowing duplicates (e.g. ["bomb","bomb","basic_gun"])
     var ownedWeaponIds: [String] {
-        get { defaults.stringArray(forKey: "pd_ownedWeapons") ?? ["basic_gun", "bomb"] }
+        get { defaults.stringArray(forKey: "pd_ownedWeapons") ?? ["bomb"] }
         set { defaults.set(newValue, forKey: "pd_ownedWeapons") }
     }
 
@@ -108,7 +108,7 @@ class PlayerData {
                 defaults.removeObject(forKey: "pd_loadout")
             }
             guard let raw = defaults.stringArray(forKey: loadoutKey) else {
-                let def: [String?] = ["basic_gun", "bomb"] + Array(repeating: nil as String?, count: slots - 2)
+                let def: [String?] = ["bomb"] + Array(repeating: nil as String?, count: slots - 1)
                 _loadoutCache = def
                 _loadoutCachePlane = selectedPlaneId
                 return def
@@ -189,12 +189,17 @@ class PlayerData {
 
     // MARK: - Equipped Weapon Helpers
 
-    /// Best equipped gun (highest damage * fire_rate score), or default
-    var equippedGun: WeaponInfo {
+    /// Best equipped gun (highest damage * fire_rate score), or nil if none equipped
+    var equippedGun: WeaponInfo? {
         let guns = loadout.compactMap { $0 }
             .compactMap { WeaponCatalog.weapon(byId: $0) }
             .filter { $0.isGun }
-        return guns.max(by: { gunScore($0) < gunScore($1) }) ?? WeaponCatalog.basicGun
+        return guns.max(by: { gunScore($0) < gunScore($1) })
+    }
+
+    /// Whether the player has any gun equipped
+    var hasGunEquipped: Bool {
+        equippedGun != nil
     }
 
     /// Best equipped bomb, or default
@@ -222,10 +227,9 @@ class PlayerData {
 
     /// All equipped guns in loadout order (for multi-gun firing)
     var equippedGuns: [WeaponInfo] {
-        let guns = loadout.compactMap { $0 }
+        loadout.compactMap { $0 }
             .compactMap { WeaponCatalog.weapon(byId: $0) }
             .filter { $0.isGun }
-        return guns.isEmpty ? [WeaponCatalog.basicGun] : guns
     }
 
     /// Count of all equipped guns (for multi-barrel display)
@@ -299,8 +303,8 @@ class PlayerData {
         if defaults.object(forKey: "pd_coins") == nil {
             coins = 30000
             gems = 1000
-            ownedWeaponIds = ["basic_gun", "bomb"]
-            loadout = ["basic_gun", "bomb"] + Array(repeating: nil as String?, count: slotCount - 2)
+            ownedWeaponIds = ["bomb"]
+            loadout = ["bomb"] + Array(repeating: nil as String?, count: slotCount - 1)
             playerLevel = 1
         }
     }

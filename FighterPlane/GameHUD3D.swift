@@ -163,7 +163,9 @@ class GameHUD3D: SKScene {
         let spacing = DeviceLayout.buttonSpacing
         let labelSize = DeviceLayout.fontSize(12)
 
-        // Fire button (bottom-right area, lower)
+        let hasGun = PlayerData.shared.hasGunEquipped
+
+        // Fire button (bottom-right area, lower) — only shown if a gun is equipped
         fireButton = SKShapeNode(circleOfRadius: btnR)
         fireButton.fillColor = SKColor(red: 0.8, green: 0.5, blue: 0.1, alpha: 0.5)
         fireButton.strokeColor = SKColor(white: 0.9, alpha: 0.7)
@@ -171,6 +173,7 @@ class GameHUD3D: SKScene {
         fireButton.position = CGPoint(x: size.width - safeRight - margin, y: safeBottom + btnR - 6)
         fireButton.zPosition = 10
         fireButton.name = "fireBtn"
+        fireButton.isHidden = !hasGun
         addChild(fireButton)
 
         let fireIcon = SKLabelNode(fontNamed: "Menlo-Bold")
@@ -180,12 +183,13 @@ class GameHUD3D: SKScene {
         fireIcon.verticalAlignmentMode = .center
         fireButton.addChild(fireIcon)
 
-        // Bomb button (above fire button)
+        // Bomb button — positioned where fire button is if no gun, otherwise above fire button
+        let bombY = hasGun ? (safeBottom + btnR - 6 + spacing) : (safeBottom + btnR - 6)
         bombButton = SKShapeNode(circleOfRadius: btnR)
         bombButton.fillColor = SKColor(red: 0.7, green: 0.2, blue: 0.2, alpha: 0.5)
         bombButton.strokeColor = SKColor(white: 0.9, alpha: 0.7)
         bombButton.lineWidth = 2
-        bombButton.position = CGPoint(x: size.width - safeRight - margin, y: safeBottom + btnR - 6 + spacing)
+        bombButton.position = CGPoint(x: size.width - safeRight - margin, y: bombY)
         bombButton.zPosition = 10
         bombButton.name = "bombBtn"
         addChild(bombButton)
@@ -561,7 +565,7 @@ class GameHUD3D: SKScene {
     }
 
     func hideControlsDuringVictory() {
-        fireButton.run(.fadeAlpha(to: 0, duration: 0.5))
+        if !fireButton.isHidden { fireButton.run(.fadeAlpha(to: 0, duration: 0.5)) }
         bombButton.run(.fadeAlpha(to: 0, duration: 0.5))
         joystickBase.run(.fadeAlpha(to: 0, duration: 0.5))
         joystickKnob.run(.fadeAlpha(to: 0, duration: 0.5))
@@ -771,14 +775,16 @@ class GameHUD3D: SKScene {
                 continue
             }
 
-            // Fire button
+            // Fire button (only if visible / gun equipped)
             let hitR = DeviceLayout.buttonHitRadius
-            let fireDist = hypot(loc.x - fireButton.position.x, loc.y - fireButton.position.y)
-            if fireDist <= hitR {
-                isFiring = true
-                fireTouch = touch
-                pressButton(fireButton)
-                continue
+            if !fireButton.isHidden {
+                let fireDist = hypot(loc.x - fireButton.position.x, loc.y - fireButton.position.y)
+                if fireDist <= hitR {
+                    isFiring = true
+                    fireTouch = touch
+                    pressButton(fireButton)
+                    continue
+                }
             }
 
             // Bomb button

@@ -67,7 +67,7 @@ class HUD: SKNode {
         scoreIcon.position = CGPoint(x: sceneSize.width - 20, y: sceneSize.height - 18)
         addChild(scoreIcon)
 
-        // Fire button - bottom left
+        // Fire button - bottom left (only if a gun is equipped)
         fireButton = SKSpriteNode(
             texture: SpriteGenerator.buttonTexture(
                 width: 70, height: 50,
@@ -77,6 +77,7 @@ class HUD: SKNode {
         )
         fireButton.position = CGPoint(x: 55, y: 45)
         fireButton.name = "fireButton"
+        fireButton.isHidden = !PlayerData.shared.hasGunEquipped
         addChild(fireButton)
 
         // Bomb button - bottom right

@@ -498,9 +498,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func detectButton(at point: CGPoint) -> String? {
-        // Fire button zone (bottom-left)
-        let fireRect = CGRect(x: 10, y: 10, width: 100, height: 80)
-        if fireRect.contains(point) { return "fire" }
+        // Fire button zone (bottom-left) — only if a gun is equipped
+        if PlayerData.shared.hasGunEquipped {
+            let fireRect = CGRect(x: 10, y: 10, width: 100, height: 80)
+            if fireRect.contains(point) { return "fire" }
+        }
 
         // Bomb button zone (bottom-right)
         let bombRect = CGRect(x: size.width - 110, y: 10, width: 100, height: 80)

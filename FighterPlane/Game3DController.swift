@@ -98,7 +98,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     private var invincibilityTimer: TimeInterval = 0
 
     // Equipped weapon cache
-    private let equippedGun: WeaponInfo
+    private let equippedGun: WeaponInfo?
     private let equippedGuns: [WeaponInfo]
     private let equippedBombs: [WeaponInfo]
     private var bombReady: [Bool]
@@ -797,8 +797,8 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         // Spawn enemies
         spawnEnemies(time: time)
 
-        // Fire when button is held
-        if input.isFiring {
+        // Fire when button is held (only if a gun is equipped)
+        if input.isFiring && !equippedGuns.isEmpty {
             if !wasFiring {
                 GunSoundManager.shared.startFiring()
                 wasFiring = true
@@ -1077,7 +1077,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         }
 
         // Use fastest fire rate among equipped guns
-        let fastestFireRate = equippedGuns.map(\.fireRate).min() ?? equippedGun.fireRate
+        let fastestFireRate = equippedGuns.map(\.fireRate).min() ?? equippedGun?.fireRate ?? 0.22
         shootCooldownTimer = fastestFireRate
     }
 
