@@ -10,8 +10,8 @@ final class EngineSoundManager {
     private var playerEngine: AVAudioPlayer?
     private var enemyEngine: AVAudioPlayer?
 
-    private let playerBaseVolume: Float = 0.18
-    private let enemyMaxVolume: Float = 0.15
+    private let playerBaseVolume: Float = 0.06
+    private let enemyMaxVolume: Float = 0.05
     private let enemyHearRange: Float = 80  // world units
 
     private init() {
