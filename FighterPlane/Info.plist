@@ -24,6 +24,8 @@
     <true/>
     <key>UILaunchScreen</key>
     <dict>
+        <key>UIColorName</key>
+        <string>LaunchBackground</string>
         <key>UIImageName</key>
         <string>LaunchImage</string>
         <key>UIImageRespectsSafeAreaInsets</key>
