@@ -1105,7 +1105,7 @@ enum ModelGenerator3D {
         root.scale = SCNVector3(6, 6, 6)
 
         // Pointed nose cone
-        let nose = SCNCone(topRadius: 0, bottomRadius: 0.08, height: 0.18)
+        let nose = SCNCone(topRadius: 0.08, bottomRadius: 0, height: 0.18)
         nose.firstMaterial?.diffuse.contents = UIColor(red: 0.28, green: 0.34, blue: 0.18, alpha: 1)
         nose.firstMaterial?.specular.contents = UIColor(white: 0.3, alpha: 1)
         let noseNode = SCNNode(geometry: nose)
