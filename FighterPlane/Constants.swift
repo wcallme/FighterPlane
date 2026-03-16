@@ -53,12 +53,12 @@ enum GameConfig {
     // AI Fighter — smart tracking plane with machine gun
     static let aiFighterHealth = 4
     static let aiFighterScore = 400
-    static let aiFighterTurnSpeed: CGFloat = 2.5    // radians per second
-    static let aiFighterMoveSpeed: CGFloat = 160.0  // pixels per second
+    static let aiFighterTurnSpeed: CGFloat = 3.5    // radians per second (aggressive pursuit)
+    static let aiFighterMoveSpeed: CGFloat = 240.0  // pixels per second (fast enough to chase player)
     static let aiFighterFireRate: TimeInterval = 0.15 // rapid fire
     static let aiFighterBulletDamage = 2             // low damage per round
     static let aiFighterBulletSpeed: CGFloat = 350.0
-    static let aiFighterFiringCone: CGFloat = 0.4    // radians (~23°) — only fires when aimed near player
+    static let aiFighterFiringCone: CGFloat = 0.55   // radians (~31°) — fires when roughly aimed at player
 }
 
 enum PhysicsCategory {

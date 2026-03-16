@@ -35,7 +35,7 @@ class EnemyNode: SKNode {
         case .fighter:
             bodySprite = SKSpriteNode(texture: SpriteGenerator.enemyPlane())
             shadowSprite = SKSpriteNode(texture: SpriteGenerator.enemyShadow())
-            fireInterval = 3.0
+            fireInterval = 2.0
         case .aiFighter:
             bodySprite = SKSpriteNode(texture: SpriteGenerator.aiFighterPlane())
             shadowSprite = SKSpriteNode(texture: SpriteGenerator.enemyShadow())
@@ -113,12 +113,18 @@ class EnemyNode: SKNode {
         } else if type == .aiFighter {
             updateAIFighter(deltaTime: deltaTime, playerPosition: playerPosition, sceneSize: sceneSize)
         } else {
-            // Air enemies: simple sine-wave movement toward bottom
-            position.y -= GameConfig.scrollSpeed * 1.2 * CGFloat(deltaTime)
-            position.x += sin(currentTime * 2 + Double(position.y) * 0.01) * CGFloat(deltaTime) * 60
+            // Basic fighters: pursue the player's X position while descending
+            let dt = CGFloat(deltaTime)
+            let dx = playerPosition.x - position.x
+            let chaseSpeed: CGFloat = 130.0 * dt
+            position.x += max(-chaseSpeed, min(chaseSpeed, dx))
+            position.y -= GameConfig.scrollSpeed * 1.3 * dt
             // Clamp to screen bounds
             let margin: CGFloat = 30
             position.x = Swift.max(margin, Swift.min(sceneSize.width - margin, position.x))
+            // Bank sprite toward player direction
+            let tilt = max(-0.4, min(0.4, dx / 150.0))
+            bodySprite.zRotation = .pi - tilt
         }
 
         // Remove if off-screen (wider margin for AI fighters which can fly around)
@@ -181,8 +187,8 @@ class EnemyNode: SKNode {
         } else if position.x > sceneSize.width - edgeMargin {
             heading -= edgePush // push leftward
         }
-        if position.y < 80 {
-            // Don't let AI fly too low (below player area)
+        if position.y < 30 {
+            // Don't let AI fly off the bottom of the screen
             let upAngle = normalizeAngle(.pi / 2 - heading)
             heading += upAngle > 0 ? edgePush * 2 : -edgePush * 2
         }
@@ -192,8 +198,8 @@ class EnemyNode: SKNode {
         position.x += cos(heading) * moveSpeed
         position.y += sin(heading) * moveSpeed
 
-        // Also drift down slightly with terrain scroll (AI is flying in world space)
-        position.y -= GameConfig.scrollSpeed * 0.2 * dt
+        // Minimal drift from terrain scroll — AI actively fights it by chasing player
+        position.y -= GameConfig.scrollSpeed * 0.05 * dt
 
         // Rotate sprite to match heading (sprite faces "up" in local space, so subtract π/2)
         // bodySprite.yScale is -1 (flipped), so we account for that
