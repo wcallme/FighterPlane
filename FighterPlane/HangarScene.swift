@@ -194,7 +194,7 @@ class HangarScene: SKScene {
         // Title - center
         let title = SKLabelNode(fontNamed: "Menlo-Bold")
         title.text = "HANGAR"
-        title.fontSize = 18
+        title.fontSize = 20
         title.fontColor = SKColor(white: 0.92, alpha: 1)
         title.position = CGPoint(x: size.width / 2, y: headerY - 2)
         title.zPosition = 11
@@ -246,7 +246,7 @@ class HangarScene: SKScene {
         modelLabel.text = PlayerData.shared.selectedPlaneName
         modelLabel.fontSize = 14
         modelLabel.fontColor = SKColor(white: 0.75, alpha: 0.9)
-        let nameLabelY = min(planeAreaCenterY + 85, headerY - 50)
+        let nameLabelY = min(planeAreaCenterY + 105, headerY - 32)
         modelLabel.position = CGPoint(x: size.width / 2, y: nameLabelY)
         modelLabel.zPosition = 10
         modelLabel.name = "planeNameLabel"
