@@ -44,6 +44,7 @@ class MapData {
         this.trees = [];
         this.rocks = [];
         this.enemies = [];
+        this.planes = [];    // air trigger points: { type, x, z, count }
         this.waterLevel = -0.2;
         this.terrainType = 'temperate';
         this.name = "Untitled Mission";
@@ -498,6 +499,11 @@ const ENEMY_STYLES = {
     building:    { color: '#95a5a6', label: 'BLD' },
 };
 
+const PLANE_STYLES = {
+    fighter:    { color: '#f39c12', label: 'FTR' },
+    aiFighter:  { color: '#e74c3c', label: 'AI' },
+};
+
 // --- Main Editor ---
 
 class Editor {
@@ -516,6 +522,8 @@ class Editor {
         this.brushSize = 3;
         this.brushStrength = 0.5;
         this.selectedEnemy = 'tank';
+        this.selectedPlane = 'fighter';
+        this.planeCount = 1;
         this.showGrid = true;
         this.showObjects = true;
 
@@ -611,6 +619,7 @@ class Editor {
                 btn.classList.add('active');
                 this.tool = btn.dataset.tool;
                 document.getElementById('enemyPanel').style.display = this.tool === 'enemy' ? '' : 'none';
+                document.getElementById('planePanel').style.display = this.tool === 'plane' ? '' : 'none';
             });
         });
 
@@ -621,6 +630,22 @@ class Editor {
                 btn.classList.add('active');
                 this.selectedEnemy = btn.dataset.enemy;
             });
+        });
+
+        // Plane type buttons
+        document.querySelectorAll('.plane-type-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.plane-type-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.selectedPlane = btn.dataset.plane;
+            });
+        });
+
+        // Plane count slider
+        const planeCountEl = document.getElementById('planeCount');
+        planeCountEl.addEventListener('input', () => {
+            this.planeCount = parseInt(planeCountEl.value);
+            document.getElementById('planeCountVal').textContent = this.planeCount;
         });
 
         // Brush sliders
@@ -784,12 +809,13 @@ class Editor {
         }
 
         // Number keys for tools
-        const toolMap = { '1': 'raise', '2': 'lower', '3': 'smooth', '4': 'tree', '5': 'rock', '6': 'enemy', '7': 'eraser' };
+        const toolMap = { '1': 'raise', '2': 'lower', '3': 'smooth', '4': 'tree', '5': 'rock', '6': 'enemy', '7': 'plane', '8': 'eraser' };
         if (toolMap[e.key]) {
             document.querySelectorAll('.tool-btn[data-tool]').forEach(b => b.classList.remove('active'));
             document.querySelector(`.tool-btn[data-tool="${toolMap[e.key]}"]`).classList.add('active');
             this.tool = toolMap[e.key];
             document.getElementById('enemyPanel').style.display = this.tool === 'enemy' ? '' : 'none';
+            document.getElementById('planePanel').style.display = this.tool === 'plane' ? '' : 'none';
         }
 
         // Ctrl+Z undo
@@ -830,6 +856,7 @@ class Editor {
             trees: JSON.parse(JSON.stringify(this.map.trees)),
             rocks: JSON.parse(JSON.stringify(this.map.rocks)),
             enemies: JSON.parse(JSON.stringify(this.map.enemies)),
+            planes: JSON.parse(JSON.stringify(this.map.planes)),
         };
         this.undoStack.push(snapshot);
         if (this.undoStack.length > this.maxUndo) this.undoStack.shift();
@@ -842,6 +869,7 @@ class Editor {
         this.map.trees = snapshot.trees;
         this.map.rocks = snapshot.rocks;
         this.map.enemies = snapshot.enemies;
+        this.map.planes = snapshot.planes;
         this.render();
         // Show toast
         const toast = document.getElementById('undoToast');
@@ -874,6 +902,9 @@ class Editor {
                 break;
             case 'enemy':
                 this.placeEnemy(ix, iz);
+                break;
+            case 'plane':
+                this.placePlane(ix, iz);
                 break;
             case 'eraser':
                 this.applyEraser(cx, cy, ix, iz);
@@ -977,13 +1008,39 @@ class Editor {
         this.map.enemies.push(entry);
     }
 
+    placePlane(ix, iz) {
+        const wx = this.map.worldX(ix);
+        const wz = this.map.worldZ(iz);
+        // Don't place too close to existing plane trigger
+        const minDist = 8.0;
+        for (const p of this.map.planes) {
+            const d = Math.sqrt((p.x - wx) ** 2 + (p.z - wz) ** 2);
+            if (d < minDist) return;
+        }
+        this.map.planes.push({
+            type: this.selectedPlane,
+            x: wx,
+            z: wz,
+            count: this.planeCount,
+        });
+    }
+
     applyEraser(cx, cy, gx, gz) {
         // Try to remove objects near cursor first
         const world = this.canvasToWorld(cx, cy);
         const eraseDist = 4.0;
 
-        // Remove nearest enemy
+        // Remove nearest plane trigger
         let minIdx = -1, minDist = eraseDist;
+        for (let i = 0; i < this.map.planes.length; i++) {
+            const p = this.map.planes[i];
+            const d = Math.sqrt((p.x - world.x) ** 2 + (p.z - world.z) ** 2);
+            if (d < minDist) { minDist = d; minIdx = i; }
+        }
+        if (minIdx >= 0) { this.map.planes.splice(minIdx, 1); return; }
+
+        // Remove nearest enemy
+        minIdx = -1; minDist = eraseDist;
         for (let i = 0; i < this.map.enemies.length; i++) {
             const e = this.map.enemies[i];
             const d = Math.sqrt((e.x - world.x) ** 2 + (e.z - world.z) ** 2);
@@ -1154,6 +1211,55 @@ class Editor {
                     ctx.fillText(style.label, pos.x, pos.y + sz / 2 + 1);
                 }
             }
+
+            // Plane triggers — drawn as triangles (airplane silhouettes) with a dashed trigger line
+            for (const plane of map.planes) {
+                const pos = this.worldToCanvas(plane.x, plane.z);
+                const style = PLANE_STYLES[plane.type] || PLANE_STYLES.fighter;
+                const sz = Math.max(6, cs * 0.8);
+
+                // Dashed horizontal trigger line across the full map width
+                ctx.save();
+                ctx.strokeStyle = style.color + '40'; // 25% opacity
+                ctx.lineWidth = 1;
+                ctx.setLineDash([4, 4]);
+                const lineY = pos.y;
+                ctx.beginPath();
+                ctx.moveTo(this.panX, lineY);
+                ctx.lineTo((map.segmentsZ + 1) * cs + this.panX, lineY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.restore();
+
+                // Triangle pointing right (direction of player travel)
+                ctx.fillStyle = style.color;
+                ctx.beginPath();
+                ctx.moveTo(pos.x + sz * 0.6, pos.y);              // nose (right)
+                ctx.lineTo(pos.x - sz * 0.5, pos.y - sz * 0.5);   // top-left
+                ctx.lineTo(pos.x - sz * 0.5, pos.y + sz * 0.5);   // bottom-left
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Count badge if > 1
+                if (plane.count > 1) {
+                    ctx.fillStyle = '#fff';
+                    ctx.font = `bold ${Math.max(7, cs * 0.4)}px monospace`;
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('×' + plane.count, pos.x + sz * 0.7, pos.y);
+                }
+
+                if (this.zoom >= 3) {
+                    ctx.fillStyle = '#fff';
+                    ctx.font = `${Math.max(8, cs * 0.5)}px monospace`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'top';
+                    ctx.fillText(style.label, pos.x, pos.y + sz * 0.6 + 1);
+                }
+            }
         }
 
         // Brush preview
@@ -1168,7 +1274,7 @@ class Editor {
         }
 
         // Placement cursor preview
-        if (this.mouseGrid && ['tree', 'rock', 'enemy'].includes(this.tool)) {
+        if (this.mouseGrid && ['tree', 'rock', 'enemy', 'plane'].includes(this.tool)) {
             const pos = this.gridToCanvas(this.mouseGrid.ix, this.mouseGrid.iz);
             ctx.strokeStyle = 'rgba(233, 69, 96, 0.8)';
             ctx.lineWidth = 2;
@@ -1192,7 +1298,8 @@ class Editor {
         document.getElementById('objectCounts').innerHTML =
             `Trees: ${this.map.trees.length}<br>` +
             `Rocks: ${this.map.rocks.length}<br>` +
-            `Enemies: ${this.map.enemies.length}`;
+            `Enemies: ${this.map.enemies.length}<br>` +
+            `Planes: ${this.map.planes.length}`;
     }
 
     // --- Map Resize ---
@@ -1228,6 +1335,7 @@ class Editor {
         map.trees = map.trees.filter(t => t.z <= map.lengthZ);
         map.rocks = map.rocks.filter(r => r.z <= map.lengthZ);
         map.enemies = map.enemies.filter(e => e.z <= map.lengthZ);
+        map.planes = map.planes.filter(p => p.z <= map.lengthZ);
 
         this.updateDimensions();
         this.updateCounts();
@@ -1310,6 +1418,12 @@ class Editor {
                 if (e.altitude !== undefined) obj.altitude = e.altitude;
                 return obj;
             }),
+            planeTriggers: map.planes.map(p => ({
+                type: p.type,
+                x: Math.round(p.x * 100) / 100,
+                z: Math.round(p.z * 100) / 100,
+                count: p.count || 1,
+            })),
             playerStart: { z: 0, altitude: 12 },
             objectives: { type: "destroyAll", description: "Destroy all enemy installations" },
         };
@@ -1347,6 +1461,7 @@ class Editor {
             enemyCount: this.map.enemies.length,
             treeCount: this.map.trees.length,
             rockCount: this.map.rocks.length,
+            planeCount: this.map.planes.length,
         };
         if (existing) {
             Object.assign(existing, entry);
@@ -1408,6 +1523,7 @@ class Editor {
         this.map.trees = data.objects?.trees || [];
         this.map.rocks = data.objects?.rocks || [];
         this.map.enemies = data.enemies || [];
+        this.map.planes = data.planeTriggers || [];
 
         // Update UI
         document.getElementById('mapName').value = this.map.name;

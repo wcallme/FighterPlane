@@ -16,8 +16,9 @@
         <button class="tool-btn" data-tool="tree" title="Place trees (4)">🌲 Tree</button>
         <button class="tool-btn" data-tool="rock" title="Place rocks (5)">🪨 Rock</button>
         <button class="tool-btn" data-tool="enemy" title="Place enemies (6)">⚔ Enemy</button>
+        <button class="tool-btn" data-tool="plane" title="Place plane triggers (7)">✈ Plane</button>
         <div class="separator"></div>
-        <button class="tool-btn" data-tool="eraser" title="Erase objects (7)">✕ Eraser</button>
+        <button class="tool-btn" data-tool="eraser" title="Erase objects (8)">✕ Eraser</button>
         <div class="separator"></div>
         <label>Size</label>
         <input type="range" id="brushSize" min="1" max="15" value="3">
@@ -72,6 +73,19 @@
                     <button class="enemy-type-btn" data-enemy="truck">Truck</button>
                     <button class="enemy-type-btn" data-enemy="radioTower">Radio Tower</button>
                     <button class="enemy-type-btn" data-enemy="building">Building</button>
+                </div>
+            </div>
+
+            <div class="section" id="planePanel" style="display:none">
+                <h3>Plane Type</h3>
+                <div class="enemy-type-grid">
+                    <button class="plane-type-btn active" data-plane="fighter">Fighter</button>
+                    <button class="plane-type-btn" data-plane="aiFighter">AI Fighter</button>
+                </div>
+                <label>Group Size</label>
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <input type="range" id="planeCount" min="1" max="4" value="1" style="flex:1;">
+                    <span class="range-val" id="planeCountVal">1</span>
                 </div>
             </div>
 

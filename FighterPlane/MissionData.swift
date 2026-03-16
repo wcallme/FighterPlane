@@ -13,6 +13,7 @@ struct MissionData: Codable {
     let waterLevel: Float
     let objects: ObjectsData
     let enemies: [EnemyPlacement]
+    let planeTriggers: [PlaneTrigger]?
     let playerStart: PlayerStart
     let objectives: MissionObjective?
 }
@@ -50,6 +51,13 @@ struct EnemyPlacement: Codable {
     let x: Float
     let z: Float
     let altitude: Float?
+}
+
+struct PlaneTrigger: Codable {
+    let type: String      // "fighter" or "aiFighter"
+    let x: Float          // horizontal hint (maps to spawn X position)
+    let z: Float          // trigger Z — when player passes this, planes spawn
+    let count: Int        // how many planes to spawn
 }
 
 struct PlayerStart: Codable {

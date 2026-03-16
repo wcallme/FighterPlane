@@ -109,6 +109,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     private var missionEnemiesDestroyed: Int = 0
     private var missionEnemyTotal: Int = 0
     private var spawnedMissionIndices: Set<Int> = []
+    private var triggeredPlaneIndices: Set<Int> = []
     private var missionVictoryTimer: Float = 0
 
     // Biome cycling (endless mode)
@@ -1323,6 +1324,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     private func spawnEnemies(time: TimeInterval) {
         if isMissionMode {
             spawnMissionEnemies()
+            spawnMissionPlaneTriggers()
             return
         }
 
@@ -1336,10 +1338,10 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             }
         }
 
-        // Air enemies (after difficulty 2)
-        if manager.difficultyLevel >= 2 && time - lastAirSpawn >= manager.airSpawnInterval {
+        // Air enemies — biome-aware spawning
+        if manager.shouldSpawnEnemyPlanes && time - lastAirSpawn >= manager.airSpawnInterval {
             lastAirSpawn = time
-            spawnAirEnemy()
+            spawnAirEnemyWave3D()
         }
     }
 
@@ -1385,6 +1387,54 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         }
     }
 
+    /// Spawn enemy planes when player reaches a trigger point placed in the map editor.
+    /// Planes always appear off-screen ahead of the player at high altitude.
+    private func spawnMissionPlaneTriggers() {
+        guard case .mission(let mission) = gameMode,
+              let triggers = mission.planeTriggers else { return }
+
+        for (i, trigger) in triggers.enumerated() {
+            guard !triggeredPlaneIndices.contains(i) else { continue }
+            // Fire trigger when player reaches or passes the trigger Z
+            guard playerZ >= trigger.z else { continue }
+            triggeredPlaneIndices.insert(i)
+
+            let type = EnemyType(rawValue: trigger.type) ?? .fighter
+            let count = max(1, trigger.count)
+
+            for j in 0..<count {
+                let node = modelForEnemyType(type)
+
+                // Spawn well ahead of the player (off-screen) with horizontal spread
+                let spawnZ = playerZ + 100 + Float(j) * 15
+                // Use trigger X as a hint for horizontal position, with some spread per group member
+                let spawnX = trigger.x + Float(j) * 4 - Float(count - 1) * 2
+                // Altitude: near player altitude, clamped above terrain
+                let rawY = playerY + Float.random(in: -2...2)
+                let terrainH = groundHeight(x: spawnX, z: spawnZ)
+                let spawnY = max(rawY, terrainH + 5)
+
+                node.position = SCNVector3(spawnX, spawnY, spawnZ)
+                scene.rootNode.addChildNode(node)
+
+                let hp = type.health
+                let healthBar = ModelGenerator3D.healthBar()
+                healthBar.position = SCNVector3(0, 1.2, 0)
+                node.addChildNode(healthBar)
+
+                enemies.append(Enemy3D(
+                    node: node,
+                    type: type,
+                    health: hp,
+                    maxHealth: hp,
+                    lastFireTime: -1,
+                    isAir: true,
+                    healthBarNode: healthBar
+                ))
+            }
+        }
+    }
+
     private func modelForEnemyType(_ type: EnemyType) -> SCNNode {
         switch type {
         case .tank: return ModelGenerator3D.tank()
@@ -1392,6 +1442,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         case .building: return ModelGenerator3D.building()
         case .samLauncher: return ModelGenerator3D.samLauncher()
         case .fighter: return ModelGenerator3D.enemyPlane()
+        case .aiFighter: return ModelGenerator3D.enemyPlane() // reuse model, AI behavior in update
         case .truck: return ModelGenerator3D.truck()
         case .radioTower: return ModelGenerator3D.radioTower()
         }
@@ -1489,6 +1540,48 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             isAir: true,
             healthBarNode: healthBar
         ))
+    }
+
+    private func spawnAirEnemyWave3D() {
+        let manager = GameManager.shared
+        let count = manager.airSpawnGroupSize
+        let bonus = manager.enemyHealthBonus
+
+        for i in 0..<count {
+            let type: EnemyType
+            if manager.allPlanesAreAI {
+                type = .aiFighter
+            } else if manager.shouldSpawnAIFighters {
+                type = Int.random(in: 0...9) < 4 ? .aiFighter : .fighter
+            } else {
+                type = .fighter
+            }
+
+            let node = modelForEnemyType(type)
+            let x = Float.random(in: -5...5) + Float(i) * 3 - Float(count - 1) * 1.5
+            let z = playerZ + 90 + Float.random(in: 0...30) + Float(i) * 10
+
+            let rawY = playerY + Float.random(in: -3...3)
+            let terrainH = groundHeight(x: x, z: z)
+            let y = max(rawY, terrainH + 5)
+            node.position = SCNVector3(x, y, z)
+            scene.rootNode.addChildNode(node)
+
+            let hp = type.health + bonus
+            let healthBar = ModelGenerator3D.healthBar()
+            healthBar.position = SCNVector3(0, 1.2, 0)
+            node.addChildNode(healthBar)
+
+            enemies.append(Enemy3D(
+                node: node,
+                type: type,
+                health: hp,
+                maxHealth: hp,
+                lastFireTime: -1,
+                isAir: true,
+                healthBarNode: healthBar
+            ))
+        }
     }
 
     private func updateEnemies(dt: Float, time: TimeInterval) {
