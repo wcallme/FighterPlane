@@ -43,6 +43,7 @@ class MapData {
         }
         this.trees = [];
         this.rocks = [];
+        this.buildings = []; // decorative buildings: { type, x, z, rotation }
         this.enemies = [];
         this.planes = [];    // air trigger points: { type, x, z, count }
         this.waterLevel = -0.2;
@@ -504,6 +505,14 @@ const PLANE_STYLES = {
     aiFighter:  { color: '#e74c3c', label: 'AI' },
 };
 
+const BUILDING_STYLES = {
+    house:      { color: '#d4a574', border: '#a0784c', label: 'HSE' },
+    office:     { color: '#7f8fa6', border: '#5a6a80', label: 'OFC' },
+    skyscraper: { color: '#546e8a', border: '#3a5068', label: 'SKY' },
+    warehouse:  { color: '#a09080', border: '#786858', label: 'WRH' },
+    tower:      { color: '#6c7a7a', border: '#4a5858', label: 'TWR' },
+};
+
 // --- Main Editor ---
 
 class Editor {
@@ -524,6 +533,8 @@ class Editor {
         this.selectedEnemy = 'tank';
         this.selectedPlane = 'fighter';
         this.planeCount = 1;
+        this.selectedBuilding = 'house';
+        this.buildingRotation = 0;
         this.showGrid = true;
         this.showObjects = true;
 
@@ -620,7 +631,24 @@ class Editor {
                 this.tool = btn.dataset.tool;
                 document.getElementById('enemyPanel').style.display = this.tool === 'enemy' ? '' : 'none';
                 document.getElementById('planePanel').style.display = this.tool === 'plane' ? '' : 'none';
+                document.getElementById('buildingPanel').style.display = this.tool === 'building' ? '' : 'none';
             });
+        });
+
+        // Building type buttons
+        document.querySelectorAll('.building-type-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.building-type-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.selectedBuilding = btn.dataset.building;
+            });
+        });
+
+        // Building rotation slider
+        const buildRotEl = document.getElementById('buildingRotation');
+        buildRotEl.addEventListener('input', () => {
+            this.buildingRotation = parseInt(buildRotEl.value);
+            document.getElementById('buildingRotationVal').textContent = this.buildingRotation + '°';
         });
 
         // Enemy type buttons
@@ -809,13 +837,14 @@ class Editor {
         }
 
         // Number keys for tools
-        const toolMap = { '1': 'raise', '2': 'lower', '3': 'smooth', '4': 'tree', '5': 'rock', '6': 'enemy', '7': 'plane', '8': 'eraser' };
+        const toolMap = { '1': 'raise', '2': 'lower', '3': 'smooth', '4': 'tree', '5': 'rock', '6': 'enemy', '7': 'plane', '8': 'building', '9': 'eraser' };
         if (toolMap[e.key]) {
             document.querySelectorAll('.tool-btn[data-tool]').forEach(b => b.classList.remove('active'));
             document.querySelector(`.tool-btn[data-tool="${toolMap[e.key]}"]`).classList.add('active');
             this.tool = toolMap[e.key];
             document.getElementById('enemyPanel').style.display = this.tool === 'enemy' ? '' : 'none';
             document.getElementById('planePanel').style.display = this.tool === 'plane' ? '' : 'none';
+            document.getElementById('buildingPanel').style.display = this.tool === 'building' ? '' : 'none';
         }
 
         // Ctrl+Z undo
@@ -855,6 +884,7 @@ class Editor {
             heightmap: this.map.heightmap.map(row => new Float32Array(row)),
             trees: JSON.parse(JSON.stringify(this.map.trees)),
             rocks: JSON.parse(JSON.stringify(this.map.rocks)),
+            buildings: JSON.parse(JSON.stringify(this.map.buildings)),
             enemies: JSON.parse(JSON.stringify(this.map.enemies)),
             planes: JSON.parse(JSON.stringify(this.map.planes)),
         };
@@ -868,6 +898,7 @@ class Editor {
         this.map.heightmap = snapshot.heightmap;
         this.map.trees = snapshot.trees;
         this.map.rocks = snapshot.rocks;
+        this.map.buildings = snapshot.buildings;
         this.map.enemies = snapshot.enemies;
         this.map.planes = snapshot.planes;
         this.render();
@@ -905,6 +936,9 @@ class Editor {
                 break;
             case 'plane':
                 this.placePlane(ix, iz);
+                break;
+            case 'building':
+                this.placeBuilding(ix, iz);
                 break;
             case 'eraser':
                 this.applyEraser(cx, cy, ix, iz);
@@ -1025,6 +1059,24 @@ class Editor {
         });
     }
 
+    placeBuilding(ix, iz) {
+        const wx = this.map.worldX(ix);
+        const wz = this.map.worldZ(iz);
+        const h = this.map.getHeight(ix, iz);
+        if (h <= this.map.waterLevel) return;
+        const minDist = 4.0;
+        for (const b of this.map.buildings) {
+            const d = Math.sqrt((b.x - wx) ** 2 + (b.z - wz) ** 2);
+            if (d < minDist) return;
+        }
+        this.map.buildings.push({
+            type: this.selectedBuilding,
+            x: wx,
+            z: wz,
+            rotation: this.buildingRotation,
+        });
+    }
+
     applyEraser(cx, cy, gx, gz) {
         // Try to remove objects near cursor first
         const world = this.canvasToWorld(cx, cy);
@@ -1038,6 +1090,15 @@ class Editor {
             if (d < minDist) { minDist = d; minIdx = i; }
         }
         if (minIdx >= 0) { this.map.planes.splice(minIdx, 1); return; }
+
+        // Remove nearest building
+        minIdx = -1; minDist = eraseDist;
+        for (let i = 0; i < this.map.buildings.length; i++) {
+            const b = this.map.buildings[i];
+            const d = Math.sqrt((b.x - world.x) ** 2 + (b.z - world.z) ** 2);
+            if (d < minDist) { minDist = d; minIdx = i; }
+        }
+        if (minIdx >= 0) { this.map.buildings.splice(minIdx, 1); return; }
 
         // Remove nearest enemy
         minIdx = -1; minDist = eraseDist;
@@ -1191,6 +1252,39 @@ class Editor {
                 drawRockAsset(ctx, pos.x, pos.y, cs, this.zoom, terrainType, rock.scale || 1);
             }
 
+            // Decorative buildings
+            for (const bld of map.buildings) {
+                const pos = this.worldToCanvas(bld.x, bld.z);
+                const style = BUILDING_STYLES[bld.type] || BUILDING_STYLES.house;
+                const sz = Math.max(5, cs * 0.7);
+
+                // Building footprint
+                ctx.fillStyle = style.color;
+                ctx.fillRect(pos.x - sz / 2, pos.y - sz / 2, sz, sz);
+                ctx.strokeStyle = style.border;
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(pos.x - sz / 2, pos.y - sz / 2, sz, sz);
+
+                // Rotation indicator line
+                if (this.zoom >= 3) {
+                    const rad = (bld.rotation || 0) * Math.PI / 180;
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(pos.x, pos.y);
+                    ctx.lineTo(pos.x + Math.sin(rad) * sz * 0.5, pos.y - Math.cos(rad) * sz * 0.5);
+                    ctx.stroke();
+                }
+
+                if (this.zoom >= 3) {
+                    ctx.fillStyle = '#fff';
+                    ctx.font = `${Math.max(8, cs * 0.45)}px monospace`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'top';
+                    ctx.fillText(style.label, pos.x, pos.y + sz / 2 + 1);
+                }
+            }
+
             // Enemies
             for (const enemy of map.enemies) {
                 const pos = this.worldToCanvas(enemy.x, enemy.z);
@@ -1274,7 +1368,7 @@ class Editor {
         }
 
         // Placement cursor preview
-        if (this.mouseGrid && ['tree', 'rock', 'enemy', 'plane'].includes(this.tool)) {
+        if (this.mouseGrid && ['tree', 'rock', 'enemy', 'plane', 'building'].includes(this.tool)) {
             const pos = this.gridToCanvas(this.mouseGrid.ix, this.mouseGrid.iz);
             ctx.strokeStyle = 'rgba(233, 69, 96, 0.8)';
             ctx.lineWidth = 2;
@@ -1298,6 +1392,7 @@ class Editor {
         document.getElementById('objectCounts').innerHTML =
             `Trees: ${this.map.trees.length}<br>` +
             `Rocks: ${this.map.rocks.length}<br>` +
+            `Buildings: ${this.map.buildings.length}<br>` +
             `Enemies: ${this.map.enemies.length}<br>` +
             `Planes: ${this.map.planes.length}`;
     }
@@ -1379,6 +1474,7 @@ class Editor {
         }
         map.trees = [];
         map.rocks = [];
+        map.buildings = [];
         map.enemies = [];
         map.planes = [];
         this.render();
@@ -1422,6 +1518,12 @@ class Editor {
                     x: Math.round(r.x * 100) / 100,
                     z: Math.round(r.z * 100) / 100,
                     scale: Math.round(r.scale * 100) / 100,
+                })),
+                buildings: map.buildings.map(b => ({
+                    x: Math.round(b.x * 100) / 100,
+                    z: Math.round(b.z * 100) / 100,
+                    type: b.type,
+                    rotation: b.rotation || 0,
                 })),
             },
             enemies: map.enemies.map(e => {
@@ -1476,6 +1578,7 @@ class Editor {
             enemyCount: this.map.enemies.length,
             treeCount: this.map.trees.length,
             rockCount: this.map.rocks.length,
+            buildingCount: this.map.buildings.length,
             planeCount: this.map.planes.length,
         };
         if (existing) {
@@ -1537,6 +1640,7 @@ class Editor {
         // Load objects
         this.map.trees = data.objects?.trees || [];
         this.map.rocks = data.objects?.rocks || [];
+        this.map.buildings = data.objects?.buildings || [];
         this.map.enemies = data.enemies || [];
         this.map.planes = data.planeTriggers || [];
 
