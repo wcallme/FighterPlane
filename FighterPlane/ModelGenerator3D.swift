@@ -1104,7 +1104,15 @@ enum ModelGenerator3D {
         root.name = "bomb3D"
         root.scale = SCNVector3(6, 6, 6)
 
-        // Small pear body
+        // Pointed nose cone
+        let nose = SCNCone(topRadius: 0, bottomRadius: 0.08, height: 0.18)
+        nose.firstMaterial?.diffuse.contents = UIColor(red: 0.28, green: 0.34, blue: 0.18, alpha: 1)
+        nose.firstMaterial?.specular.contents = UIColor(white: 0.3, alpha: 1)
+        let noseNode = SCNNode(geometry: nose)
+        noseNode.position = SCNVector3(0, -0.18, 0)
+        root.addChildNode(noseNode)
+
+        // Main body
         let bulb = SCNSphere(radius: 0.10)
         bulb.firstMaterial?.diffuse.contents = UIColor(red: 0.28, green: 0.34, blue: 0.18, alpha: 1)
         bulb.firstMaterial?.specular.contents = UIColor(white: 0.3, alpha: 1)
@@ -1113,10 +1121,10 @@ enum ModelGenerator3D {
         root.addChildNode(bulbNode)
 
         // Rear taper
-        let taper = SCNCapsule(capRadius: 0.06, height: 0.18)
+        let taper = SCNCone(topRadius: 0.08, bottomRadius: 0.04, height: 0.16)
         taper.firstMaterial?.diffuse.contents = UIColor(red: 0.26, green: 0.30, blue: 0.16, alpha: 1)
         let taperNode = SCNNode(geometry: taper)
-        taperNode.position = SCNVector3(0, 0.06, 0)
+        taperNode.position = SCNVector3(0, 0.10, 0)
         root.addChildNode(taperNode)
 
         // Yellow identification band
@@ -1141,12 +1149,21 @@ enum ModelGenerator3D {
         return root
     }
 
-    /// Tiny dot bomblet for cluster warhead sub-munitions — small dark sphere
+    /// Tiny bomblet for cluster warhead sub-munitions — teardrop with pointed nose
     static func clusterBomblet3D() -> SCNNode {
         let root = SCNNode()
         root.name = "bomb3D"
         root.scale = SCNVector3(2, 2, 2)
 
+        // Pointed nose cone
+        let nose = SCNCone(topRadius: 0, bottomRadius: 0.045, height: 0.10)
+        nose.firstMaterial?.diffuse.contents = UIColor(red: 0.22, green: 0.28, blue: 0.14, alpha: 1)
+        nose.firstMaterial?.specular.contents = UIColor(white: 0.3, alpha: 1)
+        let noseNode = SCNNode(geometry: nose)
+        noseNode.position = SCNVector3(0, -0.08, 0)
+        root.addChildNode(noseNode)
+
+        // Body
         let sphere = SCNSphere(radius: 0.06)
         sphere.firstMaterial?.diffuse.contents = UIColor(red: 0.22, green: 0.28, blue: 0.14, alpha: 1)
         sphere.firstMaterial?.specular.contents = UIColor(white: 0.3, alpha: 1)
