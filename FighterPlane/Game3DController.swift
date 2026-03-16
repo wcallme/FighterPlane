@@ -689,19 +689,27 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         case .temperate:
             material.roughness.contents = NSNumber(value: 0.3)
             material.normal.intensity = 0.7
-            material.setValue(SCNVector3(1.0, 1.0, 1.0), forKey: "foamColor")
+            material.setValue(NSNumber(value: 1.0), forKey: "foamR")
+            material.setValue(NSNumber(value: 1.0), forKey: "foamG")
+            material.setValue(NSNumber(value: 1.0), forKey: "foamB")
         case .desert:
             material.roughness.contents = NSNumber(value: 0.45)
             material.normal.intensity = 0.4  // calmer water
-            material.setValue(SCNVector3(0.85, 0.78, 0.55), forKey: "foamColor")
+            material.setValue(NSNumber(value: 0.85), forKey: "foamR")
+            material.setValue(NSNumber(value: 0.78), forKey: "foamG")
+            material.setValue(NSNumber(value: 0.55), forKey: "foamB")
         case .arctic:
             material.roughness.contents = NSNumber(value: 0.25)
             material.normal.intensity = 0.85  // choppier
-            material.setValue(SCNVector3(0.9, 0.95, 1.0), forKey: "foamColor")
+            material.setValue(NSNumber(value: 0.9), forKey: "foamR")
+            material.setValue(NSNumber(value: 0.95), forKey: "foamG")
+            material.setValue(NSNumber(value: 1.0), forKey: "foamB")
         case .volcanic:
             material.roughness.contents = NSNumber(value: 0.55)  // viscous
             material.normal.intensity = 0.35  // slow, heavy
-            material.setValue(SCNVector3(1.0, 0.5, 0.1), forKey: "foamColor")
+            material.setValue(NSNumber(value: 1.0), forKey: "foamR")
+            material.setValue(NSNumber(value: 0.5), forKey: "foamG")
+            material.setValue(NSNumber(value: 0.1), forKey: "foamB")
         }
 
         SCNTransaction.commit()

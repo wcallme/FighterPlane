@@ -1321,7 +1321,7 @@ enum ModelGenerator3D {
     }
 
     /// Metal shader modifier for the `.surface` entry point:
-    /// blends a second normal layer and adds Fresnel-based emission.
+    /// adds Fresnel emission and animated normal perturbation for wave complexity.
     private static let waterSurfaceShader = """
     #pragma arguments
     float time;
@@ -1330,39 +1330,44 @@ enum ModelGenerator3D {
     // Fresnel — boost reflection at grazing angles (side camera benefits greatly)
     float NdotV = max(0.0, dot(_surface.normal, _surface.view));
     float fresnel = pow(1.0 - NdotV, 4.0) * 0.35;
-    _surface.emission += float4(fresnel, fresnel, fresnel, 0.0);
+    _surface.emission = float4(fresnel, fresnel, fresnel, 0.0);
 
     // Subtle normal perturbation over time for extra wave complexity
-    float2 pos = _surface.diffuseTexcoord * 4.0;
-    float t = time * 0.4;
-    float wave1 = sin(pos.x * 3.1 + pos.y * 1.7 + t * 1.3) * 0.12;
-    float wave2 = cos(pos.x * 2.3 - pos.y * 2.9 + t * 0.9) * 0.08;
+    float2 wavePos = _surface.diffuseTexcoord * 4.0;
+    float wt = time * 0.4;
+    float wave1 = sin(wavePos.x * 3.1 + wavePos.y * 1.7 + wt * 1.3) * 0.12;
+    float wave2 = cos(wavePos.x * 2.3 - wavePos.y * 2.9 + wt * 0.9) * 0.08;
     _surface.normal = normalize(_surface.normal + float3(wave1, 0.0, wave2));
     """
 
     /// Metal shader modifier for the `.fragment` entry point:
     /// adds depth-based darkening and shoreline foam.
+    /// Uses UV coordinates to derive world X position (plane width = 200, centered at 0).
     private static let waterFragmentShader = """
     #pragma arguments
     float time;
-    float3 foamColor;
+    float foamR;
+    float foamG;
+    float foamB;
 
     #pragma body
-    // World-space position from the model transform
-    float3 worldPos = (u_inverseViewTransform * float4(_surface.position, 1.0)).xyz;
-    float absX = abs(worldPos.x);
+    // Derive world X from UV: plane is 200 units wide, UV 0..1, centered at X=0
+    float worldX = (_surface.diffuseTexcoord.x - 0.5) * 200.0;
+    float absX = abs(worldX);
 
     // Depth darkening — deeper water far from shore
     float depthFactor = smoothstep(20.0, 45.0, absX);
     _output.color.rgb *= mix(1.0, 0.55, depthFactor);
 
-    // Shoreline foam — white specks near terrain edge (~28-35 units from center)
+    // Shoreline foam — specks near terrain edge (~28-35 units from center)
     float shoreBand = smoothstep(35.0, 30.0, absX) * smoothstep(22.0, 28.0, absX);
     // Animated hash for foam sparkle
-    float2 foamUV = worldPos.xz * 2.5 + float2(time * 0.3, time * 0.15);
-    float hash = fract(sin(dot(floor(foamUV), float2(12.9898, 78.233))) * 43758.5453);
-    float foam = step(0.62, hash) * shoreBand * 0.65;
-    _output.color.rgb = mix(_output.color.rgb, foamColor, foam);
+    float worldZ = _surface.diffuseTexcoord.y * 600.0;
+    float2 foamUV = float2(worldX, worldZ) * 2.5 + float2(time * 0.3, time * 0.15);
+    float foamHash = fract(sin(dot(floor(foamUV), float2(12.9898, 78.233))) * 43758.5453);
+    float foam = step(0.62, foamHash) * shoreBand * 0.65;
+    float3 fc = float3(foamR, foamG, foamB);
+    _output.color.rgb = mix(_output.color.rgb, fc, foam);
     """
 
     static func waterPlane(width: CGFloat, length: CGFloat) -> SCNNode {
@@ -1395,7 +1400,9 @@ enum ModelGenerator3D {
 
         // Initial uniforms
         material.setValue(NSNumber(value: 0.0), forKey: "time")
-        material.setValue(SCNVector3(1.0, 1.0, 1.0), forKey: "foamColor") // white foam default
+        material.setValue(NSNumber(value: 1.0), forKey: "foamR")
+        material.setValue(NSNumber(value: 1.0), forKey: "foamG")
+        material.setValue(NSNumber(value: 1.0), forKey: "foamB")
 
         plane.materials = [material]
         let node = SCNNode(geometry: plane)
