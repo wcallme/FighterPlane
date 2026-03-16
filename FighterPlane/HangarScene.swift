@@ -19,8 +19,8 @@ class HangarScene: SKScene {
 
     override func didMove(to view: SKView) {
         backgroundColor = SKColor(red: 0.06, green: 0.07, blue: 0.11, alpha: 1.0)
-        safeTop = SafeArea.top
-        safeBottom = SafeArea.bottom
+        safeTop = max(SafeArea.top, 10)
+        safeBottom = max(SafeArea.bottom, 34)
 
         MenuMusicManager.shared.play()
 
@@ -39,22 +39,20 @@ class HangarScene: SKScene {
     // MARK: - Layout Computation
 
     private func computeLayout() {
-        let usableTop = size.height - safeTop
-        let usableBottom = safeBottom
+        let usableTop = size.height - max(safeTop, 10)
         let safeLeft = SafeArea.left
         let safeRight = SafeArea.right
         let s = DeviceLayout.menuScale
 
-        // Bottom sections — ensure enough clearance on iPhone 16/17 Pro
-        let bottomPad = max(usableBottom, 21)
-        buttonRowY = bottomPad + 30 * s
-        loadoutRowY = buttonRowY + 54 * s
-        upgradeRowY = loadoutRowY + 48 * s
+        // Bottom sections — safeBottom already has 34pt minimum from didMove
+        buttonRowY = safeBottom + 24 * s
+        loadoutRowY = buttonRowY + 44 * s
+        upgradeRowY = loadoutRowY + 44 * s
 
-        // Plane area: centered between upgrade section top and screen top
-        let topBound = usableTop - 20
-        let upgradeTop = upgradeRowY + 34 * s
-        planeAreaCenterY = upgradeTop + (topBound - upgradeTop) * 0.5
+        // Plane area: biased lower to reduce empty gap below plane
+        let topBound = usableTop - 16
+        let upgradeTop = upgradeRowY + 30 * s
+        planeAreaCenterY = upgradeTop + (topBound - upgradeTop) * 0.45
 
         // Side info panels: centered in space between screen edges and plane zone
         let planeZoneHalf: CGFloat = 130 * s
@@ -595,8 +593,8 @@ class HangarScene: SKScene {
         let usableWidth = size.width - safeLeft - safeRight
         let sideWidth: CGFloat = (usableWidth - btnSpacing * 4) * 0.28
         let centerWidth: CGFloat = (usableWidth - btnSpacing * 4) * 0.44
-        let btnH: CGFloat = 44 * s
-        let heroBtnH: CGFloat = 48 * s
+        let btnH: CGFloat = 36 * s
+        let heroBtnH: CGFloat = 40 * s
 
         let leftX = safeLeft + btnSpacing * 1.5 + sideWidth / 2
         let centerX = size.width / 2

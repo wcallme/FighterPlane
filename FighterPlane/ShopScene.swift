@@ -23,11 +23,11 @@ class ShopScene: SKScene {
 
     override func didMove(to view: SKView) {
         backgroundColor = SKColor(red: 0.09, green: 0.07, blue: 0.14, alpha: 1.0)
-        safeTop = SafeArea.top
-        safeBottom = SafeArea.bottom
+        safeTop = max(SafeArea.top, 10)
+        safeBottom = max(SafeArea.bottom, 34)
 
         scrollAreaTop = size.height - safeTop - headerHeight
-        scrollAreaBottom = max(safeBottom, 21)
+        scrollAreaBottom = safeBottom
 
         setupBackground()
         setupHeader()

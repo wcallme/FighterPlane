@@ -24,13 +24,13 @@ class MissionSelectScene: SKScene {
 
     override func didMove(to view: SKView) {
         backgroundColor = SKColor(red: 0.06, green: 0.07, blue: 0.11, alpha: 1.0)
-        safeTop = SafeArea.top
-        safeBottom = SafeArea.bottom
+        safeTop = max(SafeArea.top, 10)
+        safeBottom = max(SafeArea.bottom, 34)
         missions = MissionLoader.loadAll()
 
         let s = DeviceLayout.menuScale
         listTopY = size.height - safeTop - 90 * s
-        listBottomY = max(safeBottom, 21) + 20
+        listBottomY = safeBottom + 20
 
         setupBackground()
         setupHeader()
