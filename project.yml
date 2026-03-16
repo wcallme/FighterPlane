@@ -11,17 +11,21 @@ targets:
     platform: iOS
     sources:
       - FighterPlane
+      - path: "Game Assets"
+        buildPhase: resources
     settings:
       base:
         INFOPLIST_FILE: FighterPlane/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: com.fighterplane.game
-        MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "1"
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1.0.0"
         TARGETED_DEVICE_FAMILY: "1,2"
         SWIFT_VERSION: "5.0"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: false
         INFOPLIST_KEY_UILaunchScreen_Generation: true
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "Apple Development"
       configs:
         Debug:
           SWIFT_OPTIMIZATION_LEVEL: "-Onone"
