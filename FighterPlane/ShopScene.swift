@@ -366,12 +366,12 @@ class ShopScene: SKScene {
     }
 
     private func compactName(_ name: String) -> String {
-        if name.count > 8 {
+        if name.count > 12 {
             let words = name.split(separator: " ")
             if words.count >= 2 {
                 return String(words.last!)
             }
-            return String(name.prefix(8))
+            return String(name.prefix(12))
         }
         return name
     }
