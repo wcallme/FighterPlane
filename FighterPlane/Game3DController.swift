@@ -164,6 +164,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         var lifetime: Float
         let turnRate: Float
         let speed: Float
+        let tracking: Bool  // false = flies straight (B2 stealth evasion)
     }
 
     // MARK: - Init
@@ -1586,6 +1587,14 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         let vz = (toPlayerZ > 0 ? 1.0 : -1.0) * cos(launchAngle) * samSpeed
         let vy = sin(launchAngle) * samSpeed
 
+        // B2 stealth: 60% chance SAM fires without tracking (linear trajectory)
+        let isTracking: Bool
+        if PlayerData.shared.selectedPlaneId == "B2" {
+            isTracking = Float.random(in: 0...1) > 0.6
+        } else {
+            isTracking = true
+        }
+
         scene.rootNode.addChildNode(missile)
         activeSAMs.append(SAMMissile3D(
             node: missile,
@@ -1593,7 +1602,8 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             damage: GameConfig.samMissileDamage,
             lifetime: 6.0,
             turnRate: samTurnRate,
-            speed: samSpeed
+            speed: samSpeed,
+            tracking: isTracking
         ))
     }
 
@@ -1620,11 +1630,11 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             }
 
             // Homing with lead-target prediction in Y-Z plane only (X=0 always)
-            // ECM active → missiles lose lock and fly straight (no homing)
+            // ECM active or non-tracking (B2 stealth) → missiles fly straight (no homing)
             let pos = activeSAMs[i].node.position
             let speed = activeSAMs[i].speed
 
-            if !ecmActive {
+            if !ecmActive && activeSAMs[i].tracking {
                 let missileSpeed = speed * 60.0  // world-units per second
 
                 // Estimate player velocity from angle & speed
