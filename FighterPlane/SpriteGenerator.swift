@@ -618,34 +618,80 @@ enum SpriteGenerator {
 
     static func groundTile(variant: Int) -> SKTexture {
         cached("groundTile_\(variant)") { renderTexture(size: CGSize(width: 128, height: 128)) { ctx in
-            // Base ground
+            var rng = SeededRandom(seed: UInt64(variant) &+ 42)
+
+            // Base ground with subtle variation patches
             let g: CGFloat = variant % 2 == 0 ? 0.50 : 0.48
             ctx.setFillColor(rgb(0.36, g, 0.28))
             ctx.fill(CGRect(x: 0, y: 0, width: 128, height: 128))
 
-            // Grass texture dots
+            // Large soft color variation patches (break up uniformity)
+            for _ in 0..<6 {
+                let px = CGFloat(rng.next(max: 128))
+                let py = CGFloat(rng.next(max: 128))
+                let pr = CGFloat(20 + rng.next(max: 30))
+                let shade = 0.02 * CGFloat(rng.next(max: 3))
+                ctx.setFillColor(UIColor(red: 0.34 + shade, green: g - 0.02 + shade, blue: 0.26 + shade, alpha: 0.3).cgColor)
+                ctx.fillEllipse(in: CGRect(x: px - pr, y: py - pr, width: pr * 2, height: pr * 2))
+            }
+
+            // Grass texture dots (medium)
             ctx.setFillColor(UIColor(red: 0.32, green: 0.46, blue: 0.24, alpha: 0.4).cgColor)
-            var rng = SeededRandom(seed: UInt64(variant) &+ 42)
             for _ in 0..<25 {
                 let x = rng.next(max: 120)
                 let y = rng.next(max: 120)
                 ctx.fillEllipse(in: CGRect(x: CGFloat(x), y: CGFloat(y), width: 8, height: 8))
             }
 
+            // Small bright grass flecks (fine detail)
+            for _ in 0..<35 {
+                let x = CGFloat(rng.next(max: 126))
+                let y = CGFloat(rng.next(max: 126))
+                let bright = 0.48 + CGFloat(rng.next(max: 10)) / 100.0
+                ctx.setFillColor(UIColor(red: 0.30, green: bright, blue: 0.20, alpha: 0.35).cgColor)
+                ctx.fillEllipse(in: CGRect(x: x, y: y, width: 3, height: 3))
+            }
+
+            // Tiny dark specks (soil/pebble texture)
+            for _ in 0..<20 {
+                let x = CGFloat(rng.next(max: 126))
+                let y = CGFloat(rng.next(max: 126))
+                ctx.setFillColor(UIColor(red: 0.28, green: 0.32, blue: 0.20, alpha: 0.25).cgColor)
+                ctx.fill(CGRect(x: x, y: y, width: 2, height: 2))
+            }
+
             // Occasional road
             if variant % 4 == 0 {
                 ctx.setFillColor(rgb(0.40, 0.38, 0.34))
                 ctx.fill(CGRect(x: 56, y: 0, width: 16, height: 128))
+                // Road texture grit
+                for _ in 0..<15 {
+                    let rx = CGFloat(56 + rng.next(max: 16))
+                    let ry = CGFloat(rng.next(max: 128))
+                    ctx.setFillColor(UIColor(red: 0.36, green: 0.34, blue: 0.30, alpha: 0.3).cgColor)
+                    ctx.fill(CGRect(x: rx, y: ry, width: 2, height: 2))
+                }
                 ctx.setFillColor(UIColor.white.withAlphaComponent(0.4).cgColor)
                 for i in stride(from: 0, to: 128, by: 20) {
                     ctx.fill(CGRect(x: 62, y: CGFloat(i), width: 4, height: 10))
                 }
             }
 
-            // Occasional dirt patch
+            // Occasional dirt patch with sandy edge
             if variant % 3 == 1 {
+                // Sandy edge ring
+                ctx.setFillColor(rgb(0.56, 0.50, 0.38))
+                ctx.fillEllipse(in: CGRect(x: 26, y: 36, width: 68, height: 48))
+                // Inner dirt
                 ctx.setFillColor(rgb(0.50, 0.44, 0.32))
                 ctx.fillEllipse(in: CGRect(x: 30, y: 40, width: 60, height: 40))
+                // Dirt specks
+                for _ in 0..<8 {
+                    let dx = CGFloat(32 + rng.next(max: 56))
+                    let dy = CGFloat(42 + rng.next(max: 36))
+                    ctx.setFillColor(UIColor(red: 0.44, green: 0.38, blue: 0.26, alpha: 0.4).cgColor)
+                    ctx.fill(CGRect(x: dx, y: dy, width: 3, height: 2))
+                }
             }
         }}
     }

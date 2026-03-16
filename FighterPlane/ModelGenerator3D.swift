@@ -1316,12 +1316,70 @@ enum ModelGenerator3D {
 
     // MARK: - Water
 
+    /// Generate a procedural water texture with ripple/caustic patterns
+    private static func waterTexture(size: Int = 256) -> UIImage {
+        let s = CGFloat(size)
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: s, height: s))
+        return renderer.image { ctx in
+            let c = ctx.cgContext
+
+            // Base water color
+            c.setFillColor(UIColor(red: 0.10, green: 0.50, blue: 0.62, alpha: 1.0).cgColor)
+            c.fill(CGRect(x: 0, y: 0, width: s, height: s))
+
+            // Layered ripple rings for caustic-like pattern
+            for i in 0..<40 {
+                let seed = Float(i) * 17.3 + 5.1
+                let cx = CGFloat(sin(seed) * 0.5 + 0.5) * s
+                let cy = CGFloat(cos(seed * 1.3) * 0.5 + 0.5) * s
+                let radius = CGFloat(12 + (i % 5) * 8)
+                let alpha: CGFloat = 0.06 + CGFloat(i % 3) * 0.02
+
+                c.setStrokeColor(UIColor(red: 0.25, green: 0.70, blue: 0.80, alpha: alpha).cgColor)
+                c.setLineWidth(1.5)
+                c.strokeEllipse(in: CGRect(x: cx - radius, y: cy - radius, width: radius * 2, height: radius * 2))
+            }
+
+            // Bright caustic highlights
+            for i in 0..<60 {
+                let seed = Float(i) * 7.7 + 2.3
+                let px = CGFloat(sin(seed * 3.1 + 1.0) * 0.5 + 0.5) * s
+                let py = CGFloat(cos(seed * 2.7 + 4.0) * 0.5 + 0.5) * s
+                let w = CGFloat(3 + (i % 4) * 2)
+                let h = CGFloat(2 + (i % 3) * 2)
+
+                c.setFillColor(UIColor(red: 0.30, green: 0.72, blue: 0.82, alpha: 0.12).cgColor)
+                c.fillEllipse(in: CGRect(x: px, y: py, width: w, height: h))
+            }
+
+            // Dark depth patches
+            for i in 0..<20 {
+                let seed = Float(i) * 23.1 + 8.9
+                let px = CGFloat(sin(seed) * 0.5 + 0.5) * s
+                let py = CGFloat(cos(seed * 0.7) * 0.5 + 0.5) * s
+                let r = CGFloat(8 + (i % 4) * 6)
+
+                c.setFillColor(UIColor(red: 0.06, green: 0.38, blue: 0.50, alpha: 0.10).cgColor)
+                c.fillEllipse(in: CGRect(x: px - r, y: py - r, width: r * 2, height: r * 2))
+            }
+        }
+    }
+
     static func waterPlane(width: CGFloat, length: CGFloat) -> SCNNode {
         let plane = SCNPlane(width: width, height: length)
         let material = SCNMaterial()
-        material.diffuse.contents = UIColor(red: 0.15, green: 0.60, blue: 0.70, alpha: 0.90)
+
+        // Procedural tiling water texture
+        let tex = waterTexture()
+        material.diffuse.contents = tex
+        material.diffuse.wrapS = .repeat
+        material.diffuse.wrapT = .repeat
+        // Tile the texture across the plane for visible detail
+        let tileScale = Float(max(width, length) / 30.0)
+        material.diffuse.contentsTransform = SCNMatrix4MakeScale(tileScale, tileScale, 1)
+
         material.specular.contents = UIColor(white: 0.8, alpha: 0.5)
-        material.transparency = 0.9
+        material.transparency = 0.88
         material.isDoubleSided = true
         material.lightingModel = .lambert
         plane.materials = [material]
@@ -1329,20 +1387,38 @@ enum ModelGenerator3D {
         node.eulerAngles.x = -.pi / 2 // lay flat
         node.name = "water"
 
-        // Gentle looping shimmer — slow transparency oscillation
-        let brighten = SCNAction.customAction(duration: 3.0) { node, elapsed in
-            let t = elapsed / 3.0
-            let val = 0.88 + 0.07 * CGFloat(sin(Double(t) * .pi)) // 0.88 → 0.95 → 0.88
+        // Gentle looping shimmer — slow transparency oscillation + texture scroll
+        let shimmer = SCNAction.customAction(duration: 6.0) { node, elapsed in
+            let t = elapsed / 6.0
+            let val = 0.85 + 0.10 * CGFloat(sin(Double(t) * .pi * 2)) // 0.85 → 0.95 → 0.85
             node.geometry?.firstMaterial?.transparency = val
+            // Slow texture drift for water movement
+            let offset = Float(t) * 0.15
+            let scale = tileScale
+            node.geometry?.firstMaterial?.diffuse.contentsTransform = SCNMatrix4Translate(
+                SCNMatrix4MakeScale(scale, scale, 1), offset, offset * 0.7, 0)
         }
-        let dim = SCNAction.customAction(duration: 3.0) { node, elapsed in
-            let t = elapsed / 3.0
-            let val = 0.88 + 0.07 * CGFloat(sin(Double(t) * .pi)) // same curve
-            node.geometry?.firstMaterial?.transparency = val
-        }
-        node.runAction(.repeatForever(.sequence([brighten, dim])))
+        node.runAction(.repeatForever(shimmer))
 
         return node
+    }
+
+    // MARK: - Terrain Noise
+
+    /// Fast deterministic hash noise for per-vertex color variation
+    private static func colorNoise(x: Float, z: Float, seed: Float = 0) -> Float {
+        let px = x * 0.37 + seed
+        let pz = z * 0.53 + seed * 1.7
+        let n = sin(px * 12.9898 + pz * 78.233) * 43758.5453
+        return n - Float(Int(n)) // fractional part, -1 to 1 range
+    }
+
+    /// Multi-octave color noise for richer texture
+    private static func textureNoise(x: Float, z: Float) -> Float {
+        let n1 = colorNoise(x: x, z: z, seed: 0) * 0.5
+        let n2 = colorNoise(x: x * 2.3, z: z * 2.3, seed: 5.7) * 0.3
+        let n3 = colorNoise(x: x * 5.1, z: z * 5.1, seed: 13.2) * 0.2
+        return n1 + n2 + n3
     }
 
     // MARK: - Terrain Mesh
@@ -1370,40 +1446,123 @@ enum ModelGenerator3D {
         return h
     }
 
-    static func terrainColor(_ h: Float, biome: TerrainBiome = .temperate) -> (Float, Float, Float) {
+    /// Blend between two color tuples by factor t (0=a, 1=b)
+    private static func lerpColor(_ a: (Float, Float, Float), _ b: (Float, Float, Float), t: Float) -> (Float, Float, Float) {
+        let ct = max(0, min(1, t))
+        return (a.0 + (b.0 - a.0) * ct, a.1 + (b.1 - a.1) * ct, a.2 + (b.2 - a.2) * ct)
+    }
+
+    static func terrainColor(_ h: Float, biome: TerrainBiome = .temperate, x: Float = 0, z: Float = 0) -> (Float, Float, Float) {
+        // Per-vertex noise for color variation
+        let n = textureNoise(x: x, z: z)           // main variation
+        let n2 = colorNoise(x: x * 3.7, z: z * 3.7, seed: 99) // secondary detail
+
+        // Height with noise for band-edge breakup (makes borders jagged/organic)
+        let hNoise = h + n * 0.4
+
+        let base: (Float, Float, Float)
+
         switch biome {
         case .temperate:
-            if h > 5.0 { return (0.15, 0.38, 0.10) }   // dark green hilltop
-            if h > 3.0 { return (0.22, 0.50, 0.16) }    // green
-            if h > 1.5 { return (0.32, 0.58, 0.22) }    // light green
-            if h > 0.5 { return (0.55, 0.58, 0.35) }    // yellow-green (low)
-            if h > 0.0 { return (0.72, 0.68, 0.48) }    // sandy beach
-            return (0.55, 0.52, 0.40)                    // underwater sand
+            // Thresholds with smooth blending at borders
+            if hNoise > 5.0 {
+                base = (0.15, 0.38, 0.10)   // dark green hilltop
+            } else if hNoise > 4.6 {
+                base = lerpColor((0.22, 0.50, 0.16), (0.15, 0.38, 0.10), t: (hNoise - 4.6) / 0.4)
+            } else if hNoise > 3.0 {
+                base = (0.22, 0.50, 0.16)    // green
+            } else if hNoise > 2.6 {
+                base = lerpColor((0.32, 0.58, 0.22), (0.22, 0.50, 0.16), t: (hNoise - 2.6) / 0.4)
+            } else if hNoise > 1.5 {
+                base = (0.32, 0.58, 0.22)    // light green
+            } else if hNoise > 1.1 {
+                base = lerpColor((0.55, 0.58, 0.35), (0.32, 0.58, 0.22), t: (hNoise - 1.1) / 0.4)
+            } else if hNoise > 0.5 {
+                base = (0.55, 0.58, 0.35)    // yellow-green (low)
+            } else if hNoise > 0.1 {
+                base = lerpColor((0.72, 0.68, 0.48), (0.55, 0.58, 0.35), t: (hNoise - 0.1) / 0.4)
+            } else if hNoise > 0.0 {
+                base = (0.72, 0.68, 0.48)    // sandy beach
+            } else {
+                base = (0.55, 0.52, 0.40)    // underwater sand
+            }
 
         case .desert:
-            if h > 5.0 { return (0.65, 0.35, 0.20) }   // red rock peak
-            if h > 3.0 { return (0.72, 0.55, 0.32) }    // sandstone
-            if h > 1.5 { return (0.82, 0.70, 0.45) }    // golden sand
-            if h > 0.5 { return (0.88, 0.78, 0.55) }    // light sand
-            if h > 0.0 { return (0.78, 0.72, 0.50) }    // wet sand
-            return (0.60, 0.50, 0.35)                    // mud
+            if hNoise > 5.0 {
+                base = (0.65, 0.35, 0.20)
+            } else if hNoise > 4.6 {
+                base = lerpColor((0.72, 0.55, 0.32), (0.65, 0.35, 0.20), t: (hNoise - 4.6) / 0.4)
+            } else if hNoise > 3.0 {
+                base = (0.72, 0.55, 0.32)
+            } else if hNoise > 2.6 {
+                base = lerpColor((0.82, 0.70, 0.45), (0.72, 0.55, 0.32), t: (hNoise - 2.6) / 0.4)
+            } else if hNoise > 1.5 {
+                base = (0.82, 0.70, 0.45)    // golden sand
+            } else if hNoise > 1.1 {
+                base = lerpColor((0.88, 0.78, 0.55), (0.82, 0.70, 0.45), t: (hNoise - 1.1) / 0.4)
+            } else if hNoise > 0.5 {
+                base = (0.88, 0.78, 0.55)
+            } else if hNoise > 0.1 {
+                base = lerpColor((0.78, 0.72, 0.50), (0.88, 0.78, 0.55), t: (hNoise - 0.1) / 0.4)
+            } else if hNoise > 0.0 {
+                base = (0.78, 0.72, 0.50)
+            } else {
+                base = (0.60, 0.50, 0.35)
+            }
 
         case .arctic:
-            if h > 5.0 { return (0.92, 0.94, 0.96) }   // snow peak
-            if h > 3.0 { return (0.82, 0.85, 0.88) }    // packed snow
-            if h > 1.5 { return (0.55, 0.58, 0.62) }    // grey rock
-            if h > 0.5 { return (0.70, 0.75, 0.80) }    // icy gravel
-            if h > 0.0 { return (0.60, 0.65, 0.72) }    // frozen shore
-            return (0.45, 0.50, 0.58)                    // dark ice
+            if hNoise > 5.0 {
+                base = (0.92, 0.94, 0.96)
+            } else if hNoise > 4.6 {
+                base = lerpColor((0.82, 0.85, 0.88), (0.92, 0.94, 0.96), t: (hNoise - 4.6) / 0.4)
+            } else if hNoise > 3.0 {
+                base = (0.82, 0.85, 0.88)
+            } else if hNoise > 2.6 {
+                base = lerpColor((0.55, 0.58, 0.62), (0.82, 0.85, 0.88), t: (hNoise - 2.6) / 0.4)
+            } else if hNoise > 1.5 {
+                base = (0.55, 0.58, 0.62)
+            } else if hNoise > 1.1 {
+                base = lerpColor((0.70, 0.75, 0.80), (0.55, 0.58, 0.62), t: (hNoise - 1.1) / 0.4)
+            } else if hNoise > 0.5 {
+                base = (0.70, 0.75, 0.80)
+            } else if hNoise > 0.1 {
+                base = lerpColor((0.60, 0.65, 0.72), (0.70, 0.75, 0.80), t: (hNoise - 0.1) / 0.4)
+            } else if hNoise > 0.0 {
+                base = (0.60, 0.65, 0.72)
+            } else {
+                base = (0.45, 0.50, 0.58)
+            }
 
         case .volcanic:
-            if h > 5.0 { return (0.18, 0.15, 0.13) }   // dark basalt peak
-            if h > 3.0 { return (0.28, 0.22, 0.18) }    // dark rock
-            if h > 1.5 { return (0.38, 0.28, 0.20) }    // ash/rock
-            if h > 0.5 { return (0.55, 0.30, 0.12) }    // warm ash
-            if h > 0.0 { return (0.72, 0.35, 0.10) }    // orange ember shore
-            return (0.80, 0.25, 0.05)                    // lava glow
+            if hNoise > 5.0 {
+                base = (0.18, 0.15, 0.13)
+            } else if hNoise > 4.6 {
+                base = lerpColor((0.28, 0.22, 0.18), (0.18, 0.15, 0.13), t: (hNoise - 4.6) / 0.4)
+            } else if hNoise > 3.0 {
+                base = (0.28, 0.22, 0.18)
+            } else if hNoise > 2.6 {
+                base = lerpColor((0.38, 0.28, 0.20), (0.28, 0.22, 0.18), t: (hNoise - 2.6) / 0.4)
+            } else if hNoise > 1.5 {
+                base = (0.38, 0.28, 0.20)
+            } else if hNoise > 1.1 {
+                base = lerpColor((0.55, 0.30, 0.12), (0.38, 0.28, 0.20), t: (hNoise - 1.1) / 0.4)
+            } else if hNoise > 0.5 {
+                base = (0.55, 0.30, 0.12)
+            } else if hNoise > 0.1 {
+                base = lerpColor((0.72, 0.35, 0.10), (0.55, 0.30, 0.12), t: (hNoise - 0.1) / 0.4)
+            } else if hNoise > 0.0 {
+                base = (0.72, 0.35, 0.10)
+            } else {
+                base = (0.80, 0.25, 0.05)
+            }
         }
+
+        // Apply per-vertex color noise for micro-texture
+        let intensity: Float = 0.06  // subtle variation
+        let r = max(0, min(1, base.0 + n * intensity + n2 * 0.03))
+        let g = max(0, min(1, base.1 + n * intensity * 0.8 + n2 * 0.025))
+        let b = max(0, min(1, base.2 + n * intensity * 0.6 + n2 * 0.02))
+        return (r, g, b)
     }
 
     static func createTerrainChunk(xStart: Float, zStart: Float, chunkSize: Float = 100, segments: Int = 40, biome: TerrainBiome = .temperate) -> SCNNode {
@@ -1435,7 +1594,7 @@ enum ModelGenerator3D {
                 let len = sqrt(nx * nx + 1.0 + nz * nz)
                 normals.append(SCNVector3(nx / len, 1.0 / len, nz / len))
 
-                let (r, g, b) = terrainColor(h, biome: biome)
+                let (r, g, b) = terrainColor(h, biome: biome, x: x, z: z)
                 colors.append(contentsOf: [r, g, b, 1.0])
             }
         }
@@ -1710,7 +1869,7 @@ enum ModelGenerator3D {
                 let len = sqrt(nx * nx + 1.0 + nz * nz)
                 normals.append(SCNVector3(nx / len, 1.0 / len, nz / len))
 
-                let (r, g, b) = terrainColor(h)
+                let (r, g, b) = terrainColor(h, x: x, z: z)
                 colors.append(contentsOf: [r, g, b, 1.0])
             }
         }
