@@ -87,8 +87,8 @@ class GameHUD3D: SKScene {
     // HUD elements
     private var joystickBase: SKShapeNode!
     private var joystickKnob: SKShapeNode!
-    private let joystickRadius: CGFloat = 50
-    private let knobRadius: CGFloat = 22
+    private let joystickRadius: CGFloat = DeviceLayout.joystickRadius
+    private let knobRadius: CGFloat = DeviceLayout.knobRadius
 
     private var fireButton: SKShapeNode!
     private var bombButton: SKShapeNode!
@@ -158,36 +158,41 @@ class GameHUD3D: SKScene {
     }
 
     private func setupButtons() {
+        let btnR = DeviceLayout.buttonRadius
+        let margin = DeviceLayout.buttonMargin
+        let spacing = DeviceLayout.buttonSpacing
+        let labelSize = DeviceLayout.fontSize(12)
+
         // Fire button (bottom-right area, lower)
-        fireButton = SKShapeNode(circleOfRadius: 32)
+        fireButton = SKShapeNode(circleOfRadius: btnR)
         fireButton.fillColor = SKColor(red: 0.8, green: 0.5, blue: 0.1, alpha: 0.5)
         fireButton.strokeColor = SKColor(white: 0.9, alpha: 0.7)
         fireButton.lineWidth = 2
-        fireButton.position = CGPoint(x: size.width - safeRight - 70, y: safeBottom + 26)
+        fireButton.position = CGPoint(x: size.width - safeRight - margin, y: safeBottom + btnR - 6)
         fireButton.zPosition = 10
         fireButton.name = "fireBtn"
         addChild(fireButton)
 
         let fireIcon = SKLabelNode(fontNamed: "Menlo-Bold")
         fireIcon.text = "GUN"
-        fireIcon.fontSize = 12
+        fireIcon.fontSize = labelSize
         fireIcon.fontColor = .white
         fireIcon.verticalAlignmentMode = .center
         fireButton.addChild(fireIcon)
 
         // Bomb button (above fire button)
-        bombButton = SKShapeNode(circleOfRadius: 32)
+        bombButton = SKShapeNode(circleOfRadius: btnR)
         bombButton.fillColor = SKColor(red: 0.7, green: 0.2, blue: 0.2, alpha: 0.5)
         bombButton.strokeColor = SKColor(white: 0.9, alpha: 0.7)
         bombButton.lineWidth = 2
-        bombButton.position = CGPoint(x: size.width - safeRight - 70, y: safeBottom + 111)
+        bombButton.position = CGPoint(x: size.width - safeRight - margin, y: safeBottom + btnR - 6 + spacing)
         bombButton.zPosition = 10
         bombButton.name = "bombBtn"
         addChild(bombButton)
 
         let bombIcon = SKLabelNode(fontNamed: "Menlo-Bold")
         bombIcon.text = "BOMB"
-        bombIcon.fontSize = 12
+        bombIcon.fontSize = labelSize
         bombIcon.fontColor = .white
         bombIcon.verticalAlignmentMode = .center
         bombIcon.position = CGPoint(x: 0, y: 4)
@@ -195,18 +200,22 @@ class GameHUD3D: SKScene {
     }
 
     func setupECMButton() {
-        let btn = SKShapeNode(circleOfRadius: 32)
+        let btnR = DeviceLayout.buttonRadius
+        let margin = DeviceLayout.buttonMargin
+        let spacing = DeviceLayout.buttonSpacing
+
+        let btn = SKShapeNode(circleOfRadius: btnR)
         btn.fillColor = SKColor(red: 0.2, green: 0.5, blue: 0.8, alpha: 0.5)
         btn.strokeColor = SKColor(white: 0.9, alpha: 0.7)
         btn.lineWidth = 2
-        btn.position = CGPoint(x: size.width - safeRight - 70, y: safeBottom + 196)
+        btn.position = CGPoint(x: size.width - safeRight - margin, y: safeBottom + btnR - 6 + spacing * 2)
         btn.zPosition = 10
         btn.name = "ecmBtn"
         addChild(btn)
 
         let icon = SKLabelNode(fontNamed: "Menlo-Bold")
         icon.text = "ECM"
-        icon.fontSize = 11
+        icon.fontSize = DeviceLayout.fontSize(11)
         icon.fontColor = .white
         icon.verticalAlignmentMode = .center
         icon.position = CGPoint(x: 0, y: 4)
@@ -752,8 +761,9 @@ class GameHUD3D: SKScene {
             }
 
             // Fire button
+            let hitR = DeviceLayout.buttonHitRadius
             let fireDist = hypot(loc.x - fireButton.position.x, loc.y - fireButton.position.y)
-            if fireDist <= 50 {
+            if fireDist <= hitR {
                 isFiring = true
                 fireTouch = touch
                 pressButton(fireButton)
@@ -762,7 +772,7 @@ class GameHUD3D: SKScene {
 
             // Bomb button
             let bombDist = hypot(loc.x - bombButton.position.x, loc.y - bombButton.position.y)
-            if bombDist <= 50 {
+            if bombDist <= hitR {
                 shouldDropBomb = true
                 pressButton(bombButton)
                 // Release after a short moment since bomb is a single tap
@@ -873,7 +883,12 @@ class GameHUD3D: SKScene {
         steeringX = max(-1, min(1, steeringX))
 
         // Flight angle: atan2(dy, dx) so right=0 (level), up=π/2 (climb), down=-π/2 (dive)
-        hasSteeringInput = true
-        steeringAngle = atan2(dy, dx)
+        let deadzone: CGFloat = 15
+        if dist > deadzone {
+            hasSteeringInput = true
+            steeringAngle = atan2(dy, dx)
+        } else {
+            hasSteeringInput = false
+        }
     }
 }
