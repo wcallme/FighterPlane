@@ -127,6 +127,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     private let randomBiomeStartTime: TimeInterval = 430  // 310 + 120
     private var nextRandomBiome: TerrainBiome? = nil
     private var biomeTransitionAlpha: Float = 1.0  // 1.0 = fully transitioned
+    private var biomeBordersCrossed: Int = 0  // counts biome transitions starting from desert
 
     // MARK: - Data Structs
 
@@ -596,6 +597,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         }
 
         if resolvedBiome != currentBiome {
+            let previousBiome = currentBiome
             currentBiome = resolvedBiome
             // Permanently raise ceiling by 12.5% on first desert entry
             if resolvedBiome == .desert && !desertHeightBoostApplied {
@@ -605,6 +607,13 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             updateAtmosphere(biome: currentBiome)
             // Force regeneration of chunks ahead so new biome appears
             regenerateChunksAhead()
+
+            // Spawn AI fighter escort at biome borders (desert onward, caps at 4)
+            if previousBiome == .temperate || biomeBordersCrossed > 0 {
+                biomeBordersCrossed += 1
+                let count = min(biomeBordersCrossed, 4)
+                spawnBorderAIFighters(count: count)
+            }
         }
     }
 
@@ -1590,6 +1599,39 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             enemies.append(Enemy3D(
                 node: node,
                 type: type,
+                health: hp,
+                maxHealth: hp,
+                lastFireTime: -1,
+                isAir: true,
+                healthBarNode: healthBar
+            ))
+        }
+    }
+
+    /// Spawn AI fighters at a biome border. They appear spread across the player's path ahead.
+    private func spawnBorderAIFighters(count: Int) {
+        let bonus = GameManager.shared.enemyHealthBonus
+        let spread: Float = 4.0  // horizontal spacing between planes
+
+        for i in 0..<count {
+            let node = modelForEnemyType(.aiFighter)
+            // Spread evenly across the X axis, centered on the player
+            let offsetX = Float(i) * spread - Float(count - 1) * spread / 2
+            let x = playerNode.position.x + offsetX + Float.random(in: -1...1)
+            let z = playerZ + 100 + Float(i) * 8
+            let terrainH = groundHeight(x: x, z: z)
+            let y = max(playerY + Float.random(in: -2...2), terrainH + 5)
+            node.position = SCNVector3(x, y, z)
+            scene.rootNode.addChildNode(node)
+
+            let hp = EnemyType.aiFighter.health + bonus
+            let healthBar = ModelGenerator3D.healthBar()
+            healthBar.position = SCNVector3(0, 1.2, 0)
+            node.addChildNode(healthBar)
+
+            enemies.append(Enemy3D(
+                node: node,
+                type: .aiFighter,
                 health: hp,
                 maxHealth: hp,
                 lastFireTime: -1,
