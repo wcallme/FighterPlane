@@ -1986,4 +1986,218 @@ enum ModelGenerator3D {
 
         return trees
     }
+
+    // MARK: - Decorative Buildings (Map Editor)
+
+    private static var buildingTemplates: [String: SCNNode] = [:]
+
+    private static func cachedBuilding(_ key: String, builder: () -> SCNNode) -> SCNNode {
+        if let template = buildingTemplates[key] { return template.clone() }
+        let template = builder()
+        buildingTemplates[key] = template
+        return template.clone()
+    }
+
+    /// Small residential house — low poly box with pitched roof
+    static func decorativeHouse() -> SCNNode { cachedBuilding("house") {
+        let root = SCNNode()
+        root.name = "deco_house"
+
+        // Body
+        let body = SCNBox(width: 2.0, height: 1.6, length: 2.4, chamferRadius: 0.03)
+        body.firstMaterial?.diffuse.contents = UIColor(red: 0.82, green: 0.75, blue: 0.65, alpha: 1)
+        let bodyNode = SCNNode(geometry: body)
+        bodyNode.position = SCNVector3(0, 0.8, 0)
+        root.addChildNode(bodyNode)
+
+        // Roof (pyramid)
+        let roof = SCNPyramid(width: 2.4, height: 0.9, length: 2.8)
+        roof.firstMaterial?.diffuse.contents = UIColor(red: 0.55, green: 0.22, blue: 0.18, alpha: 1)
+        let roofNode = SCNNode(geometry: roof)
+        roofNode.position = SCNVector3(0, 1.6, 0)
+        root.addChildNode(roofNode)
+
+        // Door
+        let door = SCNBox(width: 0.4, height: 0.7, length: 0.05, chamferRadius: 0.02)
+        door.firstMaterial?.diffuse.contents = UIColor(red: 0.35, green: 0.22, blue: 0.15, alpha: 1)
+        let doorNode = SCNNode(geometry: door)
+        doorNode.position = SCNVector3(0, 0.35, 1.21)
+        root.addChildNode(doorNode)
+
+        return root
+    }}
+
+    /// Medium office building — boxy with rows of windows
+    static func decorativeOffice() -> SCNNode { cachedBuilding("office") {
+        let root = SCNNode()
+        root.name = "deco_office"
+
+        // Main body
+        let body = SCNBox(width: 3.0, height: 4.0, length: 2.5, chamferRadius: 0.05)
+        body.firstMaterial?.diffuse.contents = UIColor(red: 0.65, green: 0.63, blue: 0.60, alpha: 1)
+        let bodyNode = SCNNode(geometry: body)
+        bodyNode.position = SCNVector3(0, 2.0, 0)
+        root.addChildNode(bodyNode)
+
+        // Window rows (dark strips on each side)
+        for floor in 0..<3 {
+            let y: Float = 0.8 + Float(floor) * 1.2
+            for side: Float in [-1.51, 1.51] {
+                let windowStrip = SCNBox(width: 0.02, height: 0.5, length: 2.0, chamferRadius: 0)
+                windowStrip.firstMaterial?.diffuse.contents = UIColor(red: 0.3, green: 0.35, blue: 0.45, alpha: 1)
+                let windowNode = SCNNode(geometry: windowStrip)
+                windowNode.position = SCNVector3(side, y, 0)
+                root.addChildNode(windowNode)
+            }
+            for side: Float in [-1.26, 1.26] {
+                let windowStrip = SCNBox(width: 2.5, height: 0.5, length: 0.02, chamferRadius: 0)
+                windowStrip.firstMaterial?.diffuse.contents = UIColor(red: 0.3, green: 0.35, blue: 0.45, alpha: 1)
+                let windowNode = SCNNode(geometry: windowStrip)
+                windowNode.position = SCNVector3(0, y, side)
+                root.addChildNode(windowNode)
+            }
+        }
+
+        // Flat roof cap
+        let roofCap = SCNBox(width: 3.2, height: 0.15, length: 2.7, chamferRadius: 0.02)
+        roofCap.firstMaterial?.diffuse.contents = UIColor(red: 0.45, green: 0.43, blue: 0.40, alpha: 1)
+        let roofNode = SCNNode(geometry: roofCap)
+        roofNode.position = SCNVector3(0, 4.07, 0)
+        root.addChildNode(roofNode)
+
+        return root
+    }}
+
+    /// Tall skyscraper — glass/steel tower
+    static func decorativeSkyscraper() -> SCNNode { cachedBuilding("skyscraper") {
+        let root = SCNNode()
+        root.name = "deco_skyscraper"
+
+        // Main tower
+        let tower = SCNBox(width: 2.5, height: 10.0, length: 2.5, chamferRadius: 0.08)
+        tower.firstMaterial?.diffuse.contents = UIColor(red: 0.42, green: 0.48, blue: 0.55, alpha: 1)
+        tower.firstMaterial?.metalness.contents = 0.6
+        tower.firstMaterial?.roughness.contents = 0.3
+        let towerNode = SCNNode(geometry: tower)
+        towerNode.position = SCNVector3(0, 5.0, 0)
+        root.addChildNode(towerNode)
+
+        // Glass window bands
+        for floor in 0..<8 {
+            let y: Float = 1.0 + Float(floor) * 1.2
+            let band = SCNBox(width: 2.55, height: 0.6, length: 2.55, chamferRadius: 0.02)
+            band.firstMaterial?.diffuse.contents = UIColor(red: 0.25, green: 0.32, blue: 0.42, alpha: 0.85)
+            band.firstMaterial?.metalness.contents = 0.8
+            let bandNode = SCNNode(geometry: band)
+            bandNode.position = SCNVector3(0, y, 0)
+            root.addChildNode(bandNode)
+        }
+
+        // Antenna spire on top
+        let spire = SCNCylinder(radius: 0.06, height: 1.5)
+        spire.firstMaterial?.diffuse.contents = UIColor(red: 0.6, green: 0.6, blue: 0.6, alpha: 1)
+        let spireNode = SCNNode(geometry: spire)
+        spireNode.position = SCNVector3(0, 10.75, 0)
+        root.addChildNode(spireNode)
+
+        return root
+    }}
+
+    /// Low wide warehouse / industrial building
+    static func decorativeWarehouse() -> SCNNode { cachedBuilding("warehouse") {
+        let root = SCNNode()
+        root.name = "deco_warehouse"
+
+        // Main body — wide and low
+        let body = SCNBox(width: 4.0, height: 2.0, length: 3.0, chamferRadius: 0.03)
+        body.firstMaterial?.diffuse.contents = UIColor(red: 0.58, green: 0.56, blue: 0.52, alpha: 1)
+        let bodyNode = SCNNode(geometry: body)
+        bodyNode.position = SCNVector3(0, 1.0, 0)
+        root.addChildNode(bodyNode)
+
+        // Corrugated roof (slightly curved look via a flattened cylinder)
+        let roof = SCNCylinder(radius: 2.2, height: 4.0)
+        roof.firstMaterial?.diffuse.contents = UIColor(red: 0.48, green: 0.45, blue: 0.42, alpha: 1)
+        let roofNode = SCNNode(geometry: roof)
+        roofNode.eulerAngles.z = .pi / 2
+        roofNode.position = SCNVector3(0, 2.1, 0)
+        roofNode.scale = SCNVector3(0.45, 1.0, 0.7)
+        root.addChildNode(roofNode)
+
+        // Roll-up door
+        let door = SCNBox(width: 1.8, height: 1.5, length: 0.05, chamferRadius: 0.02)
+        door.firstMaterial?.diffuse.contents = UIColor(red: 0.40, green: 0.38, blue: 0.35, alpha: 1)
+        let doorNode = SCNNode(geometry: door)
+        doorNode.position = SCNVector3(0, 0.75, 1.51)
+        root.addChildNode(doorNode)
+
+        return root
+    }}
+
+    /// Tall narrow control tower / water tower
+    static func decorativeTower() -> SCNNode { cachedBuilding("tower") {
+        let root = SCNNode()
+        root.name = "deco_tower"
+
+        // Base column
+        let column = SCNBox(width: 1.0, height: 6.0, length: 1.0, chamferRadius: 0.05)
+        column.firstMaterial?.diffuse.contents = UIColor(red: 0.62, green: 0.58, blue: 0.55, alpha: 1)
+        let colNode = SCNNode(geometry: column)
+        colNode.position = SCNVector3(0, 3.0, 0)
+        root.addChildNode(colNode)
+
+        // Top platform / observation deck
+        let platform = SCNBox(width: 1.8, height: 0.8, length: 1.8, chamferRadius: 0.05)
+        platform.firstMaterial?.diffuse.contents = UIColor(red: 0.50, green: 0.48, blue: 0.45, alpha: 1)
+        let platNode = SCNNode(geometry: platform)
+        platNode.position = SCNVector3(0, 6.4, 0)
+        root.addChildNode(platNode)
+
+        // Glass windows on top
+        let glass = SCNBox(width: 1.6, height: 0.5, length: 1.6, chamferRadius: 0.02)
+        glass.firstMaterial?.diffuse.contents = UIColor(red: 0.3, green: 0.38, blue: 0.50, alpha: 0.8)
+        let glassNode = SCNNode(geometry: glass)
+        glassNode.position = SCNVector3(0, 6.4, 0)
+        root.addChildNode(glassNode)
+
+        // Small roof
+        let roof = SCNPyramid(width: 2.0, height: 0.5, length: 2.0)
+        roof.firstMaterial?.diffuse.contents = UIColor(red: 0.42, green: 0.40, blue: 0.38, alpha: 1)
+        let roofNode = SCNNode(geometry: roof)
+        roofNode.position = SCNVector3(0, 6.8, 0)
+        root.addChildNode(roofNode)
+
+        return root
+    }}
+
+    /// Create a decorative building by type string
+    static func decorativeBuilding(type: String) -> SCNNode {
+        switch type {
+        case "house": return decorativeHouse()
+        case "office": return decorativeOffice()
+        case "skyscraper": return decorativeSkyscraper()
+        case "warehouse": return decorativeWarehouse()
+        case "tower": return decorativeTower()
+        default: return decorativeHouse()
+        }
+    }
+
+    /// Place mission buildings within a terrain chunk
+    static func placeMissionBuildings(buildings: [BuildingPlacement], terrainData: TerrainData, zStart: Float, chunkSize: Float = 100) -> [SCNNode] {
+        var nodes: [SCNNode] = []
+        let zEnd = zStart + chunkSize
+
+        for b in buildings {
+            guard b.z >= zStart && b.z < zEnd else { continue }
+            let h = missionTerrainHeight(terrainData: terrainData, x: b.x, z: b.z)
+            let node = decorativeBuilding(type: b.type)
+            node.position = SCNVector3(b.x, h, b.z)
+            if let rot = b.rotation {
+                node.eulerAngles.y = rot * .pi / 180.0
+            }
+            nodes.append(node)
+        }
+
+        return nodes
+    }
 }
