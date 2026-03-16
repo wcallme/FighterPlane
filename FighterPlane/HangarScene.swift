@@ -143,12 +143,13 @@ class HangarScene: SKScene {
 
         // --- LEFT SIDE: Title, Level, Settings ---
 
-        // Title
+        // Title — centered above the plane (swapped with plane name position)
         let title = SKLabelNode(fontNamed: "Menlo-Bold")
-        title.text = "HANGAR"
-        title.fontSize = 18
-        title.fontColor = SKColor(white: 0.92, alpha: 1)
-        title.position = CGPoint(x: leftInfoX, y: centerY + 30)
+        title.text = "FighterPlane"
+        title.fontSize = 14
+        title.fontColor = SKColor(white: 0.75, alpha: 0.9)
+        let titleY = min(planeAreaCenterY + 95, size.height - safeTop - 25)
+        title.position = CGPoint(x: size.width / 2, y: titleY)
         title.zPosition = 11
         addChild(title)
 
@@ -235,13 +236,12 @@ class HangarScene: SKScene {
     // MARK: - Plane Display
 
     private func setupPlaneDisplay() {
-        // Plane model label
+        // Plane model label — on the left side (swapped with title position)
         let modelLabel = SKLabelNode(fontNamed: "Menlo-Bold")
         modelLabel.text = PlayerData.shared.selectedPlaneName
-        modelLabel.fontSize = 14
-        modelLabel.fontColor = SKColor(white: 0.75, alpha: 0.9)
-        let nameLabelY = min(planeAreaCenterY + 95, size.height - safeTop - 25)
-        modelLabel.position = CGPoint(x: size.width / 2, y: nameLabelY)
+        modelLabel.fontSize = 18
+        modelLabel.fontColor = SKColor(white: 0.92, alpha: 1)
+        modelLabel.position = CGPoint(x: leftInfoX, y: planeAreaCenterY + 30)
         modelLabel.zPosition = 10
         modelLabel.name = "planeNameLabel"
         addChild(modelLabel)
