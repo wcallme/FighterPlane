@@ -141,6 +141,10 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         var lastFireTime: TimeInterval
         let isAir: Bool
         let healthBarNode: SCNNode
+        // AI fighter chase fields (Y-Z plane: 0 = +Z forward, π/2 = +Y up)
+        var aiHeading: Float = .pi   // initially flying toward -Z (toward the player)
+        var aiSpeed: Float = 0
+        var aiActivated: Bool = false
     }
 
     struct Bullet3D {
@@ -1365,9 +1369,22 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         return bomblets
     }
 
+    /// Water surface Y level — bombs hitting below this produce splash, not explosion.
+    private let waterSurfaceY: Float = -0.2
+
     private func handleBombImpact(bomb: Bomb3D) {
         let pos = bomb.node.position
-        let groundY = max(Float(0.1), groundHeight(x: pos.x, z: pos.z))
+        let rawGroundH = groundHeight(x: pos.x, z: pos.z)
+
+        // Water hit: terrain is below water surface → splash, no explosion, no damage
+        if rawGroundH < waterSurfaceY + 0.1 {
+            let splash = ModelGenerator3D.waterSplash(radius: bomb.blastRadius)
+            splash.position = SCNVector3(pos.x, waterSurfaceY, pos.z)
+            scene.rootNode.addChildNode(splash)
+            return
+        }
+
+        let groundY = max(Float(0.1), rawGroundH)
 
         let explosion = ModelGenerator3D.explosion(radius: bomb.blastRadius)
         explosion.position = SCNVector3(pos.x, groundY + 0.5, pos.z)
@@ -1445,7 +1462,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             healthBar.position = SCNVector3(0, barHeight, 0)
             node.addChildNode(healthBar)
 
-            enemies.append(Enemy3D(
+            var enemy = Enemy3D(
                 node: node,
                 type: type,
                 health: type.health,
@@ -1453,7 +1470,11 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 lastFireTime: -1,
                 isAir: !type.isGround,
                 healthBarNode: healthBar
-            ))
+            )
+            if type == .aiFighter {
+                enemy.aiSpeed = 18.0
+            }
+            enemies.append(enemy)
         }
     }
 
@@ -1492,7 +1513,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 healthBar.position = SCNVector3(0, 1.2, 0)
                 node.addChildNode(healthBar)
 
-                enemies.append(Enemy3D(
+                var enemy = Enemy3D(
                     node: node,
                     type: type,
                     health: hp,
@@ -1500,7 +1521,11 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                     lastFireTime: -1,
                     isAir: true,
                     healthBarNode: healthBar
-                ))
+                )
+                if type == .aiFighter {
+                    enemy.aiSpeed = 18.0
+                }
+                enemies.append(enemy)
             }
         }
     }
@@ -1642,7 +1667,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             healthBar.position = SCNVector3(0, 1.2, 0)
             node.addChildNode(healthBar)
 
-            enemies.append(Enemy3D(
+            var enemy = Enemy3D(
                 node: node,
                 type: type,
                 health: hp,
@@ -1650,7 +1675,11 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 lastFireTime: -1,
                 isAir: true,
                 healthBarNode: healthBar
-            ))
+            )
+            if type == .aiFighter {
+                enemy.aiSpeed = 18.0  // faster than player (14.0)
+            }
+            enemies.append(enemy)
         }
     }
 
@@ -1675,7 +1704,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             healthBar.position = SCNVector3(0, 1.2, 0)
             node.addChildNode(healthBar)
 
-            enemies.append(Enemy3D(
+            var enemy = Enemy3D(
                 node: node,
                 type: .aiFighter,
                 health: hp,
@@ -1683,7 +1712,9 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 lastFireTime: -1,
                 isAir: true,
                 healthBarNode: healthBar
-            ))
+            )
+            enemy.aiSpeed = 18.0
+            enemies.append(enemy)
         }
     }
 

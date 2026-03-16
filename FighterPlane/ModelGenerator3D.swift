@@ -875,6 +875,7 @@ enum ModelGenerator3D {
     }
 
     private static var enemyBulletTemplate: SCNNode?
+    private static var aiFighterBulletTemplate: SCNNode?
 
     static func enemyBullet() -> SCNNode {
         if let template = enemyBulletTemplate {
@@ -889,6 +890,32 @@ enum ModelGenerator3D {
         node.name = "enemyBullet"
         enemyBulletTemplate = node
         return node.clone()
+    }
+
+    /// Yellow/amber tracer round for AI fighter machine gun
+    static func aiFighterBullet() -> SCNNode {
+        if let template = aiFighterBulletTemplate {
+            return template.clone()
+        }
+        let root = SCNNode()
+        root.name = "enemyBullet"
+
+        // Amber tracer core
+        let stick = SCNCylinder(radius: 0.05, height: 1.2)
+        stick.firstMaterial?.diffuse.contents = UIColor(red: 0.85, green: 0.65, blue: 0.1, alpha: 1)
+        stick.firstMaterial?.emission.contents = UIColor(red: 0.9, green: 0.7, blue: 0.1, alpha: 0.7)
+        stick.firstMaterial?.lightingModel = .constant
+        root.addChildNode(SCNNode(geometry: stick))
+
+        // Golden glow envelope
+        let glow = SCNCylinder(radius: 0.1, height: 1.2)
+        glow.firstMaterial?.diffuse.contents = UIColor(red: 1.0, green: 0.85, blue: 0.3, alpha: 0.15)
+        glow.firstMaterial?.emission.contents = UIColor(red: 0.8, green: 0.65, blue: 0.1, alpha: 0.1)
+        glow.firstMaterial?.lightingModel = .constant
+        root.addChildNode(SCNNode(geometry: glow))
+
+        aiFighterBulletTemplate = root
+        return root.clone()
     }
 
     static func bomb3D(weaponId: String = "bomb") -> SCNNode {
@@ -1256,6 +1283,62 @@ enum ModelGenerator3D {
         let fade = SCNAction.fadeOut(duration: 0.4)
         let remove = SCNAction.removeFromParentNode()
         root.runAction(.sequence([grow, fade, remove]))
+
+        return root
+    }
+
+    // MARK: - Water Splash
+
+    /// Creates a water splash effect: a vertical spray column + expanding ring.
+    static func waterSplash(radius: Float) -> SCNNode {
+        let root = SCNNode()
+        root.name = "waterSplash"
+
+        // Spray column — tall thin cylinder shooting upward
+        let sprayHeight = CGFloat(radius * 3.0)
+        let spray = SCNCylinder(radius: CGFloat(radius * 0.3), height: sprayHeight)
+        spray.radialSegmentCount = 8
+        let sprayMat = SCNMaterial()
+        sprayMat.diffuse.contents = UIColor(red: 0.7, green: 0.85, blue: 1.0, alpha: 0.7)
+        sprayMat.emission.contents = UIColor(red: 0.5, green: 0.7, blue: 0.9, alpha: 0.3)
+        sprayMat.transparency = 0.6
+        sprayMat.lightingModel = .constant
+        sprayMat.isDoubleSided = true
+        spray.materials = [sprayMat]
+        let sprayNode = SCNNode(geometry: spray)
+        sprayNode.position.y = Float(sprayHeight) * 0.5  // base at origin
+        root.addChildNode(sprayNode)
+
+        // Splash ring — torus expanding outward
+        let ring = SCNTorus(ringRadius: CGFloat(radius * 0.6), pipeRadius: CGFloat(radius * 0.15))
+        ring.ringSegmentCount = 16
+        ring.pipeSegmentCount = 6
+        let ringMat = SCNMaterial()
+        ringMat.diffuse.contents = UIColor(red: 0.8, green: 0.9, blue: 1.0, alpha: 0.6)
+        ringMat.emission.contents = UIColor(red: 0.6, green: 0.8, blue: 1.0, alpha: 0.2)
+        ringMat.transparency = 0.5
+        ringMat.lightingModel = .constant
+        ringMat.isDoubleSided = true
+        ring.materials = [ringMat]
+        let ringNode = SCNNode(geometry: ring)
+        root.addChildNode(ringNode)
+
+        // Animate spray: shoot up then fade
+        let sprayUp = SCNAction.moveBy(x: 0, y: CGFloat(radius * 1.5), z: 0, duration: 0.25)
+        sprayUp.timingMode = .easeOut
+        let sprayFade = SCNAction.fadeOut(duration: 0.35)
+        sprayNode.runAction(.sequence([sprayUp, sprayFade]))
+
+        // Animate ring: expand outward then fade
+        let ringExpand = SCNAction.scale(to: 3.0, duration: 0.5)
+        ringExpand.timingMode = .easeOut
+        let ringFade = SCNAction.fadeOut(duration: 0.3)
+        ringNode.runAction(.sequence([ringExpand, ringFade]))
+
+        // Remove root after animations complete
+        let wait = SCNAction.wait(duration: 0.9)
+        let remove = SCNAction.removeFromParentNode()
+        root.runAction(.sequence([wait, remove]))
 
         return root
     }
