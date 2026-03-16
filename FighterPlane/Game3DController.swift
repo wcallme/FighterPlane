@@ -2505,7 +2505,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         activeAIMRockets.append(rocket)
 
         // Play launch sound
-        SFXPlayer.shared.play("aim_fire", volume: 0.4)
+        SFXPlayer.shared.play("aim_fire", volume: 1.0)
 
         // Mark slot as reloading
         aimReady[slotIndex] = false
