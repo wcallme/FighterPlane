@@ -1846,7 +1846,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         } else {
             // Normal pursuit: steer toward player with wider turn radius
             targetHeading = atan2(dy, dz)
-            turnSpeed = 1.8  // rad/s — wider arcs, less aggressive
+            turnSpeed = 2.2  // rad/s
         }
 
         var diff = targetHeading - enemies[i].aiHeading
