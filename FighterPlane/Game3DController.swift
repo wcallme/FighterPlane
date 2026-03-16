@@ -25,10 +25,8 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     private let playerMaxHealth: Int
     private let playerSpeed: Float = 14.0
     private let minAltitude: Float = 2.0
-    private var maxAltitude: Float {
-        if case .mission = gameMode { return 65.0 }
-        return 48.75  // 25% lower ceiling for endless mode
-    }
+    private var maxAltitude: Float = 48.75
+    private var desertHeightBoostApplied = false
     private var currentFlipRoll: Float = 0      // child roll offset, decays toward 0
     private var smoothPitch: Float = 0            // smoothed pitch euler
     private let playerRollNode = SCNNode()        // child node for roll
@@ -171,6 +169,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
     init(mode: GameMode = .infiniteBattle) {
         self.gameMode = mode
+        if case .mission = mode { maxAltitude = 65.0 }
 
         let data = PlayerData.shared
         playerMaxHealth = data.maxHealth
@@ -593,6 +592,11 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
         if resolvedBiome != currentBiome {
             currentBiome = resolvedBiome
+            // Permanently raise ceiling by 12.5% on first desert entry
+            if resolvedBiome == .desert && !desertHeightBoostApplied {
+                desertHeightBoostApplied = true
+                maxAltitude *= 1.125
+            }
             updateAtmosphere(biome: currentBiome)
             // Force regeneration of chunks ahead so new biome appears
             regenerateChunksAhead()
