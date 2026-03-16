@@ -51,7 +51,7 @@ enum GameConfig {
     static let radioTowerHealth = 8
 
     // AI Fighter — seeking-missile dogfight plane with machine gun
-    static let aiFighterHealth = 6
+    static let aiFighterHealth = 12
     static let aiFighterScore = 400
     static let aiFighterTurnSpeed: CGFloat = 4.0     // radians per second (tight pursuit turns)
     static let aiFighterMoveSpeed: CGFloat = 280.0   // pixels per second (faster than player)

@@ -1798,8 +1798,9 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         if !enemies[i].aiActivated {
             if dist < 50 || pos.z < playerZ + 5 {
                 enemies[i].aiActivated = true
-                // Set initial heading toward player
                 enemies[i].aiHeading = atan2(dy, dz)
+                // Schedule first evasion 4-7 seconds after activation
+                enemies[i].aiNextEvadeAt = Float.random(in: 4...7)
             } else {
                 // Dormant: fly straight toward player (decreasing Z)
                 enemies[i].node.position.z -= 8 * dt
@@ -1813,13 +1814,42 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             }
         }
 
-        // --- Active pursuit ---
-        let targetHeading = atan2(dy, dz)
+        enemies[i].aiActiveTime += dt
 
-        // Smooth turn toward target heading
-        let turnSpeed: Float = 3.0  // radians per second
+        // --- Evasion state machine ---
+        if enemies[i].aiEvading {
+            // Count down evasion timer
+            enemies[i].aiEvadeTimer -= dt
+            if enemies[i].aiEvadeTimer <= 0 {
+                // Evasion over — re-engage
+                enemies[i].aiEvading = false
+                // Schedule next evasion 5-9 seconds from now
+                enemies[i].aiNextEvadeAt = enemies[i].aiActiveTime + Float.random(in: 5...9)
+            }
+        } else if enemies[i].aiActiveTime >= enemies[i].aiNextEvadeAt && dist < 60 {
+            // Start an evasion: pick a direction away from the player with some randomness
+            enemies[i].aiEvading = true
+            enemies[i].aiEvadeTimer = Float.random(in: 2.0...3.5)
+            // Flee roughly away from the player, with random vertical offset
+            let awayAngle = atan2(-dy, -dz) // opposite direction from player
+            enemies[i].aiEvadeHeading = awayAngle + Float.random(in: -0.6...0.6)
+        }
+
+        // --- Steering ---
+        let targetHeading: Float
+        let turnSpeed: Float
+
+        if enemies[i].aiEvading {
+            // During evasion: steer toward escape heading, slightly faster turn to break away
+            targetHeading = enemies[i].aiEvadeHeading
+            turnSpeed = 2.0
+        } else {
+            // Normal pursuit: steer toward player with wider turn radius
+            targetHeading = atan2(dy, dz)
+            turnSpeed = 1.8  // rad/s — wider arcs, less aggressive
+        }
+
         var diff = targetHeading - enemies[i].aiHeading
-        // Shortest-path angle wrapping
         while diff > .pi { diff -= 2 * .pi }
         while diff < -.pi { diff += 2 * .pi }
         let maxTurn = turnSpeed * dt
@@ -1845,7 +1875,6 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         let minClearance: Float = 4.0
         if enemies[i].node.position.y < terrainH + minClearance {
             enemies[i].node.position.y = terrainH + minClearance
-            // Force heading upward to avoid terrain
             if enemies[i].aiHeading < 0 {
                 enemies[i].aiHeading = max(enemies[i].aiHeading, 0.3)
             }
@@ -1858,18 +1887,18 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         let vz = cos(enemies[i].aiHeading)
         let vy = sin(enemies[i].aiHeading)
         if vz >= 0 {
-            // Facing +Z (forward, same as player)
             let pitch = -atan2(vy, vz)
             enemies[i].node.eulerAngles = SCNVector3(pitch, 0, 0)
         } else {
-            // Facing -Z (toward player): flip model 180° around Y
             let backPitch = -atan2(vy, -vz)
             enemies[i].node.eulerAngles = SCNVector3(backPitch, Float.pi, 0)
         }
 
-        // --- Machine gun firing ---
+        // --- Machine gun firing (only when attacking, not evading) ---
+        guard !enemies[i].aiEvading else { return }
+
         let fireDist = distanceYZ(enemies[i].node.position, playerNode.position)
-        let fireRange: Float = 40.0  // longer range for pursuit fighter
+        let fireRange: Float = 40.0
         guard fireDist <= fireRange else { return }
 
         // Check firing cone: only fire when roughly aimed at the player
