@@ -1403,60 +1403,8 @@ enum ModelGenerator3D {
         return context.makeImage()
     }
 
-    /// Metal shader modifier for the `.surface` entry point:
-    /// adds Fresnel emission and animated normal perturbation for wave complexity.
-    private static let waterSurfaceShader = """
-    #pragma arguments
-    float time;
-
-    #pragma body
-    // Fresnel — boost reflection at grazing angles (side camera benefits greatly)
-    float NdotV = max(0.0, dot(_surface.normal, _surface.view));
-    float fresnel = pow(1.0 - NdotV, 4.0) * 0.35;
-    _surface.emission = float4(fresnel, fresnel, fresnel, 0.0);
-
-    // Subtle normal perturbation over time for extra wave complexity
-    float2 wavePos = _surface.diffuseTexcoord * 4.0;
-    float wt = time * 0.4;
-    float wave1 = sin(wavePos.x * 3.1 + wavePos.y * 1.7 + wt * 1.3) * 0.12;
-    float wave2 = cos(wavePos.x * 2.3 - wavePos.y * 2.9 + wt * 0.9) * 0.08;
-    _surface.normal = normalize(_surface.normal + float3(wave1, 0.0, wave2));
-    """
-
-    /// Metal shader modifier for the `.fragment` entry point:
-    /// adds depth-based darkening and shoreline foam.
-    /// Uses UV coordinates to derive world X position (plane width = 200, centered at 0).
-    private static let waterFragmentShader = """
-    #pragma arguments
-    float time;
-    float foamR;
-    float foamG;
-    float foamB;
-
-    #pragma body
-    // Derive world X from UV: plane is 200 units wide, UV 0..1, centered at X=0
-    float worldX = (_surface.diffuseTexcoord.x - 0.5) * 200.0;
-    float absX = abs(worldX);
-
-    // Depth darkening — deeper water far from shore
-    float depthFactor = smoothstep(20.0, 45.0, absX);
-    _output.color.rgb *= mix(1.0, 0.55, depthFactor);
-
-    // Shoreline foam — specks near terrain edge (~28-35 units from center)
-    float shoreBand = smoothstep(35.0, 30.0, absX) * smoothstep(22.0, 28.0, absX);
-    // Animated hash for foam sparkle
-    float worldZ = _surface.diffuseTexcoord.y * 600.0;
-    float2 foamUV = float2(worldX, worldZ) * 2.5 + float2(time * 0.3, time * 0.15);
-    float foamHash = fract(sin(dot(floor(foamUV), float2(12.9898, 78.233))) * 43758.5453);
-    float foam = step(0.62, foamHash) * shoreBand * 0.65;
-    float3 fc = float3(foamR, foamG, foamB);
-    _output.color.rgb = mix(_output.color.rgb, fc, foam);
-    """
-
     static func waterPlane(width: CGFloat, length: CGFloat) -> SCNNode {
         let plane = SCNPlane(width: width, height: length)
-        plane.widthSegmentCount = 4   // minimal segments (displacement done in shader)
-        plane.heightSegmentCount = 4
 
         let material = SCNMaterial()
         material.diffuse.contents = UIColor(red: 0.15, green: 0.45, blue: 0.7, alpha: 0.9)
@@ -1466,26 +1414,17 @@ enum ModelGenerator3D {
         material.roughness.contents = NSNumber(value: 0.3)
         material.metalness.contents = NSNumber(value: 0.0)
 
-        // Primary animated normal map
+        // Animated normal map for wave reflections
         if let normalMap = generateWaterNormalMap(size: 256, frequency: 1.0) {
             material.normal.contents = normalMap
             material.normal.intensity = 0.7
             material.normal.wrapS = .repeat
             material.normal.wrapT = .repeat
-            material.normal.contentsTransform = SCNMatrix4MakeScale(8, 8, 1) // tile across surface
+            material.normal.contentsTransform = SCNMatrix4MakeScale(8, 8, 1)
         }
 
-        // Shader modifiers for Fresnel, dual-normal perturbation, depth, and foam
-        material.shaderModifiers = [
-            .surface: waterSurfaceShader,
-            .fragment: waterFragmentShader
-        ]
-
-        // Initial uniforms
-        material.setValue(NSNumber(value: 0.0), forKey: "time")
-        material.setValue(NSNumber(value: 1.0), forKey: "foamR")
-        material.setValue(NSNumber(value: 1.0), forKey: "foamG")
-        material.setValue(NSNumber(value: 1.0), forKey: "foamB")
+        // Subtle specular highlights for sun glints
+        material.specular.contents = UIColor(white: 0.9, alpha: 1.0)
 
         plane.materials = [material]
         let node = SCNNode(geometry: plane)

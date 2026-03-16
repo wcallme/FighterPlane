@@ -1727,15 +1727,27 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 continue
             }
 
-            // Remove enemies that have scrolled past
+            // Remove enemies that have scrolled past — but activated AI fighters are immune
             if enemies[i].node.position.z < removeThreshold {
-                enemies[i].node.removeFromParentNode()
-                enemies.remove(at: i)
-                continue
+                if enemies[i].type == .aiFighter && enemies[i].aiActivated {
+                    // AI fighter is chasing — don't remove. But despawn if way too far behind.
+                    if enemies[i].node.position.z < playerZ - 150 {
+                        enemies[i].node.removeFromParentNode()
+                        enemies.remove(at: i)
+                        continue
+                    }
+                } else {
+                    enemies[i].node.removeFromParentNode()
+                    enemies.remove(at: i)
+                    continue
+                }
             }
 
-            // Air enemies: fly toward player
-            if enemies[i].isAir {
+            // --- AI fighter pursuit behavior ---
+            if enemies[i].type == .aiFighter && enemies[i].isAir {
+                updateAIFighter3D(index: i, dt: dt, time: time)
+            } else if enemies[i].isAir {
+                // Basic fighters: fly straight toward player
                 enemies[i].node.position.z -= 8 * dt
                 let sineOffset = sin(Float(time) * 2.0 + Float(i)) * 5 * dt
                 enemies[i].node.position.y += sineOffset
@@ -1772,6 +1784,139 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                     fireEnemyBullet(from: enemies[i])
                 }
             }
+        }
+    }
+
+    // MARK: - AI Fighter 3D Pursuit
+
+    private func updateAIFighter3D(index i: Int, dt: Float, time: TimeInterval) {
+        let pos = enemies[i].node.position
+        let dy = playerY - pos.y
+        let dz = playerZ - pos.z
+        let dist = sqrt(dy * dy + dz * dz)
+
+        // Activate when within 50 units or the fighter has passed the player
+        if !enemies[i].aiActivated {
+            if dist < 50 || pos.z < playerZ + 5 {
+                enemies[i].aiActivated = true
+                // Set initial heading toward player
+                enemies[i].aiHeading = atan2(dy, dz)
+            } else {
+                // Dormant: fly straight toward player (decreasing Z)
+                enemies[i].node.position.z -= 8 * dt
+                let sineOffset = sin(Float(time) * 2.0 + Float(i)) * 3 * dt
+                enemies[i].node.position.y += sineOffset
+                let terrainH = groundHeight(x: pos.x, z: enemies[i].node.position.z)
+                if enemies[i].node.position.y < terrainH + 4 {
+                    enemies[i].node.position.y = terrainH + 4
+                }
+                return
+            }
+        }
+
+        // --- Active pursuit ---
+        let targetHeading = atan2(dy, dz)
+
+        // Smooth turn toward target heading
+        let turnSpeed: Float = 3.0  // radians per second
+        var diff = targetHeading - enemies[i].aiHeading
+        // Shortest-path angle wrapping
+        while diff > .pi { diff -= 2 * .pi }
+        while diff < -.pi { diff += 2 * .pi }
+        let maxTurn = turnSpeed * dt
+        if abs(diff) < maxTurn {
+            enemies[i].aiHeading = targetHeading
+        } else {
+            enemies[i].aiHeading += diff > 0 ? maxTurn : -maxTurn
+        }
+        // Normalize
+        while enemies[i].aiHeading > .pi { enemies[i].aiHeading -= 2 * .pi }
+        while enemies[i].aiHeading < -.pi { enemies[i].aiHeading += 2 * .pi }
+
+        // Move along heading
+        let speed = enemies[i].aiSpeed
+        enemies[i].node.position.z += cos(enemies[i].aiHeading) * speed * dt
+        enemies[i].node.position.y += sin(enemies[i].aiHeading) * speed * dt
+
+        // Converge X toward 0 (gameplay plane) so bullets can hit
+        enemies[i].node.position.x *= (1.0 - 2.0 * dt)
+
+        // Terrain avoidance: if dangerously close to ground, pull up
+        let terrainH = groundHeight(x: enemies[i].node.position.x, z: enemies[i].node.position.z)
+        let minClearance: Float = 4.0
+        if enemies[i].node.position.y < terrainH + minClearance {
+            enemies[i].node.position.y = terrainH + minClearance
+            // Force heading upward to avoid terrain
+            if enemies[i].aiHeading < 0 {
+                enemies[i].aiHeading = max(enemies[i].aiHeading, 0.3)
+            }
+        }
+
+        // Altitude ceiling
+        enemies[i].node.position.y = min(enemies[i].node.position.y, maxAltitude - 2)
+
+        // --- Visual orientation ---
+        let vz = cos(enemies[i].aiHeading)
+        let vy = sin(enemies[i].aiHeading)
+        if vz >= 0 {
+            // Facing +Z (forward, same as player)
+            let pitch = -atan2(vy, vz)
+            enemies[i].node.eulerAngles = SCNVector3(pitch, 0, 0)
+        } else {
+            // Facing -Z (toward player): flip model 180° around Y
+            let backPitch = -atan2(vy, -vz)
+            enemies[i].node.eulerAngles = SCNVector3(backPitch, Float.pi, 0)
+        }
+
+        // --- Machine gun firing ---
+        let fireDist = distanceYZ(enemies[i].node.position, playerNode.position)
+        let fireRange: Float = 40.0  // longer range for pursuit fighter
+        guard fireDist <= fireRange else { return }
+
+        // Check firing cone: only fire when roughly aimed at the player
+        let firingCone: Float = 0.55  // ~31°
+        let angleToPlayer = atan2(dy, dz)
+        var aimDiff = angleToPlayer - enemies[i].aiHeading
+        while aimDiff > .pi { aimDiff -= 2 * .pi }
+        while aimDiff < -.pi { aimDiff += 2 * .pi }
+        guard abs(aimDiff) < firingCone else { return }
+
+        // Fire rate
+        if enemies[i].lastFireTime < 0 {
+            enemies[i].lastFireTime = time
+        }
+        let fireInterval = TimeInterval(Float(GameConfig.aiFighterFireRate) * GameManager.shared.fireRateMultiplier)
+        if time - enemies[i].lastFireTime >= fireInterval {
+            enemies[i].lastFireTime = time
+            fireAIFighterBullet(from: enemies[i])
+        }
+    }
+
+    private func fireAIFighterBullet(from enemy: Enemy3D) {
+        let bullet = ModelGenerator3D.aiFighterBullet()
+        // Spawn at X=0 (gameplay plane), at enemy's Y-Z position
+        bullet.position = SCNVector3(0, enemy.node.position.y, enemy.node.position.z)
+
+        // Fire along the AI's heading with slight random spread
+        let spread: Float = 0.08
+        let fireAngle = enemy.aiHeading + Float.random(in: -spread...spread)
+
+        let bulletSpeed: Float = 0.6  // units per frame-step (matches existing bullet velocity scale)
+        let vy = sin(fireAngle) * bulletSpeed
+        let vz = cos(fireAngle) * bulletSpeed
+
+        // Orient tracer along its velocity direction in the Y-Z plane
+        bullet.eulerAngles = SCNVector3(atan2(vz, vy), 0, 0)
+
+        scene.rootNode.addChildNode(bullet)
+        enemyBullets.append(Bullet3D(node: bullet, velocity: SCNVector3(0, vy, vz), damage: GameConfig.aiFighterBulletDamage))
+
+        // Machine gun sound — volume based on distance
+        let distToPlayer = distanceYZ(enemy.node.position, playerNode.position)
+        let maxHearDist: Float = 80
+        if distToPlayer < maxHearDist {
+            let vol = Float(1.0 - distToPlayer / maxHearDist)
+            SFXPlayer.shared.play("aa_fire", volume: vol * 0.4)
         }
     }
 
