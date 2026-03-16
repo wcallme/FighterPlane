@@ -13,6 +13,8 @@ class EnemyNode: SKNode {
     // AI Fighter tracking state
     private var heading: CGFloat = -.pi / 2  // initially pointing downward
     private var aiInitialized = false
+    private var circleDirection: CGFloat = 0  // locked turn direction during re-engage (-1 or 1)
+    private var timeAlive: TimeInterval = 0   // prevent early despawn
 
 
     init(type: EnemyType) {
@@ -127,13 +129,21 @@ class EnemyNode: SKNode {
             bodySprite.zRotation = .pi - tilt
         }
 
-        // Remove if off-screen (wider margin for AI fighters which can fly around)
-        let offMargin: CGFloat = type == .aiFighter ? 200 : 60
-        let topMargin: CGFloat = type == .aiFighter ? 250 : 100
+        // Track lifetime for AI fighters (prevent premature despawn during maneuvers)
+        if type == .aiFighter { timeAlive += deltaTime }
+
+        // Remove if off-screen — AI fighters get huge margins since they loop back
+        let offMargin: CGFloat = type == .aiFighter ? 500 : 60
+        let topMargin: CGFloat = type == .aiFighter ? 500 : 100
         if position.y < -offMargin || position.y > sceneSize.height + topMargin
             || position.x < -offMargin || position.x > sceneSize.width + offMargin {
-            removeFromParent()
-            return nil
+            // AI fighters only despawn if they've been alive long enough (survived at least one pass)
+            if type == .aiFighter && timeAlive < 8.0 {
+                // Don't remove yet — they're probably circling back
+            } else {
+                removeFromParent()
+                return nil
+            }
         }
 
         // Initialize fire timer on first update so enemies don't shoot instantly
@@ -161,52 +171,90 @@ class EnemyNode: SKNode {
         return nil
     }
 
-    // MARK: - AI Fighter Movement
+    // MARK: - AI Fighter Dogfight Movement
 
     private func updateAIFighter(deltaTime: TimeInterval, playerPosition: CGPoint, sceneSize: CGSize) {
         let dt = CGFloat(deltaTime)
 
-        // Calculate desired heading toward the player
-        let targetAngle = atan2(playerPosition.y - position.y,
-                                playerPosition.x - position.x)
+        let dx = playerPosition.x - position.x
+        let dy = playerPosition.y - position.y
+        let distToPlayer = hypot(dx, dy)
 
-        // Turn toward player with limited turn rate
+        // --- Tactical target selection ---
+        // The AI picks a target point to fly toward based on its position relative to the player.
+        // This creates natural dogfight patterns: dive → overshoot → sweeping turn → climb → dive again.
+        let targetPoint: CGPoint
+        var speedMultiplier: CGFloat = 1.0
+        var turnMultiplier: CGFloat = 1.0
+
+        if position.y < playerPosition.y - 30 {
+            // OVERSHOT — below the player. Execute a wide sweeping climb back up.
+            // Lock circle direction so the turn is consistent (no oscillation)
+            if circleDirection == 0 {
+                circleDirection = dx > 0 ? -1.0 : 1.0
+            }
+            // Rally point: wide arc above and to one side of the player
+            targetPoint = CGPoint(
+                x: playerPosition.x + circleDirection * 180,
+                y: playerPosition.y + 400
+            )
+            speedMultiplier = 1.2   // boost speed during re-engagement maneuver
+            turnMultiplier = 1.4    // tighter turns to loop back faster
+
+        } else if position.y < playerPosition.y + 60 && distToPlayer < 120 {
+            // VERY CLOSE — about to pass the player. Break off to one side.
+            let breakSide: CGFloat = circleDirection != 0 ? circleDirection : (dx > 0 ? -1 : 1)
+            targetPoint = CGPoint(
+                x: position.x + breakSide * 200,
+                y: position.y + 200
+            )
+            speedMultiplier = 1.15
+            turnMultiplier = 1.2
+
+        } else {
+            // ABOVE or FAR — clear to engage. Dive straight at the player.
+            circleDirection = 0  // reset circle lock when back in attack position
+            targetPoint = playerPosition
+            // Boost speed on attack dive when lined up
+            if distToPlayer < 300 { speedMultiplier = 1.1 }
+        }
+
+        // --- Steering ---
+        let targetAngle = atan2(targetPoint.y - position.y, targetPoint.x - position.x)
         let angleDiff = normalizeAngle(targetAngle - heading)
-        let maxTurn = GameConfig.aiFighterTurnSpeed * dt
+        let maxTurn = GameConfig.aiFighterTurnSpeed * turnMultiplier * dt
         if abs(angleDiff) <= maxTurn {
             heading = targetAngle
         } else {
             heading += angleDiff > 0 ? maxTurn : -maxTurn
         }
 
-        // Boundary avoidance: bias heading back toward screen center when near edges
-        let edgeMargin: CGFloat = 40
-        let edgePush: CGFloat = 3.0 * dt // gentle push in radians
-        if position.x < edgeMargin {
-            heading += edgePush // push rightward
-        } else if position.x > sceneSize.width - edgeMargin {
-            heading -= edgePush // push leftward
-        }
-        if position.y < 30 {
-            // Don't let AI fly off the bottom of the screen
+        // --- Boundary avoidance ---
+        let edgeMargin: CGFloat = 30
+        let edgePush: CGFloat = 5.0 * dt
+        if position.x < edgeMargin { heading += edgePush }
+        else if position.x > sceneSize.width - edgeMargin { heading -= edgePush }
+        // Soft floor — don't fly off the very bottom of the screen
+        if position.y < 20 {
             let upAngle = normalizeAngle(.pi / 2 - heading)
-            heading += upAngle > 0 ? edgePush * 2 : -edgePush * 2
+            heading += upAngle > 0 ? edgePush * 3 : -edgePush * 3
+        }
+        // Soft ceiling — if way above screen, nudge back down
+        if position.y > sceneSize.height + 200 {
+            let downAngle = normalizeAngle(-.pi / 2 - heading)
+            heading += downAngle > 0 ? edgePush * 2 : -edgePush * 2
         }
 
-        // Move along heading
-        let moveSpeed = GameConfig.aiFighterMoveSpeed * dt
+        // --- Movement — NO scroll drift, this is an active dogfighter ---
+        let moveSpeed = GameConfig.aiFighterMoveSpeed * speedMultiplier * dt
         position.x += cos(heading) * moveSpeed
         position.y += sin(heading) * moveSpeed
 
-        // Minimal drift from terrain scroll — AI actively fights it by chasing player
-        position.y -= GameConfig.scrollSpeed * 0.05 * dt
-
-        // Rotate sprite to match heading (sprite faces "up" in local space, so subtract π/2)
-        // bodySprite.yScale is -1 (flipped), so we account for that
+        // --- Sprite rotation ---
         let visualAngle = heading - .pi / 2
-        bodySprite.zRotation = -visualAngle // negative because yScale is flipped
+        bodySprite.zRotation = -visualAngle
 
-        // Update shadow position based on heading
+        // --- Shadow ---
         if let shadow = shadowSprite {
             shadow.position = CGPoint(x: 18 + cos(heading) * 5, y: -22 + sin(heading) * 5)
         }

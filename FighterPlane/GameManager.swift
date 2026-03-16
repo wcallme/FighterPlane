@@ -106,14 +106,14 @@ class GameManager {
         }
     }
 
-    /// Whether AI tracking fighters should appear in this biome
+    /// Whether AI dogfight fighters should appear — starts at difficulty 3 (60 seconds in)
     var shouldSpawnAIFighters: Bool {
-        currentBiome >= 1           // AI fighters from desert onward
+        difficultyLevel >= 3
     }
 
-    /// After the 4th biome, every plane has AI tracking
+    /// After the 3rd biome, every plane has AI tracking
     var allPlanesAreAI: Bool {
-        currentBiome >= 4
+        currentBiome >= 3
     }
 
     private init() {}

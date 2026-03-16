@@ -182,8 +182,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             if manager.allPlanesAreAI {
                 type = .aiFighter
             } else if manager.shouldSpawnAIFighters {
-                // Desert-Volcanic: ~40% chance each plane is AI
-                type = Int.random(in: 0...9) < 4 ? .aiFighter : .fighter
+                // 60% chance each plane is AI dogfighter
+                type = Int.random(in: 0...9) < 6 ? .aiFighter : .fighter
             } else {
                 type = .fighter
             }
