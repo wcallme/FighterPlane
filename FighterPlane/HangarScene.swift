@@ -244,13 +244,13 @@ class HangarScene: SKScene {
         modelLabel.name = "planeNameLabel"
         addChild(modelLabel)
 
-        // Plane selection arrows with touch-friendly areas
+        // Plane selection arrows — flanking the plane sprite
         let leftArrow = createArrowButton(text: "\u{25C0}", name: "planeLeft")
-        leftArrow.position = CGPoint(x: size.width / 2 - 110, y: nameLabelY - 3)
+        leftArrow.position = CGPoint(x: size.width / 2 - 120, y: planeAreaCenterY)
         addChild(leftArrow)
 
         let rightArrow = createArrowButton(text: "\u{25B6}", name: "planeRight")
-        rightArrow.position = CGPoint(x: size.width / 2 + 110, y: nameLabelY - 3)
+        rightArrow.position = CGPoint(x: size.width / 2 + 120, y: planeAreaCenterY)
         addChild(rightArrow)
 
         // 3D plane rendered as a sprite (SCNRenderer snapshot - avoids SK3DNode crashes)
