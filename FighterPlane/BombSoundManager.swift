@@ -1,16 +1,19 @@
 import AVFoundation
 
 /// Plays a random bomb impact sound each time a bomb (or cluster bomblet) hits the ground.
-/// Uses pre-loaded player pools to avoid allocating AVAudioPlayers at runtime,
-/// and throttles rapid impacts so cluster salvos don't cause lag spikes.
+/// Uses pre-loaded player pools on a dedicated audio queue so playback never
+/// blocks the main/render thread — even during cluster bomb salvos.
 final class BombSoundManager {
 
     static let shared = BombSoundManager()
 
+    /// Dedicated serial queue for all audio playback — keeps main thread free for rendering
+    private let audioQueue = DispatchQueue(label: "com.fighterplane.bombAudio", qos: .userInitiated)
+
     /// Pre-loaded player pools, one pool per sound variant
     private var playerPools: [[AVAudioPlayer]] = []
 
-    /// Max concurrent bomb sounds (8 bomblets don't need 8 sounds)
+    /// Max concurrent bomb sounds
     private let maxConcurrent = 6
     private let poolPerVariant = 2
 
@@ -32,32 +35,34 @@ final class BombSoundManager {
         }
     }
 
-    /// Play a random bomb impact sound. Throttled so rapid cluster hits
-    /// reuse pre-loaded players instead of allocating new ones.
+    /// Play a random bomb impact sound. Dispatched to a background audio queue
+    /// so the main/render thread is never blocked by audio hardware calls.
     func playImpact() {
-        guard !playerPools.isEmpty else { return }
+        audioQueue.async { [self] in
+            guard !playerPools.isEmpty else { return }
 
-        // Throttle rapid-fire calls (cluster bomblets hitting near-simultaneously)
-        let now = CACurrentMediaTime()
-        guard now - lastPlayTime >= minInterval else { return }
-        lastPlayTime = now
+            // Throttle rapid-fire calls (cluster bomblets hitting near-simultaneously)
+            let now = CACurrentMediaTime()
+            guard now - lastPlayTime >= minInterval else { return }
+            lastPlayTime = now
 
-        // Count currently playing sounds across all pools
-        let playing = playerPools.flatMap { $0 }.filter { $0.isPlaying }.count
-        guard playing < maxConcurrent else { return }
+            // Count currently playing sounds across all pools
+            let playing = playerPools.flatMap { $0 }.filter { $0.isPlaying }.count
+            guard playing < maxConcurrent else { return }
 
-        // Pick a random variant pool
-        let pool = playerPools[Int.random(in: 0..<playerPools.count)]
+            // Pick a random variant pool
+            let pool = playerPools[Int.random(in: 0..<playerPools.count)]
 
-        // Find an idle player in that pool
-        if let player = pool.first(where: { !$0.isPlaying }) {
-            player.currentTime = 0
-            player.play()
-        }
-        // All busy in chosen variant — try to steal the one closest to finishing
-        else if let oldest = pool.min(by: { $0.currentTime > $1.currentTime }) {
-            oldest.currentTime = 0
-            oldest.play()
+            // Find an idle player in that pool
+            if let player = pool.first(where: { !$0.isPlaying }) {
+                player.currentTime = 0
+                player.play()
+            }
+            // All busy in chosen variant — try to steal the one closest to finishing
+            else if let oldest = pool.min(by: { $0.currentTime > $1.currentTime }) {
+                oldest.currentTime = 0
+                oldest.play()
+            }
         }
     }
 }
