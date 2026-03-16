@@ -499,6 +499,7 @@ enum ModelGenerator3D {
         strutNode.position = SCNVector3(0, 0.45, -0.1)
         root.addChildNode(strutNode)
 
+        root.scale = SCNVector3(2, 2, 2)
         return root
     }}
 
@@ -559,6 +560,7 @@ enum ModelGenerator3D {
         trail.emitterShape = nil
         root.addParticleSystem(trail)
 
+        root.scale = SCNVector3(2, 2, 2)
         return root
     }}
 
