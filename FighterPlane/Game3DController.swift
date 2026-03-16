@@ -112,6 +112,22 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     private var spawnedMissionIndices: Set<Int> = []
     private var missionVictoryTimer: Float = 0
 
+    // Biome cycling (endless mode)
+    private var currentBiome: TerrainBiome = .temperate
+    private var biomeElapsedTime: TimeInterval = 0
+    private var chunkBiomes: [Int: TerrainBiome] = [:]   // slot → biome it was generated with
+    /// Biome schedule: (cumulativeTime, biome). After the fixed sequence, random biomes every 120s.
+    private let biomeSchedule: [(TimeInterval, TerrainBiome)] = [
+        (0,   .temperate),
+        (90,  .desert),
+        (190, .arctic),
+        (310, .volcanic)
+    ]
+    private let randomBiomeInterval: TimeInterval = 120
+    private let randomBiomeStartTime: TimeInterval = 430  // 310 + 120
+    private var nextRandomBiome: TerrainBiome? = nil
+    private var biomeTransitionAlpha: Float = 1.0  // 1.0 = fully transitioned
+
     // MARK: - Data Structs
 
     struct Enemy3D {
@@ -456,21 +472,25 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                     for t in trees { t.removeFromParentNode() }
                     treeChunks.removeValue(forKey: slot)
                 }
+                chunkBiomes.removeValue(forKey: slot)
             }
         }
 
-        // Generate missing chunks
+        // Generate missing chunks with current biome
         for slot in minSlot...maxSlot where terrainChunks[slot] == nil {
             let zStart = Float(slot) * chunkDepth
 
             let chunk = ModelGenerator3D.createTerrainChunk(
-                xStart: stripXStart, zStart: zStart, chunkSize: chunkDepth
+                xStart: stripXStart, zStart: zStart, chunkSize: chunkDepth,
+                biome: currentBiome
             )
             scene.rootNode.addChildNode(chunk)
             terrainChunks[slot] = chunk
+            chunkBiomes[slot] = currentBiome
 
             let trees = ModelGenerator3D.scatterTrees(
-                xStart: stripXStart, zStart: zStart, chunkSize: chunkDepth
+                xStart: stripXStart, zStart: zStart, chunkSize: chunkDepth,
+                biome: currentBiome
             )
             for tree in trees { scene.rootNode.addChildNode(tree) }
             treeChunks[slot] = trees
@@ -513,6 +533,130 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             for tree in trees { scene.rootNode.addChildNode(tree) }
             treeChunks[slot] = trees
         }
+    }
+
+    // MARK: - Biome Cycling (Endless Mode)
+
+    private func biomeForTime(_ t: TimeInterval) -> TerrainBiome {
+        // Fixed sequence: temperate → desert → arctic → volcanic
+        if t < randomBiomeStartTime {
+            var result: TerrainBiome = .temperate
+            for (threshold, biome) in biomeSchedule {
+                if t >= threshold { result = biome }
+            }
+            return result
+        }
+        // After fixed sequence: random biome every 120s
+        // Use the elapsed time to determine which random slot we're in
+        if let next = nextRandomBiome { return next }
+        return .temperate
+    }
+
+    private func updateBiome(dt: TimeInterval) {
+        guard case .infiniteBattle = gameMode else { return }
+
+        biomeElapsedTime += dt
+        let newBiome = biomeForTime(biomeElapsedTime)
+
+        // Handle random biome cycling after the fixed schedule
+        if biomeElapsedTime >= randomBiomeStartTime {
+            let timeSinceRandom = biomeElapsedTime - randomBiomeStartTime
+            let cycleIndex = Int(timeSinceRandom / randomBiomeInterval)
+            // Check if we need to pick a new random biome
+            let slotStart = randomBiomeStartTime + Double(cycleIndex) * randomBiomeInterval
+            if nextRandomBiome == nil || (biomeElapsedTime >= slotStart && biomeElapsedTime < slotStart + dt * 2) {
+                // Pick a new random biome (seed from cycle index for determinism)
+                if nextRandomBiome == nil {
+                    pickNextRandomBiome(cycleIndex: cycleIndex)
+                }
+                // Check if we moved to a new cycle
+                let prevCycleIndex = Int((biomeElapsedTime - dt - randomBiomeStartTime) / randomBiomeInterval)
+                if cycleIndex != prevCycleIndex && cycleIndex > 0 {
+                    pickNextRandomBiome(cycleIndex: cycleIndex)
+                }
+            }
+        }
+
+        let resolvedBiome: TerrainBiome
+        if biomeElapsedTime >= randomBiomeStartTime, let next = nextRandomBiome {
+            resolvedBiome = next
+        } else {
+            resolvedBiome = newBiome
+        }
+
+        if resolvedBiome != currentBiome {
+            currentBiome = resolvedBiome
+            updateAtmosphere(biome: currentBiome)
+            // Force regeneration of chunks ahead so new biome appears
+            regenerateChunksAhead()
+        }
+    }
+
+    private func pickNextRandomBiome(cycleIndex: Int) {
+        let allBiomes = TerrainBiome.allCases
+        // Use cycle index as seed for deterministic randomness
+        let idx = (cycleIndex * 7 + 3) % allBiomes.count
+        var pick = allBiomes[idx]
+        // Avoid repeating the same biome twice in a row
+        if pick == currentBiome {
+            pick = allBiomes[(idx + 1) % allBiomes.count]
+        }
+        nextRandomBiome = pick
+    }
+
+    private func regenerateChunksAhead() {
+        let currentSlot = slotForZ(playerZ)
+        let maxSlot = currentSlot + chunksAhead
+        for slot in (currentSlot + 1)...maxSlot {
+            // Remove and regenerate chunks ahead with new biome
+            if let existing = terrainChunks[slot] {
+                existing.removeFromParentNode()
+                terrainChunks.removeValue(forKey: slot)
+            }
+            if let trees = treeChunks[slot] {
+                for t in trees { t.removeFromParentNode() }
+                treeChunks.removeValue(forKey: slot)
+            }
+            chunkBiomes.removeValue(forKey: slot)
+        }
+    }
+
+    private func updateAtmosphere(biome: TerrainBiome) {
+        let duration: TimeInterval = 3.0 // smooth 3-second transition
+
+        SCNTransaction.begin()
+        SCNTransaction.animationDuration = duration
+
+        // Sky color
+        scene.background.contents = biome.skyColor
+
+        // Fog color
+        scene.fogColor = biome.fogColor
+
+        // Sun color
+        sunNode.light?.color = biome.sunColor
+
+        // Ambient light
+        if let ambientNode = scene.rootNode.childNodes.first(where: { $0.light?.type == .ambient }) {
+            ambientNode.light?.color = biome.ambientColor
+        }
+
+        // Environment lighting
+        scene.lightingEnvironment.contents = biome.skyColor
+
+        SCNTransaction.commit()
+
+        // Water color transition
+        updateWaterColor(biome: biome, duration: duration)
+    }
+
+    private func updateWaterColor(biome: TerrainBiome, duration: TimeInterval) {
+        guard let material = waterNode.geometry?.firstMaterial else { return }
+
+        SCNTransaction.begin()
+        SCNTransaction.animationDuration = duration
+        material.diffuse.contents = biome.waterColor
+        SCNTransaction.commit()
     }
 
     // MARK: - Game Loop
@@ -573,6 +717,9 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         let isVictoryCruise = gameState == .missionVictory
 
         GameManager.shared.update(deltaTime: dt)
+
+        // Update biome cycling (endless mode)
+        updateBiome(dt: dt)
 
         // Update player — auto-fly straight during victory cruise
         if isVictoryCruise {

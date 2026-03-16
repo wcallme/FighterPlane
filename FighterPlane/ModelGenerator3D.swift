@@ -1,6 +1,68 @@
 import SceneKit
 import UIKit
 
+// MARK: - Terrain Biome
+
+enum TerrainBiome: Int, CaseIterable {
+    case temperate = 0
+    case desert = 1
+    case arctic = 2
+    case volcanic = 3
+
+    /// Sky background color for this biome
+    var skyColor: UIColor {
+        switch self {
+        case .temperate: return UIColor(red: 0.55, green: 0.78, blue: 0.95, alpha: 1.0)
+        case .desert:    return UIColor(red: 0.85, green: 0.78, blue: 0.60, alpha: 1.0)
+        case .arctic:    return UIColor(red: 0.75, green: 0.82, blue: 0.88, alpha: 1.0)
+        case .volcanic:  return UIColor(red: 0.35, green: 0.18, blue: 0.12, alpha: 1.0)
+        }
+    }
+
+    /// Fog color (matches sky for seamless horizon)
+    var fogColor: UIColor { skyColor }
+
+    /// Water surface color
+    var waterColor: UIColor {
+        switch self {
+        case .temperate: return UIColor(red: 0.15, green: 0.45, blue: 0.70, alpha: 0.90)
+        case .desert:    return UIColor(red: 0.60, green: 0.52, blue: 0.35, alpha: 0.85)
+        case .arctic:    return UIColor(red: 0.30, green: 0.50, blue: 0.65, alpha: 0.92)
+        case .volcanic:  return UIColor(red: 0.70, green: 0.22, blue: 0.05, alpha: 0.95)
+        }
+    }
+
+    /// Ambient light tint
+    var ambientColor: UIColor {
+        switch self {
+        case .temperate: return UIColor(red: 0.40, green: 0.45, blue: 0.55, alpha: 1.0)
+        case .desert:    return UIColor(red: 0.55, green: 0.50, blue: 0.40, alpha: 1.0)
+        case .arctic:    return UIColor(red: 0.50, green: 0.55, blue: 0.65, alpha: 1.0)
+        case .volcanic:  return UIColor(red: 0.45, green: 0.25, blue: 0.20, alpha: 1.0)
+        }
+    }
+
+    /// Sun color tint
+    var sunColor: UIColor {
+        switch self {
+        case .temperate: return UIColor(white: 1.0, alpha: 1.0)
+        case .desert:    return UIColor(red: 1.0, green: 0.92, blue: 0.75, alpha: 1.0)
+        case .arctic:    return UIColor(red: 0.85, green: 0.90, blue: 1.0, alpha: 1.0)
+        case .volcanic:  return UIColor(red: 1.0, green: 0.55, blue: 0.30, alpha: 1.0)
+        }
+    }
+
+    /// Tree/vegetation density (count per chunk)
+    var vegetationCount: Int {
+        switch self {
+        case .temperate: return 25
+        case .desert:    return 8
+        case .arctic:    return 12
+        case .volcanic:  return 5
+        }
+    }
+}
+
 enum ModelGenerator3D {
 
     // MARK: - Player Plane (Selection)
@@ -453,6 +515,148 @@ enum ModelGenerator3D {
         let cone2Node = SCNNode(geometry: cone2)
         cone2Node.position = SCNVector3(0, trunkH + canopyH * 0.65, 0)
         root.addChildNode(cone2Node)
+
+        return root
+    }
+
+    // MARK: - Biome Vegetation
+
+    /// Desert cactus — tall green cylinder with arms
+    static func cactus(height: Float = 2.5, variation: Int = 0) -> SCNNode {
+        let root = SCNNode()
+        root.name = "cactus"
+
+        let greenShades: [UIColor] = [
+            UIColor(red: 0.20, green: 0.45, blue: 0.15, alpha: 1),
+            UIColor(red: 0.25, green: 0.50, blue: 0.18, alpha: 1),
+            UIColor(red: 0.18, green: 0.40, blue: 0.13, alpha: 1)
+        ]
+        let color = greenShades[variation % greenShades.count]
+
+        // Main trunk
+        let trunk = SCNCylinder(radius: CGFloat(height * 0.08), height: CGFloat(height))
+        trunk.firstMaterial?.diffuse.contents = color
+        let trunkNode = SCNNode(geometry: trunk)
+        trunkNode.position = SCNVector3(0, height / 2, 0)
+        root.addChildNode(trunkNode)
+
+        // Top dome
+        let top = SCNSphere(radius: CGFloat(height * 0.08))
+        top.firstMaterial?.diffuse.contents = color
+        let topNode = SCNNode(geometry: top)
+        topNode.position = SCNVector3(0, height, 0)
+        root.addChildNode(topNode)
+
+        // Arm (for taller cacti)
+        if height > 2.0 {
+            let armH = height * 0.35
+            let arm = SCNCylinder(radius: CGFloat(height * 0.06), height: CGFloat(armH))
+            arm.firstMaterial?.diffuse.contents = color
+            let armNode = SCNNode(geometry: arm)
+            let armSide: Float = (variation % 2 == 0) ? 1 : -1
+            armNode.position = SCNVector3(armSide * height * 0.15, height * 0.6, 0)
+
+            // Horizontal elbow
+            let elbow = SCNCylinder(radius: CGFloat(height * 0.06), height: CGFloat(height * 0.12))
+            elbow.firstMaterial?.diffuse.contents = color
+            let elbowNode = SCNNode(geometry: elbow)
+            elbowNode.eulerAngles.z = .pi / 2
+            elbowNode.position = SCNVector3(armSide * height * 0.09, armH / 2, 0)
+            armNode.addChildNode(elbowNode)
+
+            root.addChildNode(armNode)
+        }
+
+        return root
+    }
+
+    /// Arctic snow-covered pine — white-tipped cone tree
+    static func snowPine(height: Float = 2.5, variation: Int = 0) -> SCNNode {
+        let root = SCNNode()
+        root.name = "snowPine"
+
+        let trunkH = height * 0.30
+        let canopyH = height * 0.70
+        let canopyR = height * 0.25
+
+        // Trunk
+        let trunk = SCNCylinder(radius: CGFloat(height * 0.05), height: CGFloat(trunkH))
+        trunk.firstMaterial?.diffuse.contents = UIColor(red: 0.35, green: 0.28, blue: 0.20, alpha: 1)
+        let trunkNode = SCNNode(geometry: trunk)
+        trunkNode.position = SCNVector3(0, trunkH / 2, 0)
+        root.addChildNode(trunkNode)
+
+        // Dark green foliage (bottom)
+        let cone1 = SCNCone(topRadius: 0, bottomRadius: CGFloat(canopyR), height: CGFloat(canopyH))
+        let darkGreen = UIColor(red: 0.10, green: 0.28, blue: 0.12, alpha: 1)
+        cone1.firstMaterial?.diffuse.contents = darkGreen
+        let cone1Node = SCNNode(geometry: cone1)
+        cone1Node.position = SCNVector3(0, trunkH + canopyH * 0.35, 0)
+        root.addChildNode(cone1Node)
+
+        // Snow cap (smaller white cone on top)
+        let snowH = canopyH * 0.45
+        let cone2 = SCNCone(topRadius: 0, bottomRadius: CGFloat(canopyR * 0.6), height: CGFloat(snowH))
+        cone2.firstMaterial?.diffuse.contents = UIColor(red: 0.90, green: 0.92, blue: 0.95, alpha: 0.95)
+        let cone2Node = SCNNode(geometry: cone2)
+        cone2Node.position = SCNVector3(0, trunkH + canopyH * 0.65, 0)
+        root.addChildNode(cone2Node)
+
+        return root
+    }
+
+    /// Volcanic dead tree — charred trunk, no leaves
+    static func deadTree(height: Float = 2.5, variation: Int = 0) -> SCNNode {
+        let root = SCNNode()
+        root.name = "deadTree"
+
+        let charColors: [UIColor] = [
+            UIColor(red: 0.20, green: 0.15, blue: 0.10, alpha: 1),
+            UIColor(red: 0.25, green: 0.18, blue: 0.12, alpha: 1),
+            UIColor(red: 0.15, green: 0.12, blue: 0.08, alpha: 1)
+        ]
+        let color = charColors[variation % charColors.count]
+
+        // Main trunk (thinner, charred)
+        let trunk = SCNCylinder(radius: CGFloat(height * 0.05), height: CGFloat(height * 0.7))
+        trunk.firstMaterial?.diffuse.contents = color
+        let trunkNode = SCNNode(geometry: trunk)
+        trunkNode.position = SCNVector3(0, height * 0.35, 0)
+        // Slight lean
+        trunkNode.eulerAngles.z = Float(variation % 3) * 0.08 - 0.08
+        root.addChildNode(trunkNode)
+
+        // A branch stub or two
+        let branchLen = height * 0.25
+        let branch = SCNCylinder(radius: CGFloat(height * 0.025), height: CGFloat(branchLen))
+        branch.firstMaterial?.diffuse.contents = color
+        let branchNode = SCNNode(geometry: branch)
+        branchNode.position = SCNVector3(0, height * 0.55, 0)
+        branchNode.eulerAngles.z = (variation % 2 == 0) ? Float.pi / 4 : -Float.pi / 4
+        root.addChildNode(branchNode)
+
+        return root
+    }
+
+    /// Volcanic rock boulder
+    static func volcanicRock(size: Float = 1.0, variation: Int = 0) -> SCNNode {
+        let root = SCNNode()
+        root.name = "volcanicRock"
+
+        let rockColors: [UIColor] = [
+            UIColor(red: 0.22, green: 0.18, blue: 0.15, alpha: 1),
+            UIColor(red: 0.30, green: 0.22, blue: 0.16, alpha: 1),
+            UIColor(red: 0.18, green: 0.15, blue: 0.12, alpha: 1)
+        ]
+        let color = rockColors[variation % rockColors.count]
+
+        let rock = SCNSphere(radius: CGFloat(size * 0.5))
+        rock.segmentCount = 6 // low-poly look
+        rock.firstMaterial?.diffuse.contents = color
+        let rockNode = SCNNode(geometry: rock)
+        rockNode.position = SCNVector3(0, size * 0.3, 0)
+        rockNode.scale = SCNVector3(1.0, 0.6, 0.8) // squashed
+        root.addChildNode(rockNode)
 
         return root
     }
@@ -989,16 +1193,43 @@ enum ModelGenerator3D {
         return h
     }
 
-    static func terrainColor(_ h: Float) -> (Float, Float, Float) {
-        if h > 5.0 { return (0.15, 0.38, 0.10) }   // dark green hilltop
-        if h > 3.0 { return (0.22, 0.50, 0.16) }    // green
-        if h > 1.5 { return (0.32, 0.58, 0.22) }    // light green
-        if h > 0.5 { return (0.55, 0.58, 0.35) }    // yellow-green (low)
-        if h > 0.0 { return (0.72, 0.68, 0.48) }    // sandy beach
-        return (0.55, 0.52, 0.40)                      // underwater sand
+    static func terrainColor(_ h: Float, biome: TerrainBiome = .temperate) -> (Float, Float, Float) {
+        switch biome {
+        case .temperate:
+            if h > 5.0 { return (0.15, 0.38, 0.10) }   // dark green hilltop
+            if h > 3.0 { return (0.22, 0.50, 0.16) }    // green
+            if h > 1.5 { return (0.32, 0.58, 0.22) }    // light green
+            if h > 0.5 { return (0.55, 0.58, 0.35) }    // yellow-green (low)
+            if h > 0.0 { return (0.72, 0.68, 0.48) }    // sandy beach
+            return (0.55, 0.52, 0.40)                    // underwater sand
+
+        case .desert:
+            if h > 5.0 { return (0.65, 0.35, 0.20) }   // red rock peak
+            if h > 3.0 { return (0.72, 0.55, 0.32) }    // sandstone
+            if h > 1.5 { return (0.82, 0.70, 0.45) }    // golden sand
+            if h > 0.5 { return (0.88, 0.78, 0.55) }    // light sand
+            if h > 0.0 { return (0.78, 0.72, 0.50) }    // wet sand
+            return (0.60, 0.50, 0.35)                    // mud
+
+        case .arctic:
+            if h > 5.0 { return (0.92, 0.94, 0.96) }   // snow peak
+            if h > 3.0 { return (0.82, 0.85, 0.88) }    // packed snow
+            if h > 1.5 { return (0.55, 0.58, 0.62) }    // grey rock
+            if h > 0.5 { return (0.70, 0.75, 0.80) }    // icy gravel
+            if h > 0.0 { return (0.60, 0.65, 0.72) }    // frozen shore
+            return (0.45, 0.50, 0.58)                    // dark ice
+
+        case .volcanic:
+            if h > 5.0 { return (0.18, 0.15, 0.13) }   // dark basalt peak
+            if h > 3.0 { return (0.28, 0.22, 0.18) }    // dark rock
+            if h > 1.5 { return (0.38, 0.28, 0.20) }    // ash/rock
+            if h > 0.5 { return (0.55, 0.30, 0.12) }    // warm ash
+            if h > 0.0 { return (0.72, 0.35, 0.10) }    // orange ember shore
+            return (0.80, 0.25, 0.05)                    // lava glow
+        }
     }
 
-    static func createTerrainChunk(xStart: Float, zStart: Float, chunkSize: Float = 100, segments: Int = 40) -> SCNNode {
+    static func createTerrainChunk(xStart: Float, zStart: Float, chunkSize: Float = 100, segments: Int = 40, biome: TerrainBiome = .temperate) -> SCNNode {
         let segW = chunkSize / Float(segments)
         let segD = chunkSize / Float(segments)
         let cols = segments + 1
@@ -1027,7 +1258,7 @@ enum ModelGenerator3D {
                 let len = sqrt(nx * nx + 1.0 + nz * nz)
                 normals.append(SCNVector3(nx / len, 1.0 / len, nz / len))
 
-                let (r, g, b) = terrainColor(h)
+                let (r, g, b) = terrainColor(h, biome: biome)
                 colors.append(contentsOf: [r, g, b, 1.0])
             }
         }
@@ -1078,13 +1309,14 @@ enum ModelGenerator3D {
         return node
     }
 
-    /// Place trees on a terrain chunk, returns array of tree nodes
-    static func scatterTrees(xStart: Float, zStart: Float, chunkSize: Float = 100, count: Int = 25) -> [SCNNode] {
-        var trees: [SCNNode] = []
+    /// Place vegetation on a terrain chunk appropriate for the biome
+    static func scatterTrees(xStart: Float, zStart: Float, chunkSize: Float = 100, count: Int = 25, biome: TerrainBiome = .temperate) -> [SCNNode] {
+        var nodes: [SCNNode] = []
+        let actualCount = biome.vegetationCount
         let seedVal = abs(xStart * 7.3 + zStart * 13.7 + 42)
         var rng = SeededRandom(seed: UInt64(seedVal.bitPattern))
 
-        for i in 0..<count {
+        for i in 0..<actualCount {
             let x = xStart + Float(rng.next(max: Int(chunkSize)))
             let z = zStart + Float(rng.next(max: Int(chunkSize)))
             let h = terrainHeight(x: x, z: z)
@@ -1092,13 +1324,29 @@ enum ModelGenerator3D {
             // Only place on land above water, not too steep
             guard h > 1.2 && h < 7.0 else { continue }
 
-            let treeHeight = 1.5 + Float(rng.next(max: 25)) / 10.0 // 1.5 to 4.0
-            let t = tree(height: treeHeight, variation: i)
-            t.position = SCNVector3(x, h, z)
-            trees.append(t)
+            let objHeight = 1.5 + Float(rng.next(max: 25)) / 10.0 // 1.5 to 4.0
+
+            let node: SCNNode
+            switch biome {
+            case .temperate:
+                node = tree(height: objHeight, variation: i)
+            case .desert:
+                node = cactus(height: objHeight * 0.8, variation: i)
+            case .arctic:
+                node = snowPine(height: objHeight, variation: i)
+            case .volcanic:
+                if i % 3 == 0 {
+                    node = deadTree(height: objHeight * 0.7, variation: i)
+                } else {
+                    node = volcanicRock(size: objHeight * 0.5, variation: i)
+                }
+            }
+
+            node.position = SCNVector3(x, h, z)
+            nodes.append(node)
         }
 
-        return trees
+        return nodes
     }
 
     // MARK: - New Enemy Models (Mission)
