@@ -20,19 +20,26 @@ struct ContentView: View {
 
 /// Hosts the SpriteKit menu scenes (HangarScene, ArmoryScene, etc.)
 struct MenuSpriteView: UIViewRepresentable {
-    func makeUIView(context: Context) -> SKView {
-        let view = SKView()
-        view.presentScene(nil) // scene set in updateUIView once layout is known
-        return view
+    func makeUIView(context: Context) -> MenuSKView {
+        return MenuSKView()
     }
 
-    func updateUIView(_ uiView: SKView, context: Context) {
-        if uiView.scene == nil {
-            let size = uiView.bounds.size.width > 0 ? uiView.bounds.size : UIScreen.main.bounds.size
-            let scene = HangarScene(size: size)
-            scene.scaleMode = .aspectFill
-            uiView.presentScene(scene)
-        }
+    func updateUIView(_ uiView: MenuSKView, context: Context) {}
+}
+
+/// Custom SKView that presents the scene once layout provides valid bounds.
+/// This avoids relying on UIScreen.main.bounds (which can return portrait
+/// dimensions on iPad during early startup, causing a blank screen).
+class MenuSKView: SKView {
+    private var scenePresented = false
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        guard !scenePresented, bounds.size.width > 0, bounds.size.height > 0 else { return }
+        scenePresented = true
+        let scene = HangarScene(size: bounds.size)
+        scene.scaleMode = .aspectFill
+        presentScene(scene)
     }
 }
 
