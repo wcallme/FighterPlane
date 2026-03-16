@@ -61,6 +61,7 @@
 		ED0C797AAE248F7C60DDA7C7 /* MissionSelectScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = A13FEA9FC5735757C5EF1572 /* MissionSelectScene.swift */; };
 		FBF71C2954B0F70BD133EC77 /* loadingscreen.jpg in Resources */ = {isa = PBXBuildFile; fileRef = FE937CC9D87BFE4D2DB5529E /* loadingscreen.jpg */; };
 		FCECD696A8A418127971D826 /* minigun_spinup.wav in Resources */ = {isa = PBXBuildFile; fileRef = B8C59FD8DD4222F4115AFBF0 /* minigun_spinup.wav */; };
+		A1B2C3D4E5F60718293A4B5C /* sam_launch.wav in Resources */ = {isa = PBXBuildFile; fileRef = D6E7F8091A2B3C4D5E6F7081 /* sam_launch.wav */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -120,6 +121,7 @@
 		FD8DBEB9BBE8C9B3CCACD854 /* mission1.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = mission1.json; sourceTree = "<group>"; };
 		FE527256C2DC7017B87F6AE9 /* b2image.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = b2image.jpg; sourceTree = "<group>"; };
 		FE937CC9D87BFE4D2DB5529E /* loadingscreen.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = loadingscreen.jpg; sourceTree = "<group>"; };
+		D6E7F8091A2B3C4D5E6F7081 /* sam_launch.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = sam_launch.wav; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -203,6 +205,7 @@
 				0826EB56CA55BF77EB539D5C /* bomb_impact3.wav */,
 				9530F1855D7CC3332631C482 /* menusong.wav */,
 				E58E0FD983E359D9A1BF7D3E /* minigun_loop.wav */,
+				D6E7F8091A2B3C4D5E6F7081 /* sam_launch.wav */,
 				B8C59FD8DD4222F4115AFBF0 /* minigun_spinup.wav */,
 			);
 			path = SoundEffects;
@@ -322,6 +325,7 @@
 				634A15D95ABF60C39AD01135 /* menusong.wav in Resources */,
 				337E5F68EBFA739673F919E1 /* minigun_loop.wav in Resources */,
 				FCECD696A8A418127971D826 /* minigun_spinup.wav in Resources */,
+				A1B2C3D4E5F60718293A4B5C /* sam_launch.wav in Resources */,
 				5D80076310D3C3C93D3F2CDB /* mission1.json in Resources */,
 				8232833694B4529A38061164 /* mission2.json in Resources */,
 			);

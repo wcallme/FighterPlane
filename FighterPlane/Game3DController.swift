@@ -151,6 +151,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         var aiEvadeTimer: Float = 0          // seconds remaining in current evasion
         var aiNextEvadeAt: Float = 0         // time (seconds since activation) to start next evasion
         var aiActiveTime: Float = 0          // seconds since activation
+        var shotCount: Int = 0               // for audio throttling (play sound every other shot)
     }
 
     struct Bullet3D {
@@ -1899,6 +1900,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         let fireInterval = TimeInterval(Float(GameConfig.aiFighterFireRate) * GameManager.shared.fireRateMultiplier)
         if time - enemies[i].lastFireTime >= fireInterval {
             enemies[i].lastFireTime = time
+            enemies[i].shotCount += 1
             fireAIFighterBullet(from: enemies[i])
         }
     }
@@ -1922,12 +1924,14 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         scene.rootNode.addChildNode(bullet)
         enemyBullets.append(Bullet3D(node: bullet, velocity: SCNVector3(0, vy, vz), damage: GameConfig.aiFighterBulletDamage))
 
-        // Machine gun sound — volume based on distance
-        let distToPlayer = distanceYZ(enemy.node.position, playerNode.position)
-        let maxHearDist: Float = 80
-        if distToPlayer < maxHearDist {
-            let vol = Float(1.0 - distToPlayer / maxHearDist)
-            SFXPlayer.shared.play("aa_fire", volume: vol * 0.4)
+        // Machine gun sound — play every other shot to reduce audio overhead
+        if enemy.shotCount % 2 == 0 {
+            let distToPlayer = distanceYZ(enemy.node.position, playerNode.position)
+            let maxHearDist: Float = 80
+            if distToPlayer < maxHearDist {
+                let vol = Float(1.0 - distToPlayer / maxHearDist)
+                SFXPlayer.shared.play("aa_fire", volume: vol * 0.4)
+            }
         }
     }
 
@@ -1985,6 +1989,14 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         let missile = ModelGenerator3D.samMissile()
         // Spawn at X=0 so missile stays in the Y-Z gameplay plane
         missile.position = SCNVector3(0, enemy.node.position.y + 1.0, enemy.node.position.z)
+
+        // Missile launch sound — volume falls off with distance
+        let distToPlayer = abs(enemy.node.position.z - playerZ)
+        let maxHearDist: Float = 100
+        if distToPlayer < maxHearDist {
+            let vol = Float(1.0 - distToPlayer / maxHearDist)
+            SFXPlayer.shared.play("sam_launch", volume: vol * 0.7)
+        }
 
         // Initial velocity: upward at ~60° angle toward the player's Z direction
         let toPlayerZ = playerNode.position.z - enemy.node.position.z
