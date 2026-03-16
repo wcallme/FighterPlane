@@ -22,10 +22,10 @@ enum GameConfig {
     static let fighterScore = 300
 
     // Enemy health
-    static let tankHealth = 5
-    static let aaGunHealth = 4
-    static let buildingHealth = 6
-    static let fighterHealth = 2
+    static let tankHealth = 10
+    static let aaGunHealth = 8
+    static let buildingHealth = 5
+    static let fighterHealth = 4
     static let samLauncherHealth = 5
 
     // Damage
@@ -50,8 +50,9 @@ enum GameConfig {
     static let truckHealth = 4
     static let radioTowerHealth = 8
 
+
     // AI Fighter — seeking-missile dogfight plane with machine gun
-    static let aiFighterHealth = 12
+    static let aiFighterHealth = 10
     static let aiFighterScore = 400
     static let aiFighterTurnSpeed: CGFloat = 4.0     // radians per second (tight pursuit turns)
     static let aiFighterMoveSpeed: CGFloat = 280.0   // pixels per second (faster than player)
