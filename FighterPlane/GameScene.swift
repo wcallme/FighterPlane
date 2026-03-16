@@ -277,6 +277,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         addChild(explosion)
         ExplosionNode.shakeScreen(scene: self, intensity: 6, duration: 0.4)
 
+        BombSoundManager.shared.playImpact()
+
         // Damage nearby ground enemies using weapon stats
         let blastRadius = weapon.blastRadius
         for enemy in enemies {

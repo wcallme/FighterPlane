@@ -203,6 +203,9 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         setupScene()
         GameManager.shared.resetSession()
 
+        // Pre-load sound effects
+        SFXPlayer.shared.preload("aa_fire")
+
         // Show ECM button if equipped
         if hasECM {
             hud.setupECMButton()
@@ -1324,6 +1327,8 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         explosion.position = SCNVector3(pos.x, groundY + 0.5, pos.z)
         scene.rootNode.addChildNode(explosion)
 
+        BombSoundManager.shared.playImpact()
+
         // Damage all nearby enemies (ground and air) – use Y-Z distance
         for i in enemies.indices {
             guard enemies[i].node.parent != nil else { continue }
@@ -1663,6 +1668,14 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     private func fireEnemyBullet(from enemy: Enemy3D) {
         // Tanks, AA guns, and fighters fire bullets
         guard enemy.type == .tank || enemy.type == .aaGun || enemy.type == .fighter else { return }
+
+        // AA fire sound — volume falls off with distance
+        let distToPlayer = abs(enemy.node.position.z - playerZ)
+        let maxHearDist: Float = 80
+        if distToPlayer < maxHearDist {
+            let vol = Float(1.0 - distToPlayer / maxHearDist)
+            SFXPlayer.shared.play("aa_fire", volume: vol * 0.6)
+        }
 
         let bullet = ModelGenerator3D.enemyBullet()
         // Spawn at X=0 so bullet stays in the Y-Z gameplay plane
