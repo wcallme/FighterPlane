@@ -719,9 +719,10 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     private func updateWaterColor(biome: TerrainBiome, duration: TimeInterval) {
         guard let material = waterNode.geometry?.firstMaterial else { return }
 
+        // Tint via multiply so the procedural water texture is preserved
         SCNTransaction.begin()
         SCNTransaction.animationDuration = duration
-        material.diffuse.contents = biome.waterColor
+        material.multiply.contents = biome.waterColor
         SCNTransaction.commit()
     }
 
