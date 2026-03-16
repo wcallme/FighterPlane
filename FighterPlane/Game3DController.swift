@@ -1412,7 +1412,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         // Initial velocity: upward at ~60° angle toward the player's Z direction
         let toPlayerZ = playerNode.position.z - enemy.node.position.z
         let launchAngle: Float = .pi / 3  // 60° upward
-        let initialSpeed: Float = 0.35
+        let initialSpeed: Float = 0.14
         let vz = (toPlayerZ > 0 ? 1.0 : -1.0) * cos(launchAngle) * initialSpeed
         let vy = sin(launchAngle) * initialSpeed
 
@@ -1422,7 +1422,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             velocity: SCNVector3(0, vy, vz),
             damage: GameConfig.samMissileDamage,
             lifetime: 6.0,
-            turnRate: 3.5
+            turnRate: 1.2
         ))
     }
 
@@ -1451,7 +1451,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             // Homing with lead-target prediction in Y-Z plane only (X=0 always)
             // ECM active → missiles lose lock and fly straight (no homing)
             let pos = activeSAMs[i].node.position
-            let speed: Float = 0.37
+            let speed: Float = 0.148
 
             if !ecmActive {
                 let missileSpeed = speed * 60.0  // world-units per second
