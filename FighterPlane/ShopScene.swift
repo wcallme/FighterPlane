@@ -48,6 +48,8 @@ class ShopScene: SKScene {
     // MARK: - Header
 
     private func setupHeader() {
+        let s = DeviceLayout.menuScale
+        let safeLeft = SafeArea.left
         let headerY = size.height - safeTop - 40
 
         let topBar = SKShapeNode(rect: CGRect(x: 0, y: size.height - safeTop - headerHeight,
@@ -57,7 +59,7 @@ class ShopScene: SKScene {
         topBar.zPosition = 49
         addChild(topBar)
 
-        let divider = SKShapeNode(rectOf: CGSize(width: size.width - 32, height: 1))
+        let divider = SKShapeNode(rectOf: CGSize(width: size.width - 32 * s, height: 1))
         divider.fillColor = SKColor(red: 0.6, green: 0.3, blue: 0.8, alpha: 0.25)
         divider.strokeColor = .clear
         divider.position = CGPoint(x: size.width / 2, y: size.height - safeTop - headerHeight)
@@ -67,11 +69,11 @@ class ShopScene: SKScene {
 
         // Back button
         let backNode = SKNode()
-        backNode.position = CGPoint(x: 44, y: headerY)
+        backNode.position = CGPoint(x: safeLeft + 44 * s, y: headerY)
         backNode.zPosition = 51
         backNode.name = "backButton"
 
-        let backBg = SKShapeNode(rectOf: CGSize(width: 68, height: 28), cornerRadius: 8)
+        let backBg = SKShapeNode(rectOf: CGSize(width: 68 * s, height: 28 * s), cornerRadius: 8 * s)
         backBg.fillColor = SKColor(red: 0.20, green: 0.20, blue: 0.26, alpha: 0.9)
         backBg.strokeColor = SKColor(white: 0.35, alpha: 0.4)
         backBg.lineWidth = 1
@@ -80,7 +82,7 @@ class ShopScene: SKScene {
 
         let backLabel = SKLabelNode(fontNamed: "Menlo-Bold")
         backLabel.text = "< Back"
-        backLabel.fontSize = 12
+        backLabel.fontSize = DeviceLayout.fontSize(12)
         backLabel.fontColor = SKColor(white: 0.8, alpha: 1)
         backLabel.verticalAlignmentMode = .center
         backLabel.name = "backButton"
@@ -90,7 +92,7 @@ class ShopScene: SKScene {
         // Title
         let title = SKLabelNode(fontNamed: "Menlo-Bold")
         title.text = "SHOP"
-        title.fontSize = 17
+        title.fontSize = DeviceLayout.fontSize(17)
         title.fontColor = SKColor(red: 0.9, green: 0.7, blue: 1, alpha: 1)
         title.position = CGPoint(x: size.width / 2, y: headerY - 2)
         title.zPosition = 51
@@ -100,33 +102,33 @@ class ShopScene: SKScene {
         currencyBar = SKNode()
         currencyBar.zPosition = 51
 
-        let currencyY = headerY - 28
+        let currencyY = headerY - 28 * s
 
         let gemIcon = SKSpriteNode(texture: SpriteGenerator.gemIcon())
-        gemIcon.position = CGPoint(x: size.width / 2 - 60, y: currencyY)
-        gemIcon.setScale(1.0)
+        gemIcon.position = CGPoint(x: size.width / 2 - 60 * s, y: currencyY)
+        gemIcon.setScale(1.0 * s)
         currencyBar.addChild(gemIcon)
 
         let gemLabel = SKLabelNode(fontNamed: "Menlo-Bold")
         gemLabel.text = "\(PlayerData.shared.gems)"
-        gemLabel.fontSize = 12
+        gemLabel.fontSize = DeviceLayout.fontSize(12)
         gemLabel.fontColor = SKColor(red: 0.9, green: 0.3, blue: 0.8, alpha: 1)
         gemLabel.horizontalAlignmentMode = .left
-        gemLabel.position = CGPoint(x: size.width / 2 - 48, y: currencyY - 5)
+        gemLabel.position = CGPoint(x: size.width / 2 - 48 * s, y: currencyY - 5 * s)
         gemLabel.name = "gemCount"
         currencyBar.addChild(gemLabel)
 
         let coinIcon = SKSpriteNode(texture: SpriteGenerator.coinIcon())
-        coinIcon.position = CGPoint(x: size.width / 2 + 24, y: currencyY)
-        coinIcon.setScale(1.0)
+        coinIcon.position = CGPoint(x: size.width / 2 + 24 * s, y: currencyY)
+        coinIcon.setScale(1.0 * s)
         currencyBar.addChild(coinIcon)
 
         let coinLabel = SKLabelNode(fontNamed: "Menlo-Bold")
         coinLabel.text = "\(PlayerData.shared.coins)"
-        coinLabel.fontSize = 12
+        coinLabel.fontSize = DeviceLayout.fontSize(12)
         coinLabel.fontColor = SKColor(red: 0.9, green: 0.8, blue: 0.2, alpha: 1)
         coinLabel.horizontalAlignmentMode = .left
-        coinLabel.position = CGPoint(x: size.width / 2 + 36, y: currencyY - 5)
+        coinLabel.position = CGPoint(x: size.width / 2 + 36 * s, y: currencyY - 5 * s)
         coinLabel.name = "coinCount"
         currencyBar.addChild(coinLabel)
 
@@ -136,6 +138,8 @@ class ShopScene: SKScene {
     // MARK: - Scroll Content
 
     private func setupScrollContent() {
+        let s = DeviceLayout.menuScale
+
         if scrollNode != nil {
             scrollNode.removeFromParent()
         }
@@ -144,10 +148,10 @@ class ShopScene: SKScene {
         scrollNode.zPosition = 10
         addChild(scrollNode)
 
-        let padding: CGFloat = 6
+        let padding: CGFloat = 6 * s
         let columns = shopColumnsForWidth()
         let cardW = shopCardWidth(columns: columns)
-        let cardH: CGFloat = cardW + 28 // icon + name + buy row
+        let cardH: CGFloat = cardW + 28 * s // icon + name + buy row
         let totalCardWidth = cardW + padding
         let totalCardHeight = cardH + padding
         let gridWidth = CGFloat(columns) * totalCardWidth - padding
@@ -213,27 +217,28 @@ class ShopScene: SKScene {
         totalCardWidth: CGFloat, totalCardHeight: CGFloat,
         gridStartX: CGFloat
     ) -> CGFloat {
+        let s = DeviceLayout.menuScale
         var currentY = startY
 
         // Section divider (skip for first section)
         if currentY < -10 {
-            currentY -= 8
-            let div = SKShapeNode(rectOf: CGSize(width: size.width - 48, height: 1))
+            currentY -= 8 * s
+            let div = SKShapeNode(rectOf: CGSize(width: size.width - 48 * s, height: 1))
             div.fillColor = SKColor(white: 0.25, alpha: 0.2)
             div.strokeColor = .clear
             div.position = CGPoint(x: size.width / 2, y: currentY)
             scrollNode.addChild(div)
         }
 
-        currentY -= 24
+        currentY -= 24 * s
         let label = SKLabelNode(fontNamed: "Menlo-Bold")
         label.text = title
-        label.fontSize = 10
+        label.fontSize = DeviceLayout.fontSize(10)
         label.fontColor = titleColor
         label.position = CGPoint(x: size.width / 2, y: currentY)
         scrollNode.addChild(label)
 
-        currentY -= 16
+        currentY -= 16 * s
 
         for (index, weapon) in weapons.enumerated() {
             let col = index % columns
@@ -253,7 +258,7 @@ class ShopScene: SKScene {
         }
 
         let rows = ceil(Double(weapons.count) / Double(columns))
-        currentY -= CGFloat(rows) * totalCardHeight + 4
+        currentY -= CGFloat(rows) * totalCardHeight + 4 * s
 
         return currentY
     }
@@ -261,25 +266,29 @@ class ShopScene: SKScene {
     // MARK: - Responsive Grid
 
     private func shopColumnsForWidth() -> Int {
-        if size.width < 380 { return 4 }
-        return 5
+        let effectiveWidth = size.width - SafeArea.left - SafeArea.right
+        if effectiveWidth < 380 { return 4 }
+        if effectiveWidth < 600 { return 5 }
+        return 6
     }
 
     private func shopCardWidth(columns: Int) -> CGFloat {
-        let padding: CGFloat = 6
-        let sideMargin: CGFloat = 10
-        let totalPadding = sideMargin * 2 + padding * CGFloat(columns - 1)
+        let s = DeviceLayout.menuScale
+        let padding: CGFloat = 6 * s
+        let sideMargin: CGFloat = 10 * s + SafeArea.left + SafeArea.right
+        let totalPadding = sideMargin + padding * CGFloat(columns - 1)
         return floor((size.width - totalPadding) / CGFloat(columns))
     }
 
     // MARK: - Card Builder
 
     private func createShopCard(weapon: WeaponInfo, cardSize: CGSize) -> SKNode {
+        let s = DeviceLayout.menuScale
         let card = SKNode()
         let data = PlayerData.shared
         let totalOwned = data.ownedCount(of: weapon.id)
 
-        let bg = SKShapeNode(rectOf: cardSize, cornerRadius: 6)
+        let bg = SKShapeNode(rectOf: cardSize, cornerRadius: 6 * s)
         bg.fillColor = totalOwned > 0
             ? SKColor(red: 0.14, green: 0.10, blue: 0.22, alpha: 0.9)
             : SKColor(red: 0.12, green: 0.10, blue: 0.18, alpha: 0.9)
@@ -289,7 +298,7 @@ class ShopScene: SKScene {
         card.addChild(bg)
 
         // Weapon icon (small)
-        let iconScale = cardSize.width / 220.0
+        let iconScale = cardSize.width / 220.0 * s
         let icon = SKSpriteNode(texture: SpriteGenerator.weaponIcon(for: weapon.id))
         icon.setScale(iconScale)
         icon.position = CGPoint(x: 0, y: cardSize.height * 0.18)
@@ -298,22 +307,22 @@ class ShopScene: SKScene {
         // Weapon name
         let nameLabel = SKLabelNode(fontNamed: "Menlo-Bold")
         nameLabel.text = compactName(weapon.name)
-        nameLabel.fontSize = max(7, min(9, cardSize.width * 0.12))
+        nameLabel.fontSize = max(7 * s, min(9 * s, cardSize.width * 0.12))
         nameLabel.fontColor = .white
         nameLabel.position = CGPoint(x: 0, y: -cardSize.height * 0.12)
         card.addChild(nameLabel)
 
         // Owned badge (top-right)
         if totalOwned > 0 {
-            let badge = SKShapeNode(rectOf: CGSize(width: 18, height: 12), cornerRadius: 6)
+            let badge = SKShapeNode(rectOf: CGSize(width: 18 * s, height: 12 * s), cornerRadius: 6 * s)
             badge.fillColor = SKColor(red: 0.2, green: 0.5, blue: 0.3, alpha: 0.9)
             badge.strokeColor = .clear
-            badge.position = CGPoint(x: cardSize.width / 2 - 12, y: cardSize.height / 2 - 10)
+            badge.position = CGPoint(x: cardSize.width / 2 - 12 * s, y: cardSize.height / 2 - 10 * s)
             card.addChild(badge)
 
             let countLabel = SKLabelNode(fontNamed: "Menlo-Bold")
             countLabel.text = "x\(totalOwned)"
-            countLabel.fontSize = 7
+            countLabel.fontSize = DeviceLayout.fontSize(7)
             countLabel.fontColor = .white
             countLabel.verticalAlignmentMode = .center
             badge.addChild(countLabel)
@@ -321,9 +330,9 @@ class ShopScene: SKScene {
 
         // Buy row
         if weapon.gemCost > 0 {
-            let buyH: CGFloat = min(16, cardSize.height * 0.18)
-            let buyW: CGFloat = cardSize.width - 8
-            let buyBg = SKShapeNode(rectOf: CGSize(width: buyW, height: buyH), cornerRadius: 4)
+            let buyH: CGFloat = min(16 * s, cardSize.height * 0.18)
+            let buyW: CGFloat = cardSize.width - 8 * s
+            let buyBg = SKShapeNode(rectOf: CGSize(width: buyW, height: buyH), cornerRadius: 4 * s)
             buyBg.fillColor = SKColor(red: 0.35, green: 0.15, blue: 0.50, alpha: 0.9)
             buyBg.strokeColor = SKColor(red: 0.55, green: 0.30, blue: 0.75, alpha: 0.4)
             buyBg.lineWidth = 1
@@ -333,12 +342,12 @@ class ShopScene: SKScene {
 
             let gemIc = SKSpriteNode(texture: SpriteGenerator.gemIcon())
             gemIc.position = CGPoint(x: -buyW * 0.25, y: 0)
-            gemIc.setScale(0.45)
+            gemIc.setScale(0.45 * s)
             buyBg.addChild(gemIc)
 
             let costLabel = SKLabelNode(fontNamed: "Menlo-Bold")
             costLabel.text = "\(weapon.gemCost)"
-            costLabel.fontSize = max(7, min(8, cardSize.width * 0.11))
+            costLabel.fontSize = max(7 * s, min(8 * s, cardSize.width * 0.11))
             costLabel.fontColor = SKColor(red: 0.9, green: 0.3, blue: 0.8, alpha: 1)
             costLabel.horizontalAlignmentMode = .center
             costLabel.verticalAlignmentMode = .center
@@ -347,7 +356,7 @@ class ShopScene: SKScene {
         } else {
             let freeLabel = SKLabelNode(fontNamed: "Menlo-Bold")
             freeLabel.text = totalOwned > 0 ? "OWNED" : "FREE"
-            freeLabel.fontSize = max(7, min(8, cardSize.width * 0.11))
+            freeLabel.fontSize = max(7 * s, min(8 * s, cardSize.width * 0.11))
             freeLabel.fontColor = SKColor(white: 0.4, alpha: 0.6)
             freeLabel.position = CGPoint(x: 0, y: -cardSize.height * 0.33)
             card.addChild(freeLabel)
@@ -566,11 +575,12 @@ class ShopScene: SKScene {
     }
 
     private func showMessage(_ text: String, color: SKColor) {
+        let s = DeviceLayout.menuScale
         let label = SKLabelNode(fontNamed: "Menlo-Bold")
         label.text = text
-        label.fontSize = 14
+        label.fontSize = DeviceLayout.fontSize(14)
         label.fontColor = color
-        label.position = CGPoint(x: size.width / 2, y: scrollAreaBottom + 30)
+        label.position = CGPoint(x: size.width / 2, y: scrollAreaBottom + 30 * s)
         label.zPosition = 100
         addChild(label)
         label.run(.sequence([
