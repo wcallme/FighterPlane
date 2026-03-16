@@ -25,7 +25,6 @@ class HangarScene: SKScene {
         setupAtmosphericBackground()
         setupHeader()
         setupPlaneDisplay()
-        setupStatsBar()
         setupUpgradeRow()
         setupLoadoutBar()
         setupActionButtons()
@@ -43,7 +42,7 @@ class HangarScene: SKScene {
         // Bottom sections (build upward from bottom with room for section labels)
         buttonRowY = usableBottom + 50
         loadoutRowY = buttonRowY + 64
-        upgradeRowY = loadoutRowY + 64
+        upgradeRowY = loadoutRowY + 70
 
         // Plane area: centered between upgrade section top and header bottom
         let headerBottom = usableTop - 80
@@ -123,7 +122,7 @@ class HangarScene: SKScene {
         addChild(divider)
 
         // Bottom panel backing
-        let bottomPanel = SKShapeNode(rect: CGRect(x: 0, y: 0, width: size.width, height: upgradeRowY + 36))
+        let bottomPanel = SKShapeNode(rect: CGRect(x: 0, y: 0, width: size.width, height: upgradeRowY + 42))
         bottomPanel.fillColor = SKColor(red: 0.05, green: 0.06, blue: 0.09, alpha: 0.88)
         bottomPanel.strokeColor = .clear
         bottomPanel.zPosition = 0
@@ -133,7 +132,7 @@ class HangarScene: SKScene {
         let bottomDivider = SKShapeNode(rectOf: CGSize(width: size.width - 40, height: 1))
         bottomDivider.fillColor = SKColor(red: 0.2, green: 0.8, blue: 0.4, alpha: 0.2)
         bottomDivider.strokeColor = .clear
-        bottomDivider.position = CGPoint(x: size.width / 2, y: upgradeRowY + 36)
+        bottomDivider.position = CGPoint(x: size.width / 2, y: upgradeRowY + 42)
         bottomDivider.zPosition = 10
         bottomDivider.glowWidth = 1
         addChild(bottomDivider)
@@ -393,31 +392,6 @@ class HangarScene: SKScene {
         return node
     }
 
-    // MARK: - Stats Bar
-
-    private func setupStatsBar() {
-        let data = PlayerData.shared
-        let statsY = planeAreaCenterY - 85
-
-        let statsText = "HP \(data.maxHealth)  \u{2022}  SPD \(String(format: "%.0f", data.speedMultiplier * 100))%  \u{2022}  ENG \(String(format: "%.0f", data.engineMultiplier * 100))%"
-        let stats = SKLabelNode(fontNamed: "Menlo")
-        stats.text = statsText
-        stats.fontSize = 10
-        stats.fontColor = SKColor(red: 0.4, green: 0.7, blue: 0.5, alpha: 0.9)
-        stats.position = CGPoint(x: size.width / 2, y: statsY)
-        stats.zPosition = 11
-
-        // Dark backing to prevent background bleed-through
-        let statsBg = SKShapeNode(rectOf: CGSize(width: stats.frame.width + 20, height: 18), cornerRadius: 6)
-        statsBg.fillColor = SKColor(red: 0.05, green: 0.06, blue: 0.09, alpha: 0.85)
-        statsBg.strokeColor = .clear
-        statsBg.position = CGPoint(x: size.width / 2, y: statsY + 3)
-        statsBg.zPosition = 10
-        addChild(statsBg)
-
-        addChild(stats)
-    }
-
     // MARK: - Upgrade Row
 
     private func setupUpgradeRow() {
@@ -431,7 +405,7 @@ class HangarScene: SKScene {
         label.text = "UPGRADES"
         label.fontSize = 9
         label.fontColor = SKColor(white: 0.35, alpha: 0.6)
-        label.position = CGPoint(x: size.width / 2, y: upgradeRowY + 22)
+        label.position = CGPoint(x: size.width / 2, y: upgradeRowY + 28)
         label.zPosition = 11
         addChild(label)
 
@@ -444,41 +418,63 @@ class HangarScene: SKScene {
         }
     }
 
+    private func statText(for upgradeId: String) -> String {
+        let data = PlayerData.shared
+        switch upgradeId {
+        case "armor":  return "HP \(data.maxHealth)"
+        case "wings":  return "SPD \(Int(data.speedMultiplier * 100))%"
+        case "engine": return "ENG \(Int(data.engineMultiplier * 100))%"
+        default:       return ""
+        }
+    }
+
     private func createUpgradeChip(upgrade: UpgradeInfo) -> SKNode {
         let node = SKNode()
         let data = PlayerData.shared
         let level = data.upgradeLevel(for: upgrade.id)
 
-        let bg = SKShapeNode(rectOf: CGSize(width: 110, height: 30), cornerRadius: 8)
+        let chipW: CGFloat = 110
+        let chipH: CGFloat = 40
+
+        let bg = SKShapeNode(rectOf: CGSize(width: chipW, height: chipH), cornerRadius: 8)
         bg.fillColor = SKColor(red: 0.10, green: 0.12, blue: 0.18, alpha: 0.95)
         bg.strokeColor = SKColor(red: 0.25, green: 0.5, blue: 0.35, alpha: 0.3)
         bg.lineWidth = 1
         bg.name = "upgrade_\(upgrade.id)"
         node.addChild(bg)
 
+        // Top row: upgrade name (left) + stat value (right)
         let nameLabel = SKLabelNode(fontNamed: "Menlo-Bold")
         nameLabel.text = upgrade.name.uppercased()
         nameLabel.fontSize = 9
         nameLabel.fontColor = SKColor(white: 0.75, alpha: 1)
         nameLabel.horizontalAlignmentMode = .left
-        nameLabel.position = CGPoint(x: -48, y: 3)
+        nameLabel.position = CGPoint(x: -48, y: 7)
         node.addChild(nameLabel)
 
-        // Upgrade pips
+        let statLabel = SKLabelNode(fontNamed: "Menlo-Bold")
+        statLabel.text = statText(for: upgrade.id)
+        statLabel.fontSize = 9
+        statLabel.fontColor = SKColor(red: 0.4, green: 0.85, blue: 0.55, alpha: 1)
+        statLabel.horizontalAlignmentMode = .right
+        statLabel.position = CGPoint(x: 50, y: 7)
+        node.addChild(statLabel)
+
+        // Middle row: upgrade pips
         for i in 0..<upgrade.maxLevel {
             let pip = SKShapeNode(rectOf: CGSize(width: 5, height: 4), cornerRadius: 1)
             pip.fillColor = i < level
                 ? SKColor(red: 0.25, green: 0.85, blue: 0.35, alpha: 1)
                 : SKColor(white: 0.2, alpha: 0.4)
             pip.strokeColor = .clear
-            pip.position = CGPoint(x: -48 + CGFloat(i) * 7, y: -6)
+            pip.position = CGPoint(x: -48 + CGFloat(i) * 7, y: -4)
             if i < level {
                 pip.glowWidth = 1
             }
             node.addChild(pip)
         }
 
-        // Cost or MAX (right-aligned to chip edge)
+        // Bottom-right: cost or MAX
         if level < upgrade.maxLevel {
             let cost = upgrade.cost(forLevel: level)
             let costLabel = SKLabelNode(fontNamed: "Menlo-Bold")
@@ -486,11 +482,11 @@ class HangarScene: SKScene {
             costLabel.fontSize = 9
             costLabel.fontColor = SKColor(red: 0.9, green: 0.8, blue: 0.2, alpha: 1)
             costLabel.horizontalAlignmentMode = .right
-            costLabel.position = CGPoint(x: 50, y: -4)
+            costLabel.position = CGPoint(x: 50, y: -13)
             node.addChild(costLabel)
 
             let coinIcon = SKSpriteNode(texture: SpriteGenerator.coinIcon())
-            coinIcon.position = CGPoint(x: 50 - costLabel.frame.width - 6, y: 0)
+            coinIcon.position = CGPoint(x: 50 - costLabel.frame.width - 6, y: -9)
             coinIcon.setScale(0.55)
             node.addChild(coinIcon)
         } else {
@@ -499,7 +495,7 @@ class HangarScene: SKScene {
             maxLabel.fontSize = 9
             maxLabel.fontColor = SKColor(red: 0.25, green: 0.85, blue: 0.35, alpha: 1)
             maxLabel.horizontalAlignmentMode = .right
-            maxLabel.position = CGPoint(x: 50, y: -4)
+            maxLabel.position = CGPoint(x: 50, y: -13)
             node.addChild(maxLabel)
         }
 
@@ -874,7 +870,7 @@ class HangarScene: SKScene {
             refreshCurrency()
 
             // Success flash
-            let flash = SKShapeNode(rectOf: CGSize(width: 110, height: 30), cornerRadius: 8)
+            let flash = SKShapeNode(rectOf: CGSize(width: 110, height: 40), cornerRadius: 8)
             flash.fillColor = SKColor(red: 0.2, green: 1.0, blue: 0.3, alpha: 0.25)
             flash.strokeColor = .clear
             flash.glowWidth = 4
