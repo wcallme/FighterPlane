@@ -1228,7 +1228,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
             // Cluster warhead: split mid-air after 1.4s OR just before ground impact
             let isCluster = activeBombs[i].clusterCount > 0
-            let clusterTimerFired = isCluster && activeBombs[i].timeAlive >= 0.8
+            let clusterTimerFired = isCluster && activeBombs[i].timeAlive >= 1.0
             let clusterAboutToHitGround = isCluster && bombPos.y <= groundLevel + 2.0
             if clusterTimerFired || clusterAboutToHitGround {
                 let bomblets = spawnClusterBomblets(from: activeBombs[i])
