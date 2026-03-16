@@ -5,13 +5,20 @@ struct PlaneInfo {
     let name: String
     let weaponSlots: Int
     let gunDamageMultiplier: Double
+    let maxUpgradeLevel: Int
+    let baseHP: Int
+    let baseSpeed: Int      // percentage, e.g. 100 = 1.0x
+    let baseEngine: Int     // percentage, e.g. 100 = 1.0x
 }
 
 enum PlaneCatalog {
     static let all: [PlaneInfo] = [
-        PlaneInfo(id: "F16", name: "F-16 Falcon", weaponSlots: 5, gunDamageMultiplier: 1.0),
-        PlaneInfo(id: "F22", name: "F-22 Raptor", weaponSlots: 7, gunDamageMultiplier: 1.2),
-        PlaneInfo(id: "B2", name: "B-2 Spirit", weaponSlots: 9, gunDamageMultiplier: 1.0),
+        PlaneInfo(id: "F16", name: "F-16 Falcon", weaponSlots: 5, gunDamageMultiplier: 1.0,
+                  maxUpgradeLevel: 5, baseHP: 100, baseSpeed: 100, baseEngine: 100),
+        PlaneInfo(id: "F22", name: "F-22 Raptor", weaponSlots: 7, gunDamageMultiplier: 1.2,
+                  maxUpgradeLevel: 8, baseHP: 150, baseSpeed: 130, baseEngine: 120),
+        PlaneInfo(id: "B2", name: "B-2 Spirit", weaponSlots: 9, gunDamageMultiplier: 1.0,
+                  maxUpgradeLevel: 10, baseHP: 200, baseSpeed: 120, baseEngine: 120),
     ]
 
     static func plane(byId id: String) -> PlaneInfo? {
@@ -208,19 +215,23 @@ class PlayerData {
 
     // MARK: - Computed Stats
 
-    /// Total max health based on armor upgrade
+    var currentPlane: PlaneInfo {
+        PlaneCatalog.plane(byId: selectedPlaneId) ?? PlaneCatalog.all[0]
+    }
+
+    /// Total max health based on plane base HP + armor upgrade
     var maxHealth: Int {
-        100 + armorLevel * 15
+        currentPlane.baseHP + armorLevel * 15
     }
 
-    /// Speed multiplier based on wings upgrade (1.0 = base)
+    /// Speed multiplier based on plane base speed + wings upgrade
     var speedMultiplier: CGFloat {
-        1.0 + CGFloat(wingsLevel) * 0.08
+        CGFloat(currentPlane.baseSpeed) / 100.0 + CGFloat(wingsLevel) * 0.08
     }
 
-    /// Scroll speed multiplier based on engine upgrade
+    /// Scroll speed multiplier based on plane base engine + engine upgrade
     var engineMultiplier: CGFloat {
-        1.0 + CGFloat(engineLevel) * 0.05
+        CGFloat(currentPlane.baseEngine) / 100.0 + CGFloat(engineLevel) * 0.05
     }
 
     // MARK: - Equipped Weapon Helpers
@@ -332,7 +343,8 @@ class PlayerData {
 
     func purchaseUpgrade(_ upgrade: UpgradeInfo) -> Bool {
         let currentLevel = upgradeLevel(for: upgrade.id)
-        guard currentLevel < upgrade.maxLevel else { return false }
+        let maxLevel = currentPlane.maxUpgradeLevel
+        guard currentLevel < maxLevel else { return false }
         let cost = upgrade.cost(forLevel: currentLevel)
         guard coins >= cost else { return false }
 
@@ -364,6 +376,7 @@ class PlayerData {
         migrateWeaponIds()
         migrateGlobalUpgradesToPerPlane()
         migratePlaneUnlocks()
+        clampUpgradeLevels()
     }
 
     /// Migrate legacy global upgrade levels to per-plane keys.
@@ -421,5 +434,20 @@ class PlayerData {
     private func migratePlaneUnlocks() {
         guard defaults.object(forKey: "pd_unlockedPlanes") == nil else { return }
         unlockedPlaneIds = Set(PlaneCatalog.all.map { $0.id })
+    }
+
+    /// Clamp upgrade levels to each plane's maxUpgradeLevel
+    private func clampUpgradeLevels() {
+        let saved = selectedPlaneId
+        for plane in PlaneCatalog.all {
+            let max = plane.maxUpgradeLevel
+            let aKey = "pd_armorLevel_\(plane.id)"
+            let wKey = "pd_wingsLevel_\(plane.id)"
+            let eKey = "pd_engineLevel_\(plane.id)"
+            if defaults.integer(forKey: aKey) > max { defaults.set(max, forKey: aKey) }
+            if defaults.integer(forKey: wKey) > max { defaults.set(max, forKey: wKey) }
+            if defaults.integer(forKey: eKey) > max { defaults.set(max, forKey: eKey) }
+        }
+        selectedPlaneId = saved
     }
 }

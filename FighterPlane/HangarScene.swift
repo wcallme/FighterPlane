@@ -511,14 +511,18 @@ class HangarScene: SKScene {
         statLabel.position = CGPoint(x: 50 * s, y: 7 * s)
         node.addChild(statLabel)
 
-        // Middle row: upgrade pips
-        for i in 0..<upgrade.maxLevel {
+        // Middle row: upgrade pips (per-plane max)
+        let maxLevel = PlayerData.shared.currentPlane.maxUpgradeLevel
+        let pipSpacing: CGFloat = maxLevel <= 5 ? 14 : (maxLevel <= 8 ? 10 : 7)
+        let totalPipWidth = CGFloat(maxLevel - 1) * pipSpacing
+        let pipStartX = -totalPipWidth / 2
+        for i in 0..<maxLevel {
             let pip = SKShapeNode(rectOf: CGSize(width: 5 * s, height: 4 * s), cornerRadius: 1)
             pip.fillColor = i < level
                 ? SKColor(red: 0.25, green: 0.85, blue: 0.35, alpha: 1)
                 : SKColor(white: 0.2, alpha: 0.4)
             pip.strokeColor = .clear
-            pip.position = CGPoint(x: (-48 + CGFloat(i) * 7) * s, y: -4 * s)
+            pip.position = CGPoint(x: (pipStartX + CGFloat(i) * pipSpacing) * s, y: -4 * s)
             if i < level {
                 pip.glowWidth = 1
             }
@@ -526,7 +530,7 @@ class HangarScene: SKScene {
         }
 
         // Bottom-right: cost or MAX
-        if level < upgrade.maxLevel {
+        if level < maxLevel {
             let cost = upgrade.cost(forLevel: level)
             let costLabel = SKLabelNode(fontNamed: "Menlo-Bold")
             costLabel.text = "\(cost)"
