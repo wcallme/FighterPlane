@@ -55,6 +55,8 @@
 		A7D4E1F2B3C5068192A3B4C5 /* GunSoundManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4A1B3C5E6F708192A3B4C5D /* GunSoundManager.swift */; };
 		B8E5F2A3C4D6179283B4C5D6 /* minigun_spinup.wav in Resources */ = {isa = PBXBuildFile; fileRef = E5B2C4D6F7A8091B2C3D4E5F /* minigun_spinup.wav */; };
 		C9F6A3B4D5E728A394C5D6E7 /* minigun_loop.wav in Resources */ = {isa = PBXBuildFile; fileRef = F6C3D5E7A8B90A1C2D3E4F60 /* minigun_loop.wav */; };
+		C3D4E5F6A7B8293041C5D6E7 /* SFXPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6071829A3B4C5 /* SFXPlayer.swift */; };
+		D4E5F6A7B8C930A152D6E7F8 /* aa_fire.wav in Resources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F6A7182930B4C5D6 /* aa_fire.wav */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -108,6 +110,8 @@
 		D4A1B3C5E6F708192A3B4C5D /* GunSoundManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GunSoundManager.swift; sourceTree = "<group>"; };
 		E5B2C4D6F7A8091B2C3D4E5F /* minigun_spinup.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = minigun_spinup.wav; sourceTree = "<group>"; };
 		F6C3D5E7A8B90A1C2D3E4F60 /* minigun_loop.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = minigun_loop.wav; sourceTree = "<group>"; };
+		A1B2C3D4E5F6071829A3B4C5 /* SFXPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SFXPlayer.swift; sourceTree = "<group>"; };
+		B2C3D4E5F6A7182930B4C5D6 /* aa_fire.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = aa_fire.wav; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -173,9 +177,10 @@
 				10237EAB50C44DBDFBBD6664 /* ParallaxBackground.swift */,
 				9DBB8D4E077DDF2D07D1C0E5 /* PlayerData.swift */,
 				ECCF607FAD5D8584B753D400 /* PlayerNode.swift */,
+				A1B2C3D4E5F6071829A3B4C5 /* SFXPlayer.swift */,
 				942FB9E91C48C1462809E0CE /* ShopScene.swift */,
-				711043217C56094BC4C07A25 /* SpriteGenerator.swift */,
 				DA07B4C5E6F839B4A5D6E7F8 /* SoundEffects */,
+				711043217C56094BC4C07A25 /* SpriteGenerator.swift */,
 				E562AFD2EC9C85FCD2D5B860 /* WeaponData.swift */,
 			);
 			path = FighterPlane;
@@ -217,6 +222,7 @@
 		DA07B4C5E6F839B4A5D6E7F8 /* SoundEffects */ = {
 			isa = PBXGroup;
 			children = (
+				B2C3D4E5F6A7182930B4C5D6 /* aa_fire.wav */,
 				F6C3D5E7A8B90A1C2D3E4F60 /* minigun_loop.wav */,
 				E5B2C4D6F7A8091B2C3D4E5F /* minigun_spinup.wav */,
 			);
@@ -282,6 +288,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				625F210993A291EA40FD85DD /* Assets.xcassets in Resources */,
+				D4E5F6A7B8C930A152D6E7F8 /* aa_fire.wav in Resources */,
 				67549773CC7E7B776410ABA0 /* B2.usdz in Resources */,
 				733CCABD07E1DCF685CBBBB0 /* B2_backup.usdz in Resources */,
 				86425A52230D56FC3E0BF713 /* B2_menu.png in Resources */,
@@ -336,6 +343,7 @@
 				B412F2C93952C846F00A149E /* ParallaxBackground.swift in Sources */,
 				E3532EFA432DCED2C95B35C3 /* PlayerData.swift in Sources */,
 				4126C17CF23D00494189E563 /* PlayerNode.swift in Sources */,
+				C3D4E5F6A7B8293041C5D6E7 /* SFXPlayer.swift in Sources */,
 				372B6B94933979DC14AC3B49 /* ShopScene.swift in Sources */,
 				7EA6720E09DF1A89CBE878BF /* SpriteGenerator.swift in Sources */,
 				01563731CD0B051CA7E209A3 /* WeaponData.swift in Sources */,
