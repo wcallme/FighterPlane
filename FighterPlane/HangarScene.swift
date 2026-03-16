@@ -44,10 +44,10 @@ class HangarScene: SKScene {
         let safeLeft = SafeArea.left
         let safeRight = SafeArea.right
 
-        // Bottom sections (build upward from bottom with room for section labels)
-        buttonRowY = usableBottom + 50
-        loadoutRowY = buttonRowY + 64
-        upgradeRowY = loadoutRowY + 70
+        // Bottom sections (compact — reduce dead space between rows)
+        buttonRowY = usableBottom + 36
+        loadoutRowY = buttonRowY + 52
+        upgradeRowY = loadoutRowY + 52
 
         // Plane area: centered between upgrade section top and screen top
         let topBound = usableTop - 20
@@ -238,19 +238,19 @@ class HangarScene: SKScene {
         modelLabel.text = PlayerData.shared.selectedPlaneName
         modelLabel.fontSize = 14
         modelLabel.fontColor = SKColor(white: 0.75, alpha: 0.9)
-        let nameLabelY = min(planeAreaCenterY + 105, size.height - safeTop - 10)
+        let nameLabelY = min(planeAreaCenterY + 95, size.height - safeTop - 25)
         modelLabel.position = CGPoint(x: size.width / 2, y: nameLabelY)
         modelLabel.zPosition = 10
         modelLabel.name = "planeNameLabel"
         addChild(modelLabel)
 
-        // Plane selection arrows — flanking the plane sprite
+        // Plane selection arrows — just outside the plane image edges
         let leftArrow = createArrowButton(text: "\u{25C0}", name: "planeLeft")
-        leftArrow.position = CGPoint(x: size.width / 2 - 120, y: planeAreaCenterY)
+        leftArrow.position = CGPoint(x: size.width / 2 - 105, y: planeAreaCenterY)
         addChild(leftArrow)
 
         let rightArrow = createArrowButton(text: "\u{25B6}", name: "planeRight")
-        rightArrow.position = CGPoint(x: size.width / 2 + 120, y: planeAreaCenterY)
+        rightArrow.position = CGPoint(x: size.width / 2 + 105, y: planeAreaCenterY)
         addChild(rightArrow)
 
         // 3D plane rendered as a sprite (SCNRenderer snapshot - avoids SK3DNode crashes)
