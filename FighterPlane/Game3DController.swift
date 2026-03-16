@@ -195,7 +195,9 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         let damage: Int
         var lifetime: Float
         let turnRate: Float
-        let speed: Float
+        let baseSpeed: Float           // 1.0x plane speed (per-frame unit)
+        var speed: Float               // current speed (ramps from 1.0x to 1.5x)
+        var flightTime: Float = 0      // seconds since launch (for acceleration)
         var targetNode: SCNNode?       // current homing target (enemy plane)
         var launchTimer: Float = 0.2   // time remaining attached under the plane
         var launched: Bool = false      // true once the 0.2s hold is over
@@ -2434,17 +2436,18 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         missileNode.eulerAngles = SCNVector3(-playerAngle, 0, 0)
         scene.rootNode.addChildNode(missileNode)
 
-        // Speed = 1.85x the plane's speed
+        // Base speed = plane speed; accelerates to 1.5x over 0.5s after launch
         let speedMult = Float(PlayerData.shared.speedMultiplier)
-        let missileSpeed = playerSpeed * speedMult * 1.85 / 60.0  // per-frame unit
+        let planeSpeed = playerSpeed * speedMult / 60.0  // per-frame unit
 
         let rocket = AIMRocket3D(
             node: missileNode,
             velocity: SCNVector3(0, 0, 0),  // set on launch after 0.2s hold
             damage: 7,
             lifetime: 8.0,
-            turnRate: 2.5,
-            speed: missileSpeed,
+            turnRate: 3.5,
+            baseSpeed: planeSpeed,
+            speed: planeSpeed,
             targetNode: targetNode,
             launchTimer: 0.2,
             launched: false
@@ -2480,6 +2483,11 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
             // --- Post-launch phase ---
             activeAIMRockets[i].lifetime -= dt
+            activeAIMRockets[i].flightTime += dt
+
+            // Accelerate from 1.0x to 1.5x plane speed over 0.5s
+            let accelProgress = min(activeAIMRockets[i].flightTime / 0.5, 1.0)
+            activeAIMRockets[i].speed = activeAIMRockets[i].baseSpeed * (1.0 + 0.5 * accelProgress)
 
             // Remove expired or far-out-of-range rockets
             if activeAIMRockets[i].lifetime <= 0 ||
@@ -2551,7 +2559,15 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                     activeAIMRockets[i].velocity = SCNVector3(0, vy, vz)
                 }
             }
-            // If no target, velocity stays as-is (straight line from pitch)
+            // If no target, re-normalize velocity to current (accelerating) speed
+            if activeAIMRockets[i].targetNode == nil {
+                let curV = activeAIMRockets[i].velocity
+                let mag = sqrt(curV.y * curV.y + curV.z * curV.z)
+                if mag > 0 {
+                    let spd = activeAIMRockets[i].speed
+                    activeAIMRockets[i].velocity = SCNVector3(0, curV.y / mag * spd, curV.z / mag * spd)
+                }
+            }
 
             // Move
             let v = activeAIMRockets[i].velocity
