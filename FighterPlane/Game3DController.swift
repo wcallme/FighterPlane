@@ -35,6 +35,8 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     private var shootCooldownTimer: TimeInterval = 0
     private var bombCooldownTimers: [TimeInterval] = []
     private var wasFiring = false   // track fire-button transitions for sound
+    private var gunSoundLingerTimer: TimeInterval = 0  // keep gun sound playing briefly after release
+    private let gunSoundLingerDuration: TimeInterval = 0.3
 
     // Water
     private let waterNode: SCNNode
@@ -823,10 +825,14 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 GunSoundManager.shared.startFiring()
                 wasFiring = true
             }
+            gunSoundLingerTimer = gunSoundLingerDuration
             fireGun()
         } else if wasFiring {
-            GunSoundManager.shared.stopFiring()
-            wasFiring = false
+            gunSoundLingerTimer -= dt
+            if gunSoundLingerTimer <= 0 {
+                GunSoundManager.shared.stopFiring()
+                wasFiring = false
+            }
         }
         GunSoundManager.shared.updateFade(dt: dt)
 
