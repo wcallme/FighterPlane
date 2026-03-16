@@ -1166,7 +1166,7 @@ enum ModelGenerator3D {
     private static func clusterWarhead3D() -> SCNNode {
         let root = SCNNode()
         root.name = "bomb3D"
-        root.scale = SCNVector3(6, 6, 6)
+        root.scale = SCNVector3(4, 4, 4)
 
         // Pointed nose cone
         let nose = SCNCone(topRadius: 0.08, bottomRadius: 0, height: 0.18)
@@ -1217,7 +1217,7 @@ enum ModelGenerator3D {
     static func clusterBomblet3D() -> SCNNode {
         let root = SCNNode()
         root.name = "bomb3D"
-        root.scale = SCNVector3(2, 2, 2)
+        root.scale = SCNVector3(1.3, 1.3, 1.3)
 
         // Pointed nose cone
         let nose = SCNCone(topRadius: 0, bottomRadius: 0.045, height: 0.10)
