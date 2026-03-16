@@ -249,6 +249,73 @@ class GameHUD3D: SKScene {
         ecmButton = btn
     }
 
+    func setupAIMButton() {
+        let btnR = DeviceLayout.buttonRadius
+        let margin = DeviceLayout.buttonMargin
+        let spacing = DeviceLayout.buttonSpacing
+
+        // Position to the LEFT of the ECM button (same Y row)
+        let ecmX = size.width - safeRight - margin
+        let aimX = ecmX - btnR * 2 - 12
+
+        let btn = SKShapeNode(circleOfRadius: btnR)
+        btn.fillColor = SKColor(red: 0.7, green: 0.25, blue: 0.2, alpha: 0.5)
+        btn.strokeColor = SKColor(white: 0.9, alpha: 0.7)
+        btn.lineWidth = 2
+        btn.position = CGPoint(x: aimX, y: safeBottom + btnR - 6 + spacing * 2)
+        btn.zPosition = 10
+        btn.name = "aimBtn"
+        addChild(btn)
+
+        let icon = SKLabelNode(fontNamed: "Menlo-Bold")
+        icon.text = "AIM"
+        icon.fontSize = DeviceLayout.fontSize(11)
+        icon.fontColor = .white
+        icon.verticalAlignmentMode = .center
+        icon.position = CGPoint(x: 0, y: 4)
+        btn.addChild(icon)
+
+        aimButton = btn
+    }
+
+    func updateAIMButton(ready: Int, total: Int) {
+        guard let btn = aimButton, total > 0 else { return }
+
+        // Rebuild pips if total changed
+        if aimPips.count != total {
+            for pip in aimPips { pip.removeFromParent() }
+            aimPips.removeAll()
+
+            let pipRadius: CGFloat = 4
+            let pipSpacing: CGFloat = 12
+            let totalWidth = CGFloat(total - 1) * pipSpacing
+            let startX = -totalWidth / 2
+
+            for i in 0..<total {
+                let pip = SKShapeNode(circleOfRadius: pipRadius)
+                pip.strokeColor = SKColor(white: 0.9, alpha: 0.6)
+                pip.lineWidth = 1
+                pip.fillColor = SKColor(white: 0.2, alpha: 0.6)
+                pip.position = CGPoint(x: startX + CGFloat(i) * pipSpacing, y: -15)
+                pip.zPosition = 1
+                btn.addChild(pip)
+                aimPips.append(pip)
+            }
+        }
+
+        // Update colors
+        for (i, pip) in aimPips.enumerated() {
+            pip.fillColor = i < ready
+                ? SKColor(red: 0.9, green: 0.3, blue: 0.2, alpha: 1.0)
+                : SKColor(white: 0.2, alpha: 0.6)
+        }
+
+        // Dim button when no missiles ready
+        btn.fillColor = ready > 0
+            ? SKColor(red: 0.7, green: 0.25, blue: 0.2, alpha: 0.5)
+            : SKColor(red: 0.3, green: 0.15, blue: 0.15, alpha: 0.4)
+    }
+
     func updateECMButton(isActive: Bool, isReady: Bool, cooldownFraction: CGFloat) {
         guard let btn = ecmButton else { return }
         if isActive {
@@ -585,6 +652,7 @@ class GameHUD3D: SKScene {
         healthBarBg.run(.fadeAlpha(to: 0, duration: 0.5))
         healthBarFill.run(.fadeAlpha(to: 0, duration: 0.5))
         ecmButton?.run(.fadeAlpha(to: 0, duration: 0.5))
+        aimButton?.run(.fadeAlpha(to: 0, duration: 0.5))
         clearOffscreenIndicators()
     }
 
@@ -827,6 +895,20 @@ class GameHUD3D: SKScene {
                     continue
                 }
             }
+
+            // AIM Rockets button
+            if let aim = aimButton {
+                let aimDist = hypot(loc.x - aim.position.x, loc.y - aim.position.y)
+                if aimDist <= hitR {
+                    shouldFireAIM = true
+                    pressButton(aim)
+                    aim.run(.sequence([
+                        .wait(forDuration: 0.15),
+                        .run { [weak self] in self?.releaseAIMButton() }
+                    ]))
+                    continue
+                }
+            }
         }
     }
 
@@ -887,6 +969,12 @@ class GameHUD3D: SKScene {
 
     private func releaseECMButton() {
         guard let btn = ecmButton else { return }
+        btn.removeAllActions()
+        btn.run(.scale(to: 1.0, duration: 0.1))
+    }
+
+    private func releaseAIMButton() {
+        guard let btn = aimButton else { return }
         btn.removeAllActions()
         btn.run(.scale(to: 1.0, duration: 0.1))
     }
