@@ -30,6 +30,9 @@ class HangarScene: SKScene {
         setupUpgradeRow()
         setupLoadoutBar()
         setupActionButtons()
+
+        // Signal that the menu is fully built so the splash overlay can fade out
+        NotificationCenter.default.post(name: .menuSceneReady, object: nil)
     }
 
     // MARK: - Layout Computation

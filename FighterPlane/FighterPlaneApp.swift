@@ -5,6 +5,13 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                      supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
         return [.landscapeLeft, .landscapeRight]
     }
+
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        // Pre-warm audio so it doesn't block the main thread when the menu first loads
+        _ = MenuMusicManager.shared
+        return true
+    }
 }
 
 @main

@@ -4,6 +4,7 @@ import SceneKit
 
 struct ContentView: View {
     @ObservedObject private var nav = NavigationManager.shared
+    @State private var showSplash = true
 
     var body: some View {
         ZStack {
@@ -14,7 +15,36 @@ struct ContentView: View {
                 MenuSpriteView()
                     .ignoresSafeArea()
             }
+
+            // Splash overlay that seamlessly continues the native launch screen
+            // until the menu scene is fully rendered
+            if showSplash && !nav.isInGame {
+                SplashOverlay()
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+            }
         }
+        .animation(.easeOut(duration: 0.5), value: showSplash)
+        .onReceive(NotificationCenter.default.publisher(for: .menuSceneReady)) { _ in
+            // Give one extra frame for SpriteKit to render before fading out
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                showSplash = false
+            }
+        }
+    }
+}
+
+/// Matches the native launch screen (LaunchImage on black) so the transition is seamless.
+private struct SplashOverlay: View {
+    var body: some View {
+        ZStack {
+            Color.black
+            Image("LaunchImage")
+                .resizable()
+                .scaledToFill()
+        }
+        .ignoresSafeArea()
     }
 }
 
@@ -43,3 +73,6 @@ class MenuSKView: SKView {
     }
 }
 
+extension Notification.Name {
+    static let menuSceneReady = Notification.Name("menuSceneReady")
+}
