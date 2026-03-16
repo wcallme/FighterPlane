@@ -849,6 +849,9 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         // Update enemies
         updateEnemies(dt: floatDt, time: time)
 
+        // Update off-screen enemy indicators (mission mode)
+        updateOffscreenIndicators()
+
         // Update engine sounds (fade-in + enemy proximity volume)
         let closestFighterDist = enemies
             .filter { $0.isAir && $0.node.parent != nil }
@@ -1785,6 +1788,55 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 }
             }
         }
+    }
+
+    // MARK: - Off-Screen Enemy Indicators
+
+    private func updateOffscreenIndicators() {
+        guard isMissionMode else { return }
+
+        // Camera geometry: side-view at X=-35, FOV 55°, landscape
+        // Visible Z center ≈ where camera looks: smoothCamZ + smoothLeadZ
+        // Visible half-width at X=0 ≈ 35 * tan(horizontalHalfFOV)
+        // For 55° vertical FOV, ~2.16 aspect: horizontal half ≈ 46°, half-width ≈ 37
+        let lookCenterZ = smoothCamZ + smoothLeadZ
+        let visibleHalfZ: Float = 37
+        let visibleMinZ = lookCenterZ - visibleHalfZ
+
+        // Visible Y range: 35 * tan(27.5°) * 2 ≈ 36 units
+        let visibleHalfY: Float = 18
+        let camLookY = smoothCamY - 2  // camera looks at smoothCamY - 2
+        let hudHeight = hud.size.height
+
+        var indicators: [GameHUD3D.OffscreenIndicator] = []
+
+        for enemy in enemies {
+            // Only ground enemies, skip air
+            guard enemy.type.isGround, enemy.node.parent != nil else { continue }
+
+            let ez = enemy.node.position.z
+            let ey = enemy.node.position.y
+
+            // Only show indicator if enemy is off-screen to the left (behind camera view)
+            guard ez < visibleMinZ else { continue }
+
+            // Map enemy Y to screen Y
+            let normalizedY = (ey - (camLookY - visibleHalfY)) / (visibleHalfY * 2)
+            let screenY = CGFloat(normalizedY) * hudHeight
+
+            // Compute angle from indicator toward enemy
+            let deltaZ = ez - (smoothCamZ - visibleHalfZ) // always negative (behind)
+            let deltaY = ey - (camLookY)
+            let angle = CGFloat(atan2(deltaY, deltaZ))
+
+            indicators.append(GameHUD3D.OffscreenIndicator(
+                type: enemy.type,
+                screenY: screenY,
+                angle: angle
+            ))
+        }
+
+        hud.updateOffscreenIndicators(indicators)
     }
 
     // MARK: - AI Fighter 3D Pursuit
