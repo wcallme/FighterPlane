@@ -10,11 +10,12 @@ class HangarScene: SKScene {
     private var safeBottom: CGFloat = 34
 
     // Layout zones (computed once in didMove)
-    private var headerY: CGFloat = 0
     private var planeAreaCenterY: CGFloat = 0
     private var upgradeRowY: CGFloat = 0
     private var loadoutRowY: CGFloat = 0
     private var buttonRowY: CGFloat = 0
+    private var leftInfoX: CGFloat = 0
+    private var rightInfoX: CGFloat = 0
 
     override func didMove(to view: SKView) {
         backgroundColor = SKColor(red: 0.06, green: 0.07, blue: 0.11, alpha: 1.0)
@@ -40,19 +41,24 @@ class HangarScene: SKScene {
     private func computeLayout() {
         let usableTop = size.height - safeTop
         let usableBottom = safeBottom
-
-        // Header: from top
-        headerY = usableTop - 40
+        let safeLeft = SafeArea.left
+        let safeRight = SafeArea.right
 
         // Bottom sections (build upward from bottom with room for section labels)
         buttonRowY = usableBottom + 50
         loadoutRowY = buttonRowY + 64
         upgradeRowY = loadoutRowY + 70
 
-        // Plane area: centered between upgrade section top and header bottom
-        let headerBottom = usableTop - 80
+        // Plane area: centered between upgrade section top and screen top
+        let topBound = usableTop - 20
         let upgradeTop = upgradeRowY + 34
-        planeAreaCenterY = upgradeTop + (headerBottom - upgradeTop) * 0.5
+        planeAreaCenterY = upgradeTop + (topBound - upgradeTop) * 0.5
+
+        // Side info panels: centered in space between screen edges and plane zone
+        let planeZoneLeft = size.width / 2 - 130
+        let planeZoneRight = size.width / 2 + 130
+        leftInfoX = (safeLeft + planeZoneLeft) / 2
+        rightInfoX = (planeZoneRight + size.width - safeRight) / 2
     }
 
     // MARK: - Atmospheric Background
@@ -110,22 +116,6 @@ class HangarScene: SKScene {
             .moveTo(y: 0, duration: 0)
         ])))
 
-        // Top bar backing
-        let topBar = SKShapeNode(rect: CGRect(x: 0, y: size.height - safeTop - 78, width: size.width, height: safeTop + 78))
-        topBar.fillColor = SKColor(red: 0.05, green: 0.06, blue: 0.09, alpha: 0.92)
-        topBar.strokeColor = .clear
-        topBar.zPosition = 9
-        addChild(topBar)
-
-        // Glowing divider line under header
-        let divider = SKShapeNode(rectOf: CGSize(width: size.width - 40, height: 1))
-        divider.fillColor = SKColor(red: 0.2, green: 0.8, blue: 0.4, alpha: 0.3)
-        divider.strokeColor = .clear
-        divider.position = CGPoint(x: size.width / 2, y: size.height - safeTop - 78)
-        divider.zPosition = 10
-        divider.glowWidth = 2
-        addChild(divider)
-
         // Bottom panel backing
         let bottomPanel = SKShapeNode(rect: CGRect(x: 0, y: 0, width: size.width, height: upgradeRowY + 42))
         bottomPanel.fillColor = SKColor(red: 0.05, green: 0.06, blue: 0.09, alpha: 0.88)
@@ -147,10 +137,22 @@ class HangarScene: SKScene {
 
     private func setupHeader() {
         let data = PlayerData.shared
+        let centerY = planeAreaCenterY
 
-        // Player level badge - left
+        // --- LEFT SIDE: Title, Level, Settings ---
+
+        // Title
+        let title = SKLabelNode(fontNamed: "Menlo-Bold")
+        title.text = "HANGAR"
+        title.fontSize = 18
+        title.fontColor = SKColor(white: 0.92, alpha: 1)
+        title.position = CGPoint(x: leftInfoX, y: centerY + 30)
+        title.zPosition = 11
+        addChild(title)
+
+        // Player level badge
         let levelBadge = SKNode()
-        levelBadge.position = CGPoint(x: 52, y: headerY)
+        levelBadge.position = CGPoint(x: leftInfoX, y: centerY - 10)
         levelBadge.zPosition = 11
 
         let levelBg = SKShapeNode(rectOf: CGSize(width: 64, height: 26), cornerRadius: 13)
@@ -169,10 +171,10 @@ class HangarScene: SKScene {
 
         addChild(levelBadge)
 
-        // Settings button (reset progress)
+        // Settings button
         let settingsBtn = SKNode()
         settingsBtn.name = "settingsButton"
-        settingsBtn.position = CGPoint(x: 100, y: headerY)
+        settingsBtn.position = CGPoint(x: leftInfoX, y: centerY - 45)
         settingsBtn.zPosition = 11
 
         let settingsBg = SKShapeNode(circleOfRadius: 13)
@@ -191,21 +193,11 @@ class HangarScene: SKScene {
         settingsBtn.addChild(gearLabel)
         addChild(settingsBtn)
 
-        // Title - center
-        let title = SKLabelNode(fontNamed: "Menlo-Bold")
-        title.text = "HANGAR"
-        title.fontSize = 20
-        title.fontColor = SKColor(white: 0.92, alpha: 1)
-        title.position = CGPoint(x: size.width / 2, y: headerY - 2)
-        title.zPosition = 11
-        addChild(title)
-
-        // Currency display - right
-        let currencyY = headerY
+        // --- RIGHT SIDE: Gems, Coins ---
 
         // Gems
         let gemIcon = SKSpriteNode(texture: SpriteGenerator.gemIcon())
-        gemIcon.position = CGPoint(x: size.width - 150, y: currencyY)
+        gemIcon.position = CGPoint(x: rightInfoX - 14, y: centerY + 15)
         gemIcon.setScale(1.2)
         gemIcon.zPosition = 11
         addChild(gemIcon)
@@ -215,14 +207,14 @@ class HangarScene: SKScene {
         gemLabel.fontSize = 14
         gemLabel.fontColor = SKColor(red: 0.9, green: 0.3, blue: 0.8, alpha: 1)
         gemLabel.horizontalAlignmentMode = .left
-        gemLabel.position = CGPoint(x: size.width - 136, y: currencyY - 5)
+        gemLabel.position = CGPoint(x: rightInfoX, y: centerY + 10)
         gemLabel.zPosition = 11
         gemLabel.name = "gemCount"
         addChild(gemLabel)
 
         // Coins
         let coinIcon = SKSpriteNode(texture: SpriteGenerator.coinIcon())
-        coinIcon.position = CGPoint(x: size.width - 72, y: currencyY)
+        coinIcon.position = CGPoint(x: rightInfoX - 14, y: centerY - 20)
         coinIcon.setScale(1.2)
         coinIcon.zPosition = 11
         addChild(coinIcon)
@@ -232,7 +224,7 @@ class HangarScene: SKScene {
         coinLabel.fontSize = 14
         coinLabel.fontColor = SKColor(red: 0.9, green: 0.8, blue: 0.2, alpha: 1)
         coinLabel.horizontalAlignmentMode = .left
-        coinLabel.position = CGPoint(x: size.width - 58, y: currencyY - 5)
+        coinLabel.position = CGPoint(x: rightInfoX, y: centerY - 25)
         coinLabel.zPosition = 11
         coinLabel.name = "coinCount"
         addChild(coinLabel)
@@ -246,7 +238,7 @@ class HangarScene: SKScene {
         modelLabel.text = PlayerData.shared.selectedPlaneName
         modelLabel.fontSize = 14
         modelLabel.fontColor = SKColor(white: 0.75, alpha: 0.9)
-        let nameLabelY = min(planeAreaCenterY + 105, headerY - 32)
+        let nameLabelY = min(planeAreaCenterY + 105, size.height - safeTop - 10)
         modelLabel.position = CGPoint(x: size.width / 2, y: nameLabelY)
         modelLabel.zPosition = 10
         modelLabel.name = "planeNameLabel"
