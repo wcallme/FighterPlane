@@ -693,27 +693,15 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         case .temperate:
             material.roughness.contents = NSNumber(value: 0.3)
             material.normal.intensity = 0.7
-            material.setValue(NSNumber(value: 1.0), forKey: "foamR")
-            material.setValue(NSNumber(value: 1.0), forKey: "foamG")
-            material.setValue(NSNumber(value: 1.0), forKey: "foamB")
         case .desert:
             material.roughness.contents = NSNumber(value: 0.45)
             material.normal.intensity = 0.4  // calmer water
-            material.setValue(NSNumber(value: 0.85), forKey: "foamR")
-            material.setValue(NSNumber(value: 0.78), forKey: "foamG")
-            material.setValue(NSNumber(value: 0.55), forKey: "foamB")
         case .arctic:
             material.roughness.contents = NSNumber(value: 0.25)
             material.normal.intensity = 0.85  // choppier
-            material.setValue(NSNumber(value: 0.9), forKey: "foamR")
-            material.setValue(NSNumber(value: 0.95), forKey: "foamG")
-            material.setValue(NSNumber(value: 1.0), forKey: "foamB")
         case .volcanic:
             material.roughness.contents = NSNumber(value: 0.55)  // viscous
             material.normal.intensity = 0.35  // slow, heavy
-            material.setValue(NSNumber(value: 1.0), forKey: "foamR")
-            material.setValue(NSNumber(value: 0.5), forKey: "foamG")
-            material.setValue(NSNumber(value: 0.1), forKey: "foamB")
         }
 
         SCNTransaction.commit()
@@ -806,14 +794,12 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         waterNode.position = SCNVector3(0, -0.2, playerZ)
         if let material = waterNode.geometry?.firstMaterial {
             let t = Float(time)
-            // Scroll primary normal map for wave movement
+            // Scroll normal map for wave movement
             let scrollX = t * 0.02
             let scrollY = t * 0.014
-            var transform = SCNMatrix4MakeScale(8, 8, 1) // match tile scale from waterPlane()
+            var transform = SCNMatrix4MakeScale(8, 8, 1)
             transform = SCNMatrix4Translate(transform, scrollX, scrollY, 0)
             material.normal.contentsTransform = transform
-            // Pass time to shader modifiers
-            material.setValue(NSNumber(value: t), forKey: "time")
         }
 
         // Terrain management
