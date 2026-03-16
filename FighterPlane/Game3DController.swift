@@ -196,7 +196,10 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         var lifetime: Float
         let turnRate: Float
         let speed: Float
-        var targetNode: SCNNode?  // current homing target (enemy plane)
+        var targetNode: SCNNode?       // current homing target (enemy plane)
+        var launchTimer: Float = 0.2   // time remaining attached under the plane
+        var launched: Bool = false      // true once the 0.2s hold is over
+        let blastRadius: Float = 6.0   // ground detonation radius (small bomb)
     }
 
     // MARK: - Init
@@ -2425,25 +2428,26 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             targetNode = sortedTargets[0].node
         }
 
-        // Spawn the missile from player position
+        // Spawn the missile UNDER the plane, mirroring plane's pitch
         let missileNode = ModelGenerator3D.aimRocket()
-        let spawnPos = SCNVector3(0, playerY + 0.5, playerZ + 2.0)
-        missileNode.position = spawnPos
+        missileNode.position = SCNVector3(0, playerY - 1.5, playerZ)
+        missileNode.eulerAngles = SCNVector3(-playerAngle, 0, 0)
         scene.rootNode.addChildNode(missileNode)
 
-        // Initial velocity: forward in +Z direction
-        let speed: Float = 0.25
-        let vz: Float = speed
-        let vy: Float = 0.05  // slight upward launch
+        // Speed = 1.85x the plane's speed
+        let speedMult = Float(PlayerData.shared.speedMultiplier)
+        let missileSpeed = playerSpeed * speedMult * 1.85 / 60.0  // per-frame unit
 
         let rocket = AIMRocket3D(
             node: missileNode,
-            velocity: SCNVector3(0, vy, vz),
+            velocity: SCNVector3(0, 0, 0),  // set on launch after 0.2s hold
             damage: 7,
             lifetime: 8.0,
             turnRate: 2.5,
-            speed: speed,
-            targetNode: targetNode
+            speed: missileSpeed,
+            targetNode: targetNode,
+            launchTimer: 0.2,
+            launched: false
         )
         activeAIMRockets.append(rocket)
 
@@ -2456,30 +2460,70 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         guard !activeAIMRockets.isEmpty else { return }
 
         for i in activeAIMRockets.indices.reversed() {
+            // --- Pre-launch phase: attached under the plane for 0.2s ---
+            if !activeAIMRockets[i].launched {
+                activeAIMRockets[i].launchTimer -= dt
+                // Follow the plane, stay underneath mirroring pitch
+                activeAIMRockets[i].node.position = SCNVector3(0, playerY - 1.5, playerZ)
+                activeAIMRockets[i].node.eulerAngles = SCNVector3(-playerAngle, 0, 0)
+
+                if activeAIMRockets[i].launchTimer <= 0 {
+                    // Launch! Set velocity based on plane's current pitch
+                    activeAIMRockets[i].launched = true
+                    let spd = activeAIMRockets[i].speed
+                    let vy = sin(playerAngle) * spd
+                    let vz = cos(playerAngle) * spd
+                    activeAIMRockets[i].velocity = SCNVector3(0, vy, vz)
+                }
+                continue
+            }
+
+            // --- Post-launch phase ---
             activeAIMRockets[i].lifetime -= dt
 
-            // Remove expired or out-of-range rockets
+            // Remove expired or far-out-of-range rockets
             if activeAIMRockets[i].lifetime <= 0 ||
-               activeAIMRockets[i].node.position.y < 0 ||
                abs(activeAIMRockets[i].node.position.z - playerZ) > 150 {
                 activeAIMRockets[i].node.removeFromParentNode()
                 activeAIMRockets.remove(at: i)
                 continue
             }
 
-            // Check if target is still valid (alive and in scene)
-            if let target = activeAIMRockets[i].targetNode, target.parent == nil {
-                activeAIMRockets[i].targetNode = nil
+            // Ground hit: detonate like a small bomb
+            let rocketPos = activeAIMRockets[i].node.position
+            let groundH = groundHeight(x: rocketPos.x, z: rocketPos.z)
+            if rocketPos.y <= max(groundH, Float(0.1)) {
+                let blastR = activeAIMRockets[i].blastRadius
+                let explosion = ModelGenerator3D.explosion(radius: blastR)
+                explosion.position = SCNVector3(rocketPos.x, max(groundH, Float(0.1)) + 0.5, rocketPos.z)
+                scene.rootNode.addChildNode(explosion)
+
+                // Damage nearby enemies within blast radius
+                for ei in enemies.indices {
+                    guard enemies[ei].node.parent != nil else { continue }
+                    let dist = distanceYZ(enemies[ei].node.position, rocketPos)
+                    if dist <= blastR * 1.5 {
+                        enemies[ei].health -= activeAIMRockets[i].damage
+                        updateHealthBar(for: enemies[ei])
+                        if enemies[ei].health <= 0 {
+                            destroyEnemy(at: ei)
+                        }
+                    }
+                }
+
+                activeAIMRockets[i].node.removeFromParentNode()
+                activeAIMRockets.remove(at: i)
+                continue
             }
 
-            // Re-acquire target if lost
-            if activeAIMRockets[i].targetNode == nil {
-                let airEnemies = enemies.filter { $0.isAir && $0.node.parent != nil }
-                let aiTargets = airEnemies.filter { $0.type == .aiFighter }
-                let regularTargets = airEnemies.filter { $0.type == .fighter }
-                let sorted = aiTargets.sorted { distanceYZ($0.node.position, activeAIMRockets[i].node.position) < distanceYZ($1.node.position, activeAIMRockets[i].node.position) }
-                    + regularTargets.sorted { distanceYZ($0.node.position, activeAIMRockets[i].node.position) < distanceYZ($1.node.position, activeAIMRockets[i].node.position) }
-                activeAIMRockets[i].targetNode = sorted.first?.node
+            // Check if target was destroyed — explode at its last position
+            if let target = activeAIMRockets[i].targetNode, target.parent == nil {
+                let explosion = ModelGenerator3D.explosion(radius: 1.2)
+                explosion.position = activeAIMRockets[i].node.position
+                scene.rootNode.addChildNode(explosion)
+                activeAIMRockets[i].node.removeFromParentNode()
+                activeAIMRockets.remove(at: i)
+                continue
             }
 
             // Homing toward target
@@ -2489,27 +2533,25 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 let dy = tgt.y - pos.y
                 let dz = tgt.z - pos.z
 
-                // Desired direction in Y-Z plane
                 let distToTarget = sqrt(dy * dy + dz * dz)
                 if distToTarget > 0.1 {
-                    let desiredVY = dy / distToTarget * activeAIMRockets[i].speed
-                    let desiredVZ = dz / distToTarget * activeAIMRockets[i].speed
+                    let spd = activeAIMRockets[i].speed
+                    let desiredVY = dy / distToTarget * spd
+                    let desiredVZ = dz / distToTarget * spd
 
-                    // Smoothly turn toward target
                     let rate = activeAIMRockets[i].turnRate * dt
                     var vy = activeAIMRockets[i].velocity.y + (desiredVY - activeAIMRockets[i].velocity.y) * rate
                     var vz = activeAIMRockets[i].velocity.z + (desiredVZ - activeAIMRockets[i].velocity.z) * rate
 
-                    // Normalize to maintain constant speed
                     let mag = sqrt(vy * vy + vz * vz)
                     if mag > 0 {
-                        vy = vy / mag * activeAIMRockets[i].speed
-                        vz = vz / mag * activeAIMRockets[i].speed
+                        vy = vy / mag * spd
+                        vz = vz / mag * spd
                     }
                     activeAIMRockets[i].velocity = SCNVector3(0, vy, vz)
                 }
             }
-            // If no target, velocity stays as-is (straight line)
+            // If no target, velocity stays as-is (straight line from pitch)
 
             // Move
             let v = activeAIMRockets[i].velocity
