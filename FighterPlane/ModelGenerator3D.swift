@@ -862,10 +862,10 @@ enum ModelGenerator3D {
         let glowNode = SCNNode(geometry: glow)
         root.addChildNode(glowNode)
 
-        // Golden tip sphere — offset along Y (cylinder axis), fireGun rotates to match travel
+        // Dark yellow tip sphere — offset along Y (cylinder axis), fireGun rotates to match travel
         let tip = SCNSphere(radius: 0.126)
-        tip.firstMaterial?.diffuse.contents = UIColor(red: 1.0, green: 0.8, blue: 0.1, alpha: 1)
-        tip.firstMaterial?.emission.contents = UIColor(red: 1.0, green: 0.7, blue: 0.05, alpha: 0.8)
+        tip.firstMaterial?.diffuse.contents = UIColor(red: 0.7, green: 0.55, blue: 0.0, alpha: 1)
+        tip.firstMaterial?.emission.contents = UIColor(red: 0.5, green: 0.4, blue: 0.0, alpha: 0.6)
         tip.firstMaterial?.lightingModel = .constant
         let tipNode = SCNNode(geometry: tip)
         tipNode.position = SCNVector3(0, 1.25, 0) // at the leading edge along cylinder Y axis
