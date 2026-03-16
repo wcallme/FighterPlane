@@ -250,7 +250,7 @@ class GameHUD3D: SKScene {
 
     private func setupPauseButton() {
         pauseButton = SKNode()
-        pauseButton.position = CGPoint(x: safeLeft + 40, y: size.height - safeTop - 12)
+        pauseButton.position = CGPoint(x: safeLeft + 50, y: size.height - safeTop - 26)
         pauseButton.zPosition = 20
         pauseButton.name = "pauseBtn"
 
@@ -387,7 +387,7 @@ class GameHUD3D: SKScene {
         healthBarBg.fillColor = SKColor(white: 0.15, alpha: 0.7)
         healthBarBg.strokeColor = SKColor(white: 0.8, alpha: 0.7)
         healthBarBg.lineWidth = 1.5
-        healthBarBg.position = CGPoint(x: size.width / 2, y: size.height - safeTop - 10)
+        healthBarBg.position = CGPoint(x: size.width / 2, y: size.height - safeTop - 24)
         healthBarBg.zPosition = 10
         addChild(healthBarBg)
 
@@ -402,7 +402,7 @@ class GameHUD3D: SKScene {
         hpLabel.text = "HP"
         hpLabel.fontSize = 10
         hpLabel.fontColor = .white
-        hpLabel.position = CGPoint(x: size.width / 2 - 82, y: size.height - safeTop - 15)
+        hpLabel.position = CGPoint(x: size.width / 2 - 82, y: size.height - safeTop - 29)
         hpLabel.zPosition = 10
         addChild(hpLabel)
     }
@@ -413,7 +413,7 @@ class GameHUD3D: SKScene {
         scoreLabel.fontSize = 20
         scoreLabel.fontColor = .white
         scoreLabel.horizontalAlignmentMode = .right
-        scoreLabel.position = CGPoint(x: size.width - safeRight - 20, y: size.height - safeTop - 18)
+        scoreLabel.position = CGPoint(x: size.width - safeRight - 28, y: size.height - safeTop - 32)
         scoreLabel.zPosition = 10
         addChild(scoreLabel)
 
@@ -422,7 +422,7 @@ class GameHUD3D: SKScene {
         scoreIcon.fontSize = 10
         scoreIcon.fontColor = SKColor(white: 0.8, alpha: 0.8)
         scoreIcon.horizontalAlignmentMode = .right
-        scoreIcon.position = CGPoint(x: size.width - safeRight - 20, y: size.height - safeTop - 2)
+        scoreIcon.position = CGPoint(x: size.width - safeRight - 28, y: size.height - safeTop - 16)
         scoreIcon.zPosition = 10
         addChild(scoreIcon)
     }
@@ -438,7 +438,7 @@ class GameHUD3D: SKScene {
         ml.text = missionName.uppercased()
         ml.fontSize = 10
         ml.fontColor = SKColor(red: 0.95, green: 0.75, blue: 0.15, alpha: 0.9)
-        ml.position = CGPoint(x: size.width / 2, y: size.height - safeTop + 6)
+        ml.position = CGPoint(x: size.width / 2, y: size.height - safeTop - 8)
         ml.zPosition = 10
         addChild(ml)
         missionLabel = ml
@@ -449,7 +449,7 @@ class GameHUD3D: SKScene {
         ecl.fontSize = 12
         ecl.fontColor = .white
         ecl.horizontalAlignmentMode = .left
-        ecl.position = CGPoint(x: safeLeft + 16, y: size.height - safeTop - 40)
+        ecl.position = CGPoint(x: safeLeft + 24, y: size.height - safeTop - 54)
         ecl.zPosition = 10
         addChild(ecl)
         enemyCountLabel = ecl
@@ -459,7 +459,7 @@ class GameHUD3D: SKScene {
         ecIcon.fontSize = 8
         ecIcon.fontColor = SKColor(white: 0.7, alpha: 0.8)
         ecIcon.horizontalAlignmentMode = .left
-        ecIcon.position = CGPoint(x: safeLeft + 16, y: size.height - safeTop - 27)
+        ecIcon.position = CGPoint(x: safeLeft + 24, y: size.height - safeTop - 41)
         ecIcon.zPosition = 10
         addChild(ecIcon)
     }
