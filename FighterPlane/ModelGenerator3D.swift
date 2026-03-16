@@ -343,10 +343,14 @@ enum ModelGenerator3D {
         cockpitNode.position = SCNVector3(0, 0.25, 0.3)
         root.addChildNode(cockpitNode)
 
-        // Afterburner trail at tail
-        let trail = afterburnerTrail(scale: 0.8)
-        trail.position = SCNVector3(0, 0, -1.2)
-        root.addChildNode(trail)
+        // Cheap static exhaust glow (no particle system — much lighter than afterburnerTrail)
+        let exhaust = SCNSphere(radius: 0.15)
+        exhaust.firstMaterial?.diffuse.contents = UIColor(red: 0.5, green: 0.6, blue: 1.0, alpha: 0.25)
+        exhaust.firstMaterial?.emission.contents = UIColor(red: 0.4, green: 0.55, blue: 1.0, alpha: 0.5)
+        exhaust.firstMaterial?.lightingModel = .constant
+        let exhaustNode = SCNNode(geometry: exhaust)
+        exhaustNode.position = SCNVector3(0, 0, -1.2)
+        root.addChildNode(exhaustNode)
 
         // Rotate to face -Z (toward player)
         root.eulerAngles.y = .pi

@@ -1210,11 +1210,13 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 bullet.node.removeFromParentNode()
                 return true
             }
-            // Terrain collision — bullets can't pass through ground
-            let terrainY = groundHeight(x: 0, z: bullet.node.position.z)
-            if bullet.node.position.y <= terrainY {
-                bullet.node.removeFromParentNode()
-                return true
+            // Terrain collision — skip expensive groundHeight() for high-altitude bullets
+            if bullet.node.position.y < 8 {
+                let terrainY = groundHeight(x: 0, z: bullet.node.position.z)
+                if bullet.node.position.y <= terrainY {
+                    bullet.node.removeFromParentNode()
+                    return true
+                }
             }
             return false
         }
@@ -1230,11 +1232,13 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 bullet.node.removeFromParentNode()
                 return true
             }
-            // Terrain collision — enemy bullets also blocked by ground
-            let terrainY = groundHeight(x: 0, z: bullet.node.position.z)
-            if bullet.node.position.y <= terrainY {
-                bullet.node.removeFromParentNode()
-                return true
+            // Terrain collision — skip expensive groundHeight() for high-altitude bullets
+            if bullet.node.position.y < 8 {
+                let terrainY = groundHeight(x: 0, z: bullet.node.position.z)
+                if bullet.node.position.y <= terrainY {
+                    bullet.node.removeFromParentNode()
+                    return true
+                }
             }
             return false
         }
@@ -1731,7 +1735,9 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 }
             }
 
-            // Fire at player — range-limited
+            // Fire at player — range-limited, skip if bullet cap reached
+            guard enemyBullets.count < 40 else { continue }
+
             if enemies[i].lastFireTime < 0 {
                 enemies[i].lastFireTime = time
             }
@@ -1883,7 +1889,10 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         while aimDiff < -.pi { aimDiff += 2 * .pi }
         guard abs(aimDiff) < firingCone else { return }
 
-        // Fire rate
+        // Fire rate — cap total enemy bullets to prevent scene node explosion
+        let maxEnemyBullets = 40
+        guard enemyBullets.count < maxEnemyBullets else { return }
+
         if enemies[i].lastFireTime < 0 {
             enemies[i].lastFireTime = time
         }
