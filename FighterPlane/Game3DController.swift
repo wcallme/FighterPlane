@@ -92,6 +92,14 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     private let ecmCooldown: TimeInterval = 37.0
     private var ecmFlashTimer: TimeInterval = 0
 
+    // AIM Rockets state
+    private var hasAIM = false
+    private let aimMissileCount = 2
+    private var aimReady: [Bool] = [true, true]
+    private var aimCooldownTimers: [TimeInterval] = [0, 0]
+    private let aimReloadTime: TimeInterval = 17.0
+    private var activeAIMRockets: [AIMRocket3D] = []
+
     // Game state
     private var gameState: GameState = .playing
     private var lastUpdateTime: TimeInterval = 0
@@ -181,6 +189,16 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         let tracking: Bool  // false = flies straight (B2 stealth evasion)
     }
 
+    struct AIMRocket3D {
+        let node: SCNNode
+        var velocity: SCNVector3
+        let damage: Int
+        var lifetime: Float
+        let turnRate: Float
+        let speed: Float
+        var targetNode: SCNNode?  // current homing target (enemy plane)
+    }
+
     // MARK: - Init
 
     init(mode: GameMode = .infiniteBattle) {
@@ -210,6 +228,9 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         // Check if player has ECM Jammer equipped
         hasECM = data.equippedSpecials.contains { $0.id == "ecm_jammer" }
 
+        // Check if player has AIM Rockets equipped
+        hasAIM = data.equippedSpecials.contains { $0.id == "aim_rockets" }
+
         super.init()
 
         setupScene()
@@ -223,6 +244,11 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         // Show ECM button if equipped
         if hasECM {
             hud.setupECMButton()
+        }
+
+        // Show AIM button if equipped
+        if hasAIM {
+            hud.setupAIMButton()
         }
 
         // Mission mode: set enemy total for win condition and setup mission HUD
@@ -834,6 +860,11 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             activateECM()
         }
 
+        // AIM Rockets firing
+        if input.shouldFireAIM && hasAIM {
+            fireAIMRocket()
+        }
+
         // Update ECM state
         updateECM(dt: dt)
 
@@ -845,6 +876,9 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
         // Update SAM missiles
         updateSAMMissiles(dt: floatDt)
+
+        // Update AIM rockets
+        updateAIMRockets(dt: floatDt)
 
         // Update enemies
         updateEnemies(dt: floatDt, time: time)
@@ -885,6 +919,21 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                     hud.updateBombIndicator(ready: readyCount, total: equippedBombs.count)
                 }
             }
+        }
+
+        // AIM Rockets cooldown timers
+        if hasAIM {
+            for i in aimCooldownTimers.indices {
+                if aimCooldownTimers[i] > 0 {
+                    aimCooldownTimers[i] -= dt
+                    if aimCooldownTimers[i] <= 0 {
+                        aimCooldownTimers[i] = 0
+                        aimReady[i] = true
+                    }
+                }
+            }
+            let readyCount = aimReady.filter({ $0 }).count
+            hud.updateAIMButton(ready: readyCount, total: aimMissileCount)
         }
 
         // Invincibility timer
@@ -2344,6 +2393,134 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         node.runAction(.sequence([fadeOut, remove]))
     }
 
+    // MARK: - AIM Rockets
+
+    private func fireAIMRocket() {
+        // Find a ready missile slot
+        guard let slotIndex = aimReady.firstIndex(where: { $0 }) else { return }
+
+        // Find target enemy planes on screen
+        let airEnemies = enemies.filter { $0.isAir && $0.node.parent != nil }
+
+        // Separate AI fighters and regular fighters, prefer AI fighters
+        let aiTargets = airEnemies.filter { $0.type == .aiFighter }
+        let regularTargets = airEnemies.filter { $0.type == .fighter }
+
+        // Build sorted target list: AI planes first, then regular planes, sorted by distance
+        let sortedTargets = (aiTargets.sorted { distanceYZ($0.node.position, playerNode.position) < distanceYZ($1.node.position, playerNode.position) }
+            + regularTargets.sorted { distanceYZ($0.node.position, playerNode.position) < distanceYZ($1.node.position, playerNode.position) })
+
+        // Pick a target — try to avoid duplicating targets already being tracked
+        var targetNode: SCNNode? = nil
+        let alreadyTargeted = Set(activeAIMRockets.compactMap { $0.targetNode })
+        for target in sortedTargets {
+            if !alreadyTargeted.contains(target.node) {
+                targetNode = target.node
+                break
+            }
+        }
+        // If all targets are already being tracked, just pick the closest
+        if targetNode == nil && !sortedTargets.isEmpty {
+            targetNode = sortedTargets[0].node
+        }
+
+        // Spawn the missile from player position
+        let missileNode = ModelGenerator3D.aimRocket()
+        let spawnPos = SCNVector3(0, playerY + 0.5, playerZ + 2.0)
+        missileNode.position = spawnPos
+        scene.rootNode.addChildNode(missileNode)
+
+        // Initial velocity: forward in +Z direction
+        let speed: Float = 0.25
+        let vz: Float = speed
+        let vy: Float = 0.05  // slight upward launch
+
+        let rocket = AIMRocket3D(
+            node: missileNode,
+            velocity: SCNVector3(0, vy, vz),
+            damage: 7,
+            lifetime: 8.0,
+            turnRate: 2.5,
+            speed: speed,
+            targetNode: targetNode
+        )
+        activeAIMRockets.append(rocket)
+
+        // Mark slot as reloading
+        aimReady[slotIndex] = false
+        aimCooldownTimers[slotIndex] = aimReloadTime
+    }
+
+    private func updateAIMRockets(dt: Float) {
+        guard !activeAIMRockets.isEmpty else { return }
+
+        for i in activeAIMRockets.indices.reversed() {
+            activeAIMRockets[i].lifetime -= dt
+
+            // Remove expired or out-of-range rockets
+            if activeAIMRockets[i].lifetime <= 0 ||
+               activeAIMRockets[i].node.position.y < 0 ||
+               abs(activeAIMRockets[i].node.position.z - playerZ) > 150 {
+                activeAIMRockets[i].node.removeFromParentNode()
+                activeAIMRockets.remove(at: i)
+                continue
+            }
+
+            // Check if target is still valid (alive and in scene)
+            if let target = activeAIMRockets[i].targetNode, target.parent == nil {
+                activeAIMRockets[i].targetNode = nil
+            }
+
+            // Re-acquire target if lost
+            if activeAIMRockets[i].targetNode == nil {
+                let airEnemies = enemies.filter { $0.isAir && $0.node.parent != nil }
+                let aiTargets = airEnemies.filter { $0.type == .aiFighter }
+                let regularTargets = airEnemies.filter { $0.type == .fighter }
+                let sorted = aiTargets.sorted { distanceYZ($0.node.position, activeAIMRockets[i].node.position) < distanceYZ($1.node.position, activeAIMRockets[i].node.position) }
+                    + regularTargets.sorted { distanceYZ($0.node.position, activeAIMRockets[i].node.position) < distanceYZ($1.node.position, activeAIMRockets[i].node.position) }
+                activeAIMRockets[i].targetNode = sorted.first?.node
+            }
+
+            // Homing toward target
+            if let target = activeAIMRockets[i].targetNode {
+                let pos = activeAIMRockets[i].node.position
+                let tgt = target.position
+                let dy = tgt.y - pos.y
+                let dz = tgt.z - pos.z
+
+                // Desired direction in Y-Z plane
+                let distToTarget = sqrt(dy * dy + dz * dz)
+                if distToTarget > 0.1 {
+                    let desiredVY = dy / distToTarget * activeAIMRockets[i].speed
+                    let desiredVZ = dz / distToTarget * activeAIMRockets[i].speed
+
+                    // Smoothly turn toward target
+                    let rate = activeAIMRockets[i].turnRate * dt
+                    var vy = activeAIMRockets[i].velocity.y + (desiredVY - activeAIMRockets[i].velocity.y) * rate
+                    var vz = activeAIMRockets[i].velocity.z + (desiredVZ - activeAIMRockets[i].velocity.z) * rate
+
+                    // Normalize to maintain constant speed
+                    let mag = sqrt(vy * vy + vz * vz)
+                    if mag > 0 {
+                        vy = vy / mag * activeAIMRockets[i].speed
+                        vz = vz / mag * activeAIMRockets[i].speed
+                    }
+                    activeAIMRockets[i].velocity = SCNVector3(0, vy, vz)
+                }
+            }
+            // If no target, velocity stays as-is (straight line)
+
+            // Move
+            let v = activeAIMRockets[i].velocity
+            activeAIMRockets[i].node.position.y += v.y * dt * 60
+            activeAIMRockets[i].node.position.z += v.z * dt * 60
+
+            // Orient missile to face direction of travel
+            let pitch = atan2(v.y, v.z)
+            activeAIMRockets[i].node.eulerAngles = SCNVector3(-pitch, 0, 0)
+        }
+    }
+
     // MARK: - Collisions
 
     private func checkCollisions() {
@@ -2421,6 +2598,33 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 }
             }
         }
+
+        // AIM rockets vs enemies (air targets)
+        for ri in activeAIMRockets.indices.reversed() {
+            guard activeAIMRockets[ri].node.parent != nil else { continue }
+            for ei in enemies.indices.reversed() {
+                guard enemies[ei].node.parent != nil else { continue }
+                let dist = distanceYZ(activeAIMRockets[ri].node.position, enemies[ei].node.position)
+                let hitRadius: Float = enemies[ei].isAir ? 2.5 : 3.0
+                if dist < hitRadius {
+                    enemies[ei].health -= activeAIMRockets[ri].damage
+                    updateHealthBar(for: enemies[ei])
+
+                    let explosion = ModelGenerator3D.explosion(radius: 1.2)
+                    explosion.position = enemies[ei].node.position
+                    scene.rootNode.addChildNode(explosion)
+
+                    activeAIMRockets[ri].node.removeFromParentNode()
+                    activeAIMRockets.remove(at: ri)
+
+                    if enemies[ei].health <= 0 {
+                        destroyEnemy(at: ei)
+                    }
+                    break
+                }
+            }
+        }
+        activeAIMRockets.removeAll { $0.node.parent == nil }
 
         // Enemy planes vs player
         if !isInvincible {
