@@ -320,7 +320,7 @@ class PlayerData {
     func ensureDefaults() {
         if defaults.object(forKey: "pd_coins") == nil {
             coins = 30000
-            gems = 1000
+            gems = 4000
             ownedWeaponIds = ["bomb"]
             loadout = ["bomb"] + Array(repeating: nil as String?, count: slotCount - 1)
             playerLevel = 1
