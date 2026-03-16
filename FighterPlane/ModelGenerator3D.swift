@@ -25,7 +25,7 @@ enum TerrainBiome: Int, CaseIterable {
     /// Water surface color
     var waterColor: UIColor {
         switch self {
-        case .temperate: return UIColor(red: 0.05, green: 0.65, blue: 0.72, alpha: 0.90)
+        case .temperate: return UIColor(red: 0.15, green: 0.60, blue: 0.70, alpha: 0.90)
         case .desert:    return UIColor(red: 0.60, green: 0.52, blue: 0.35, alpha: 0.85)
         case .arctic:    return UIColor(red: 0.30, green: 0.50, blue: 0.65, alpha: 0.92)
         case .volcanic:  return UIColor(red: 0.70, green: 0.22, blue: 0.05, alpha: 0.95)
@@ -1345,91 +1345,32 @@ enum ModelGenerator3D {
 
     // MARK: - Water
 
-    /// Generate a tileable wave normal map procedurally.
-    /// `frequency` controls wave density; higher = finer ripples.
-    static func generateWaterNormalMap(size: Int = 256, frequency: Float = 1.0) -> CGImage? {
-        let w = size
-        let h = size
-        var pixels = [UInt8](repeating: 0, count: w * h * 4) // RGBA
-
-        for y in 0..<h {
-            for x in 0..<w {
-                let u = Float(x) / Float(w) * .pi * 2.0 * frequency
-                let v = Float(y) / Float(h) * .pi * 2.0 * frequency
-
-                // Layered sine waves for organic wave pattern (tileable via 2*pi period)
-                var nx: Float = 0
-                var nz: Float = 0
-
-                // Primary wave
-                nx += cos(u + v * 0.5) * 0.5
-                nz += cos(v + u * 0.3) * 0.5
-
-                // Secondary wave at different angle
-                nx += cos(u * 1.7 - v * 0.8) * 0.3
-                nz += cos(v * 1.5 + u * 0.6) * 0.3
-
-                // Tertiary fine detail
-                nx += cos(u * 3.1 + v * 2.3) * 0.15
-                nz += cos(v * 2.7 - u * 1.9) * 0.15
-
-                // Normalize to unit normal (ny dominates as surface is mostly flat)
-                let ny: Float = 1.0
-                let len = sqrt(nx * nx + ny * ny + nz * nz)
-
-                // Encode normal as RGB [0,255]: 0.5 = zero, 0=min, 1=max
-                let r = UInt8(clamping: Int((nx / len * 0.5 + 0.5) * 255))
-                let g = UInt8(clamping: Int((ny / len * 0.5 + 0.5) * 255))
-                let b = UInt8(clamping: Int((nz / len * 0.5 + 0.5) * 255))
-
-                let idx = (y * w + x) * 4
-                pixels[idx + 0] = r
-                pixels[idx + 1] = g
-                pixels[idx + 2] = b
-                pixels[idx + 3] = 255
-            }
-        }
-
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
-        guard let context = CGContext(
-            data: &pixels,
-            width: w,
-            height: h,
-            bitsPerComponent: 8,
-            bytesPerRow: w * 4,
-            space: colorSpace,
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ) else { return nil }
-        return context.makeImage()
-    }
-
     static func waterPlane(width: CGFloat, length: CGFloat) -> SCNNode {
         let plane = SCNPlane(width: width, height: length)
-
         let material = SCNMaterial()
-        material.diffuse.contents = UIColor(red: 0.05, green: 0.65, blue: 0.72, alpha: 0.9)
-        material.transparency = 0.88
+        material.diffuse.contents = UIColor(red: 0.15, green: 0.60, blue: 0.70, alpha: 0.90)
+        material.specular.contents = UIColor(white: 0.8, alpha: 0.5)
+        material.transparency = 0.9
         material.isDoubleSided = true
-        material.lightingModel = .physicallyBased
-        material.roughness.contents = NSNumber(value: 0.3)
-        material.metalness.contents = NSNumber(value: 0.0)
-
-        // Animated normal map for wave reflections
-        if let normalMap = generateWaterNormalMap(size: 256, frequency: 1.0) {
-            material.normal.contents = normalMap
-            material.normal.intensity = 0.7
-            material.normal.wrapS = .repeat
-            material.normal.wrapT = .repeat
-            material.normal.contentsTransform = SCNMatrix4MakeScale(8, 8, 1)
-        }
-
-        // Subtle specular highlights for sun glints
-        material.specular.contents = UIColor(white: 0.9, alpha: 1.0)
-
+        material.lightingModel = .lambert
         plane.materials = [material]
         let node = SCNNode(geometry: plane)
         node.eulerAngles.x = -.pi / 2 // lay flat
         node.name = "water"
+
+        // Gentle looping shimmer — slow transparency oscillation
+        let brighten = SCNAction.customAction(duration: 3.0) { node, elapsed in
+            let t = elapsed / 3.0
+            let val = 0.88 + 0.07 * CGFloat(sin(Double(t) * .pi)) // 0.88 → 0.95 → 0.88
+            node.geometry?.firstMaterial?.transparency = val
+        }
+        let dim = SCNAction.customAction(duration: 3.0) { node, elapsed in
+            let t = elapsed / 3.0
+            let val = 0.88 + 0.07 * CGFloat(sin(Double(t) * .pi)) // same curve
+            node.geometry?.firstMaterial?.transparency = val
+        }
+        node.runAction(.repeatForever(.sequence([brighten, dim])))
+
         return node
     }
 

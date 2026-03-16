@@ -693,23 +693,6 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         SCNTransaction.begin()
         SCNTransaction.animationDuration = duration
         material.diffuse.contents = biome.waterColor
-
-        // Biome-specific water surface properties
-        switch biome {
-        case .temperate:
-            material.roughness.contents = NSNumber(value: 0.3)
-            material.normal.intensity = 0.7
-        case .desert:
-            material.roughness.contents = NSNumber(value: 0.45)
-            material.normal.intensity = 0.4  // calmer water
-        case .arctic:
-            material.roughness.contents = NSNumber(value: 0.25)
-            material.normal.intensity = 0.85  // choppier
-        case .volcanic:
-            material.roughness.contents = NSNumber(value: 0.55)  // viscous
-            material.normal.intensity = 0.35  // slow, heavy
-        }
-
         SCNTransaction.commit()
     }
 
@@ -796,17 +779,8 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         // Update camera to track player from the side
         updateCamera(dt: floatDt)
 
-        // Move water to follow player along Z and animate surface
+        // Move water to follow player along Z
         waterNode.position = SCNVector3(0, -0.2, playerZ)
-        if let material = waterNode.geometry?.firstMaterial {
-            let t = Float(time)
-            // Scroll normal map for wave movement
-            let scrollX = t * 0.02
-            let scrollY = t * 0.014
-            var transform = SCNMatrix4MakeScale(8, 8, 1)
-            transform = SCNMatrix4Translate(transform, scrollX, scrollY, 0)
-            material.normal.contentsTransform = transform
-        }
 
         // Terrain management
         manageTerrain()
