@@ -189,6 +189,109 @@ enum SpriteGenerator {
         }}
     }
 
+    // MARK: - Off-Screen Indicator Icons
+
+    /// Small gray silhouette icon for off-screen enemy indicators (20x20)
+    static func enemyIndicatorIcon(for type: EnemyType) -> SKTexture {
+        cached("indicator_\(type.rawValue)") {
+            renderTexture(size: CGSize(width: 20, height: 20)) { ctx in
+                let g = UIColor(white: 0.85, alpha: 1.0).cgColor  // light gray silhouette
+                let gd = UIColor(white: 0.65, alpha: 1.0).cgColor // darker detail
+
+                switch type {
+                case .tank:
+                    // Tracks
+                    ctx.setFillColor(gd)
+                    ctx.fill(CGRect(x: 2, y: 2, width: 4, height: 16))
+                    ctx.fill(CGRect(x: 14, y: 2, width: 4, height: 16))
+                    // Body
+                    ctx.setFillColor(g)
+                    ctx.fill(CGRect(x: 4, y: 4, width: 12, height: 12))
+                    // Turret
+                    ctx.setFillColor(gd)
+                    ctx.fillEllipse(in: CGRect(x: 6, y: 6, width: 8, height: 8))
+                    // Barrel
+                    ctx.fill(CGRect(x: 9, y: 14, width: 2, height: 6))
+
+                case .aaGun:
+                    // Base
+                    ctx.setFillColor(g)
+                    ctx.fillEllipse(in: CGRect(x: 2, y: 2, width: 16, height: 16))
+                    // Barrels
+                    ctx.setFillColor(gd)
+                    ctx.fill(CGRect(x: 6, y: 0, width: 2, height: 20))
+                    ctx.fill(CGRect(x: 12, y: 0, width: 2, height: 20))
+                    // Center
+                    ctx.setFillColor(g)
+                    ctx.fillEllipse(in: CGRect(x: 7, y: 7, width: 6, height: 6))
+
+                case .building:
+                    // Body
+                    ctx.setFillColor(g)
+                    ctx.fill(CGRect(x: 2, y: 2, width: 16, height: 16))
+                    // Roof
+                    ctx.setFillColor(gd)
+                    ctx.fill(CGRect(x: 3, y: 3, width: 14, height: 14))
+                    // Windows
+                    ctx.setFillColor(g)
+                    ctx.fill(CGRect(x: 5, y: 5, width: 3, height: 3))
+                    ctx.fill(CGRect(x: 12, y: 5, width: 3, height: 3))
+                    ctx.fill(CGRect(x: 5, y: 11, width: 3, height: 3))
+                    ctx.fill(CGRect(x: 12, y: 11, width: 3, height: 3))
+
+                case .samLauncher:
+                    // Platform base
+                    ctx.setFillColor(g)
+                    ctx.fill(CGRect(x: 2, y: 2, width: 16, height: 8))
+                    // Launcher rail (angled)
+                    ctx.setFillColor(gd)
+                    ctx.fill(CGRect(x: 7, y: 4, width: 3, height: 14))
+                    // Missile tip
+                    ctx.setFillColor(g)
+                    ctx.fill(CGRect(x: 6, y: 16, width: 5, height: 3))
+                    // Wheels
+                    ctx.setFillColor(gd)
+                    ctx.fillEllipse(in: CGRect(x: 3, y: 0, width: 4, height: 4))
+                    ctx.fillEllipse(in: CGRect(x: 13, y: 0, width: 4, height: 4))
+
+                case .truck:
+                    // Bed
+                    ctx.setFillColor(g)
+                    ctx.fill(CGRect(x: 3, y: 0, width: 14, height: 10))
+                    // Cab
+                    ctx.setFillColor(gd)
+                    ctx.fill(CGRect(x: 4, y: 10, width: 12, height: 8))
+                    // Windshield
+                    ctx.setFillColor(g)
+                    ctx.fill(CGRect(x: 6, y: 14, width: 8, height: 3))
+                    // Wheels
+                    ctx.setFillColor(gd)
+                    ctx.fillEllipse(in: CGRect(x: 1, y: 0, width: 4, height: 4))
+                    ctx.fillEllipse(in: CGRect(x: 15, y: 0, width: 4, height: 4))
+
+                case .radioTower:
+                    // Tower legs (triangle shape)
+                    ctx.setFillColor(gd)
+                    ctx.fill(CGRect(x: 2, y: 0, width: 3, height: 14))
+                    ctx.fill(CGRect(x: 15, y: 0, width: 3, height: 14))
+                    // Cross beams
+                    ctx.fill(CGRect(x: 4, y: 4, width: 12, height: 2))
+                    ctx.fill(CGRect(x: 5, y: 9, width: 10, height: 2))
+                    // Antenna
+                    ctx.setFillColor(g)
+                    ctx.fill(CGRect(x: 9, y: 6, width: 2, height: 14))
+                    // Antenna tip
+                    ctx.fillEllipse(in: CGRect(x: 8, y: 18, width: 4, height: 2))
+
+                default:
+                    // Fallback: simple circle
+                    ctx.setFillColor(g)
+                    ctx.fillEllipse(in: CGRect(x: 2, y: 2, width: 16, height: 16))
+                }
+            }
+        }
+    }
+
     // MARK: - Projectiles
 
     // MARK: - Bomb Sprites (per-type)
