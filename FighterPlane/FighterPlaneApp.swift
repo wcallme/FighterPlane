@@ -10,6 +10,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 @main
 struct FighterPlaneApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -17,6 +18,11 @@ struct FighterPlaneApp: App {
                 .ignoresSafeArea()
                 .statusBarHidden()
                 .background(Color.black)
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase != .active {
+                GunSoundManager.shared.stopFiring()
+            }
         }
     }
 }

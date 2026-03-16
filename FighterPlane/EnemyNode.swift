@@ -14,8 +14,6 @@ class EnemyNode: SKNode {
     private var heading: CGFloat = -.pi / 2  // initially pointing downward
     private var aiInitialized = false
 
-    /// Accumulated bullets to return from update (AI fires multiple per frame potentially)
-    private var pendingBullets: [SKNode] = []
 
     init(type: EnemyType) {
         self.type = type
