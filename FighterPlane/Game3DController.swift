@@ -45,6 +45,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     // Terrain – Z-strip chunks (slot-based for bidirectional generation)
     private var terrainChunks: [Int: SCNNode] = [:]       // slot → terrain node
     private var treeChunks: [Int: [SCNNode]] = [:]        // slot → tree nodes
+    private var buildingChunks: [Int: [SCNNode]] = [:]   // slot → building nodes
     private let chunkDepth: Float = 100
     private let stripXStart: Float = -50
     private let chunksAhead: Int = 3
@@ -572,6 +573,10 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                     for t in trees { t.removeFromParentNode() }
                     treeChunks.removeValue(forKey: slot)
                 }
+                if let blds = buildingChunks[slot] {
+                    for b in blds { b.removeFromParentNode() }
+                    buildingChunks.removeValue(forKey: slot)
+                }
             }
         }
 
@@ -592,6 +597,16 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             )
             for tree in trees { scene.rootNode.addChildNode(tree) }
             treeChunks[slot] = trees
+
+            // Place editor-placed buildings in this chunk
+            if let buildings = mission.objects.buildings {
+                let blds = ModelGenerator3D.placeMissionBuildings(
+                    buildings: buildings, terrainData: mission.terrain,
+                    zStart: zStart, chunkSize: chunkDepth
+                )
+                for b in blds { scene.rootNode.addChildNode(b) }
+                buildingChunks[slot] = blds
+            }
         }
     }
 
