@@ -2465,7 +2465,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 activeAIMRockets[i].launchTimer -= dt
                 // Follow the plane, stay underneath mirroring pitch
                 activeAIMRockets[i].node.position = SCNVector3(0, playerY - 1.5, playerZ)
-                activeAIMRockets[i].node.eulerAngles = SCNVector3(-playerAngle, 0, 0)
+                activeAIMRockets[i].node.eulerAngles = SCNVector3(-.pi / 2 - playerAngle, 0, 0)
 
                 if activeAIMRockets[i].launchTimer <= 0 {
                     // Launch! Set velocity based on plane's current pitch
@@ -2558,9 +2558,9 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             activeAIMRockets[i].node.position.y += v.y * dt * 60
             activeAIMRockets[i].node.position.z += v.z * dt * 60
 
-            // Orient missile to face direction of travel
+            // Orient missile to face direction of travel (rotated 90° to be parallel nose-to-tail)
             let pitch = atan2(v.y, v.z)
-            activeAIMRockets[i].node.eulerAngles = SCNVector3(-pitch, 0, 0)
+            activeAIMRockets[i].node.eulerAngles = SCNVector3(-.pi / 2 - pitch, 0, 0)
         }
     }
 
