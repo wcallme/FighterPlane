@@ -49,6 +49,16 @@ enum GameConfig {
     // Enemy health (new types)
     static let truckHealth = 4
     static let radioTowerHealth = 8
+
+    // AI Fighter — smart tracking plane with machine gun
+    static let aiFighterHealth = 4
+    static let aiFighterScore = 400
+    static let aiFighterTurnSpeed: CGFloat = 2.5    // radians per second
+    static let aiFighterMoveSpeed: CGFloat = 160.0  // pixels per second
+    static let aiFighterFireRate: TimeInterval = 0.15 // rapid fire
+    static let aiFighterBulletDamage = 2             // low damage per round
+    static let aiFighterBulletSpeed: CGFloat = 350.0
+    static let aiFighterFiringCone: CGFloat = 0.4    // radians (~23°) — only fires when aimed near player
 }
 
 enum PhysicsCategory {
@@ -81,6 +91,7 @@ enum EnemyType: String {
     case aaGun
     case building
     case fighter
+    case aiFighter
     case samLauncher
     case truck
     case radioTower
@@ -91,6 +102,7 @@ enum EnemyType: String {
         case .aaGun: return GameConfig.aaGunHealth
         case .building: return GameConfig.buildingHealth
         case .fighter: return GameConfig.fighterHealth
+        case .aiFighter: return GameConfig.aiFighterHealth
         case .samLauncher: return GameConfig.samLauncherHealth
         case .truck: return GameConfig.truckHealth
         case .radioTower: return GameConfig.radioTowerHealth
@@ -103,6 +115,7 @@ enum EnemyType: String {
         case .aaGun: return GameConfig.aaGunScore
         case .building: return GameConfig.buildingScore
         case .fighter: return GameConfig.fighterScore
+        case .aiFighter: return GameConfig.aiFighterScore
         case .samLauncher: return GameConfig.samLauncherScore
         case .truck: return GameConfig.truckScore
         case .radioTower: return GameConfig.radioTowerScore
@@ -112,7 +125,7 @@ enum EnemyType: String {
     var isGround: Bool {
         switch self {
         case .tank, .aaGun, .building, .samLauncher, .truck, .radioTower: return true
-        case .fighter: return false
+        case .fighter, .aiFighter: return false
         }
     }
 
@@ -122,6 +135,7 @@ enum EnemyType: String {
         case .aaGun: return GameConfig.aaGunFireRange
         case .samLauncher: return GameConfig.samFireRange
         case .fighter: return GameConfig.fighterFireRange
+        case .aiFighter: return GameConfig.fighterFireRange
         case .building, .truck, .radioTower: return 0
         }
     }
@@ -132,6 +146,7 @@ enum EnemyType: String {
         case .aaGun: return 1.68
         case .samLauncher: return 5.6
         case .fighter: return 2.8
+        case .aiFighter: return GameConfig.aiFighterFireRate
         case .building, .truck, .radioTower: return 0
         }
     }
@@ -156,4 +171,57 @@ enum SafeArea {
     static var bottom: CGFloat { insets.bottom }
     static var left: CGFloat { insets.left }
     static var right: CGFloat { insets.right }
+}
+
+/// Device-aware UI scaling for iPad vs iPhone
+enum DeviceLayout {
+    static var isIPad: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
+    }
+
+    /// Scale factor for HUD elements (buttons, fonts, spacing)
+    /// iPad Air 13" logical landscape: ~1366x1024 vs iPhone ~844x390
+    static var hudScale: CGFloat {
+        isIPad ? 1.5 : 1.0
+    }
+
+    /// Scale factor for menu scene text and UI elements
+    static var menuScale: CGFloat {
+        isIPad ? 1.4 : 1.0
+    }
+
+    /// Joystick radius scaled for device
+    static var joystickRadius: CGFloat {
+        isIPad ? 75 : 50
+    }
+
+    /// Joystick knob radius
+    static var knobRadius: CGFloat {
+        isIPad ? 33 : 22
+    }
+
+    /// Action button radius (fire, bomb, ECM)
+    static var buttonRadius: CGFloat {
+        isIPad ? 48 : 32
+    }
+
+    /// Hit area radius for buttons (larger than visual for touch)
+    static var buttonHitRadius: CGFloat {
+        isIPad ? 70 : 50
+    }
+
+    /// Button margin from screen edge
+    static var buttonMargin: CGFloat {
+        isIPad ? 100 : 70
+    }
+
+    /// Vertical spacing between stacked buttons
+    static var buttonSpacing: CGFloat {
+        isIPad ? 128 : 85
+    }
+
+    /// Font size scaling
+    static func fontSize(_ base: CGFloat) -> CGFloat {
+        base * (isIPad ? 1.4 : 1.0)
+    }
 }

@@ -10,6 +10,13 @@ class EnemyNode: SKNode {
     private var lastFireTime: TimeInterval = -1  // -1 signals "not yet initialized"
     private let fireInterval: TimeInterval
 
+    // AI Fighter tracking state
+    private var heading: CGFloat = -.pi / 2  // initially pointing downward
+    private var aiInitialized = false
+
+    /// Accumulated bullets to return from update (AI fires multiple per frame potentially)
+    private var pendingBullets: [SKNode] = []
+
     init(type: EnemyType) {
         self.type = type
         self.health = type.health
@@ -31,6 +38,10 @@ class EnemyNode: SKNode {
             bodySprite = SKSpriteNode(texture: SpriteGenerator.enemyPlane())
             shadowSprite = SKSpriteNode(texture: SpriteGenerator.enemyShadow())
             fireInterval = 3.0
+        case .aiFighter:
+            bodySprite = SKSpriteNode(texture: SpriteGenerator.aiFighterPlane())
+            shadowSprite = SKSpriteNode(texture: SpriteGenerator.enemyShadow())
+            fireInterval = GameConfig.aiFighterFireRate
         case .samLauncher:
             bodySprite = SKSpriteNode(texture: SpriteGenerator.aaGun()) // reuse AA gun sprite for 2D
             shadowSprite = nil
@@ -101,6 +112,8 @@ class EnemyNode: SKNode {
         if type.isGround {
             // Ground enemies scroll with terrain
             position.y -= GameConfig.scrollSpeed * CGFloat(deltaTime)
+        } else if type == .aiFighter {
+            updateAIFighter(deltaTime: deltaTime, playerPosition: playerPosition, sceneSize: sceneSize)
         } else {
             // Air enemies: simple sine-wave movement toward bottom
             position.y -= GameConfig.scrollSpeed * 1.2 * CGFloat(deltaTime)
@@ -110,8 +123,11 @@ class EnemyNode: SKNode {
             position.x = Swift.max(margin, Swift.min(sceneSize.width - margin, position.x))
         }
 
-        // Remove if off-screen
-        if position.y < -60 || position.y > sceneSize.height + 100 {
+        // Remove if off-screen (wider margin for AI fighters which can fly around)
+        let offMargin: CGFloat = type == .aiFighter ? 200 : 60
+        let topMargin: CGFloat = type == .aiFighter ? 250 : 100
+        if position.y < -offMargin || position.y > sceneSize.height + topMargin
+            || position.x < -offMargin || position.x > sceneSize.width + offMargin {
             removeFromParent()
             return nil
         }
@@ -122,13 +138,77 @@ class EnemyNode: SKNode {
         }
 
         // Shooting logic
-        if fireInterval > 0 && currentTime - lastFireTime >= fireInterval {
+        if type == .aiFighter {
+            // AI rapid fire — only when player is in firing cone
+            if currentTime - lastFireTime >= fireInterval {
+                let angleToPlayer = atan2(playerPosition.y - position.y,
+                                          playerPosition.x - position.x)
+                let angleDiff = normalizeAngle(angleToPlayer - heading)
+                if abs(angleDiff) <= GameConfig.aiFighterFiringCone {
+                    lastFireTime = currentTime
+                    return fireAIMachineGun(playerPosition: playerPosition)
+                }
+            }
+        } else if fireInterval > 0 && currentTime - lastFireTime >= fireInterval {
             lastFireTime = currentTime
             return fireAtPlayer(playerPosition: playerPosition)
         }
 
         return nil
     }
+
+    // MARK: - AI Fighter Movement
+
+    private func updateAIFighter(deltaTime: TimeInterval, playerPosition: CGPoint, sceneSize: CGSize) {
+        let dt = CGFloat(deltaTime)
+
+        // Calculate desired heading toward the player
+        let targetAngle = atan2(playerPosition.y - position.y,
+                                playerPosition.x - position.x)
+
+        // Turn toward player with limited turn rate
+        let angleDiff = normalizeAngle(targetAngle - heading)
+        let maxTurn = GameConfig.aiFighterTurnSpeed * dt
+        if abs(angleDiff) <= maxTurn {
+            heading = targetAngle
+        } else {
+            heading += angleDiff > 0 ? maxTurn : -maxTurn
+        }
+
+        // Boundary avoidance: bias heading back toward screen center when near edges
+        let edgeMargin: CGFloat = 40
+        let edgePush: CGFloat = 3.0 * dt // gentle push in radians
+        if position.x < edgeMargin {
+            heading += edgePush // push rightward
+        } else if position.x > sceneSize.width - edgeMargin {
+            heading -= edgePush // push leftward
+        }
+        if position.y < 80 {
+            // Don't let AI fly too low (below player area)
+            let upAngle = normalizeAngle(.pi / 2 - heading)
+            heading += upAngle > 0 ? edgePush * 2 : -edgePush * 2
+        }
+
+        // Move along heading
+        let moveSpeed = GameConfig.aiFighterMoveSpeed * dt
+        position.x += cos(heading) * moveSpeed
+        position.y += sin(heading) * moveSpeed
+
+        // Also drift down slightly with terrain scroll (AI is flying in world space)
+        position.y -= GameConfig.scrollSpeed * 0.2 * dt
+
+        // Rotate sprite to match heading (sprite faces "up" in local space, so subtract π/2)
+        // bodySprite.yScale is -1 (flipped), so we account for that
+        let visualAngle = heading - .pi / 2
+        bodySprite.zRotation = -visualAngle // negative because yScale is flipped
+
+        // Update shadow position based on heading
+        if let shadow = shadowSprite {
+            shadow.position = CGPoint(x: 18 + cos(heading) * 5, y: -22 + sin(heading) * 5)
+        }
+    }
+
+    // MARK: - Firing
 
     private func fireAtPlayer(playerPosition: CGPoint) -> SKNode? {
         guard type == .aaGun || type == .fighter || type == .samLauncher else { return nil }
@@ -163,6 +243,51 @@ class EnemyNode: SKNode {
         bullet.run(.sequence([.wait(forDuration: 3.0), .removeFromParent()]))
 
         return bullet
+    }
+
+    /// AI machine gun: small yellow tracer rounds, rapid fire, low damage
+    private func fireAIMachineGun(playerPosition: CGPoint) -> SKNode? {
+        let bullet = SKSpriteNode(texture: SpriteGenerator.aiFighterBullet())
+        // Spawn bullet slightly ahead of the AI plane along its heading
+        bullet.position = CGPoint(
+            x: position.x + cos(heading) * 20,
+            y: position.y + sin(heading) * 20
+        )
+        bullet.zPosition = ZLayer.bullets.rawValue
+        bullet.name = "enemyBullet"
+
+        let body = SKPhysicsBody(circleOfRadius: 3)
+        body.categoryBitMask = PhysicsCategory.enemyBullet
+        body.contactTestBitMask = PhysicsCategory.player
+        body.collisionBitMask = PhysicsCategory.none
+        body.isDynamic = true
+        body.affectedByGravity = false
+        bullet.physicsBody = body
+
+        // Fire along the AI's current heading with slight random spread
+        let spread = CGFloat.random(in: -0.08...0.08) // slight inaccuracy
+        let fireAngle = heading + spread
+        let speed = GameConfig.aiFighterBulletSpeed
+        bullet.physicsBody?.velocity = CGVector(dx: cos(fireAngle) * speed,
+                                                dy: sin(fireAngle) * speed)
+
+        // Store damage in userData so collision handler can read it
+        bullet.userData = NSMutableDictionary()
+        bullet.userData?["damage"] = GameConfig.aiFighterBulletDamage
+
+        // Auto-remove after 2.5 seconds
+        bullet.run(.sequence([.wait(forDuration: 2.5), .removeFromParent()]))
+
+        return bullet
+    }
+
+    // MARK: - Helpers
+
+    private func normalizeAngle(_ angle: CGFloat) -> CGFloat {
+        var a = angle
+        while a > .pi { a -= 2 * .pi }
+        while a < -.pi { a += 2 * .pi }
+        return a
     }
 
     // MARK: - Damage

@@ -126,10 +126,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             spawnGroundEnemy()
         }
 
-        // Spawn air enemies (after difficulty 2)
-        if manager.difficultyLevel >= 2 && currentTime - lastAirSpawn >= manager.airSpawnInterval {
+        // Spawn air enemies (biome-aware progression)
+        if manager.shouldSpawnEnemyPlanes && currentTime - lastAirSpawn >= manager.airSpawnInterval {
             lastAirSpawn = currentTime
-            spawnAirEnemy()
+            spawnAirEnemyWave()
         }
 
         // Update all enemies
@@ -171,15 +171,38 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         enemies.append(enemy)
     }
 
-    private func spawnAirEnemy() {
-        let enemy = EnemyNode(type: .fighter)
+    private func spawnAirEnemyWave() {
+        let manager = GameManager.shared
+        let count = manager.airSpawnGroupSize
         let margin: CGFloat = 80
-        enemy.position = CGPoint(
-            x: CGFloat.random(in: margin...(size.width - margin)),
-            y: size.height + 60
-        )
-        addChild(enemy)
-        enemies.append(enemy)
+
+        for i in 0..<count {
+            // Decide type: after biome 4 all planes are AI; in desert+ mix AI with basic
+            let type: EnemyType
+            if manager.allPlanesAreAI {
+                type = .aiFighter
+            } else if manager.shouldSpawnAIFighters {
+                // Desert-Volcanic: ~40% chance each plane is AI
+                type = Int.random(in: 0...9) < 4 ? .aiFighter : .fighter
+            } else {
+                type = .fighter
+            }
+
+            let enemy = EnemyNode(type: type)
+            // Spread group members across the top with slight horizontal offset
+            let baseX = CGFloat.random(in: margin...(size.width - margin))
+            let offsetX = CGFloat(i) * 50 - CGFloat(count - 1) * 25
+            enemy.position = CGPoint(
+                x: min(size.width - margin, max(margin, baseX + offsetX)),
+                y: size.height + 60 + CGFloat(i) * 30
+            )
+
+            // Apply difficulty health bonus
+            enemy.health += manager.enemyHealthBonus
+
+            addChild(enemy)
+            enemies.append(enemy)
+        }
     }
 
     // MARK: - Bomb Management
@@ -331,8 +354,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             let bulletNode = contact.bodyA.categoryBitMask == PhysicsCategory.enemyBullet
                 ? contact.bodyA.node : contact.bodyB.node
             let pos = bulletNode?.position ?? player.position
+            let damage = (bulletNode?.userData?["damage"] as? Int) ?? GameConfig.enemyBulletDamage
             bulletNode?.removeFromParent()
-            player.takeDamage(GameConfig.enemyBulletDamage)
+            player.takeDamage(damage)
             addChild(ExplosionNode(at: pos, size: .small))
         }
 

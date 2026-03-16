@@ -80,6 +80,42 @@ enum SpriteGenerator {
         }}
     }
 
+    static func aiFighterPlane() -> SKTexture {
+        cached("aiFighterPlane") { renderTexture(size: CGSize(width: 44, height: 52)) { ctx in
+            // Fuselage (dark red)
+            ctx.setFillColor(rgb(0.55, 0.12, 0.10))
+            ctx.fill(CGRect(x: 17, y: 4, width: 10, height: 44))
+            ctx.fillEllipse(in: CGRect(x: 15, y: 0, width: 14, height: 12))
+
+            // Wings (darker red)
+            ctx.setFillColor(rgb(0.60, 0.15, 0.12))
+            ctx.fill(CGRect(x: 2, y: 20, width: 40, height: 8))
+
+            // Tail
+            ctx.fill(CGRect(x: 10, y: 42, width: 24, height: 6))
+
+            // Cockpit (bright yellow)
+            ctx.setFillColor(UIColor(red: 1.0, green: 0.85, blue: 0.1, alpha: 0.9).cgColor)
+            ctx.fillEllipse(in: CGRect(x: 19, y: 10, width: 6, height: 8))
+
+            // Wing stripes (menacing)
+            ctx.setFillColor(UIColor(white: 0.15, alpha: 0.6).cgColor)
+            ctx.fill(CGRect(x: 4, y: 22, width: 8, height: 4))
+            ctx.fill(CGRect(x: 32, y: 22, width: 8, height: 4))
+        }}
+    }
+
+    static func aiFighterBullet() -> SKTexture {
+        cached("aiFighterBullet") { renderTexture(size: CGSize(width: 6, height: 6)) { ctx in
+            // Small yellow tracer round
+            ctx.setFillColor(UIColor(red: 1.0, green: 0.9, blue: 0.2, alpha: 1.0).cgColor)
+            ctx.fillEllipse(in: CGRect(x: 0, y: 0, width: 6, height: 6))
+            // Bright core
+            ctx.setFillColor(UIColor(red: 1.0, green: 1.0, blue: 0.8, alpha: 0.8).cgColor)
+            ctx.fillEllipse(in: CGRect(x: 1, y: 1, width: 4, height: 4))
+        }}
+    }
+
     static func enemyShadow() -> SKTexture {
         cached("enemyShadow") { renderTexture(size: CGSize(width: 44, height: 52)) { ctx in
             ctx.setFillColor(UIColor(white: 0, alpha: 0.25).cgColor)

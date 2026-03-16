@@ -82,6 +82,40 @@ class GameManager {
         }
     }
 
+    // MARK: - Biome Tracking (Endless Mode)
+
+    /// Each biome spans 3 difficulty levels (90 seconds).
+    /// 0=temperate, 1=desert, 2=arctic, 3=volcanic, 4+=random
+    var currentBiome: Int {
+        (difficultyLevel - 1) / 3
+    }
+
+    /// True once the player is halfway through biome 1 (difficulty >= 2)
+    var shouldSpawnEnemyPlanes: Bool {
+        difficultyLevel >= 2
+    }
+
+    /// How many planes per air spawn wave, based on biome progression
+    var airSpawnGroupSize: Int {
+        switch currentBiome {
+        case 0: return 1            // temperate: single fighters
+        case 1: return 2            // desert: pairs
+        case 2: return Int.random(in: 1...2)
+        case 3: return Int.random(in: 1...2)
+        default: return 2           // after biome 4: always pairs
+        }
+    }
+
+    /// Whether AI tracking fighters should appear in this biome
+    var shouldSpawnAIFighters: Bool {
+        currentBiome >= 1           // AI fighters from desert onward
+    }
+
+    /// After the 4th biome, every plane has AI tracking
+    var allPlanesAreAI: Bool {
+        currentBiome >= 4
+    }
+
     private init() {}
 
     func resetSession() {
