@@ -329,7 +329,8 @@ class ShopScene: SKScene {
         }
 
         // Buy row
-        if weapon.gemCost > 0 {
+        let isBuyOnce = buyOnceWeapons.contains(weapon.id)
+        if weapon.gemCost > 0 && !(isBuyOnce && totalOwned > 0) {
             let buyH: CGFloat = min(16 * s, cardSize.height * 0.18)
             let buyW: CGFloat = cardSize.width - 8 * s
             let buyBg = SKShapeNode(rectOf: CGSize(width: buyW, height: buyH), cornerRadius: 4 * s)
@@ -353,6 +354,13 @@ class ShopScene: SKScene {
             costLabel.verticalAlignmentMode = .center
             costLabel.position = CGPoint(x: buyW * 0.10, y: 0)
             buyBg.addChild(costLabel)
+        } else if isBuyOnce && totalOwned > 0 {
+            let ownedLabel = SKLabelNode(fontNamed: "Menlo-Bold")
+            ownedLabel.text = "OWNED"
+            ownedLabel.fontSize = max(7 * s, min(8 * s, cardSize.width * 0.11))
+            ownedLabel.fontColor = SKColor(white: 0.4, alpha: 0.6)
+            ownedLabel.position = CGPoint(x: 0, y: -cardSize.height * 0.33)
+            card.addChild(ownedLabel)
         } else {
             let freeLabel = SKLabelNode(fontNamed: "Menlo-Bold")
             freeLabel.text = totalOwned > 0 ? "OWNED" : "FREE"
@@ -516,9 +524,18 @@ class ShopScene: SKScene {
 
     // MARK: - Actions
 
+    /// Weapons that can only be purchased once
+    private let buyOnceWeapons: Set<String> = ["aim_rockets"]
+
     private func handleBuyTap(weaponId: String) {
         guard let weapon = WeaponCatalog.weapon(byId: weaponId) else { return }
         let data = PlayerData.shared
+
+        // Buy-once restriction
+        if buyOnceWeapons.contains(weaponId) && data.ownsWeapon(weaponId) {
+            showMessage("Already owned!", color: SKColor(red: 1, green: 0.6, blue: 0.2, alpha: 1))
+            return
+        }
 
         // Free weapons: just grant if not owned
         if weapon.gemCost == 0 {
