@@ -222,7 +222,7 @@ class GameHUD3D: SKScene {
         btn.addChild(icon)
 
         // Cooldown overlay ring (fills as cooldown progresses)
-        let ring = SKShapeNode(circleOfRadius: 30)
+        let ring = SKShapeNode(circleOfRadius: DeviceLayout.buttonRadius * 0.94)
         ring.fillColor = SKColor(white: 0, alpha: 0.55)
         ring.strokeColor = .clear
         ring.zPosition = 2
@@ -249,12 +249,13 @@ class GameHUD3D: SKScene {
     }
 
     private func setupPauseButton() {
+        let hs = DeviceLayout.hudScale
         pauseButton = SKNode()
-        pauseButton.position = CGPoint(x: safeLeft + 50, y: size.height - safeTop - 26)
+        pauseButton.position = CGPoint(x: safeLeft + 50 * hs, y: size.height - safeTop - 26 * hs)
         pauseButton.zPosition = 20
         pauseButton.name = "pauseBtn"
 
-        let bg = SKShapeNode(rectOf: CGSize(width: 40, height: 32), cornerRadius: 8)
+        let bg = SKShapeNode(rectOf: CGSize(width: 40 * hs, height: 32 * hs), cornerRadius: 8 * hs)
         bg.fillColor = SKColor(white: 0.15, alpha: 0.6)
         bg.strokeColor = SKColor(white: 0.6, alpha: 0.4)
         bg.lineWidth = 1
@@ -262,17 +263,17 @@ class GameHUD3D: SKScene {
         pauseButton.addChild(bg)
 
         // Pause icon (two vertical bars)
-        let bar1 = SKShapeNode(rectOf: CGSize(width: 4, height: 14), cornerRadius: 1)
+        let bar1 = SKShapeNode(rectOf: CGSize(width: 4 * hs, height: 14 * hs), cornerRadius: 1)
         bar1.fillColor = .white
         bar1.strokeColor = .clear
-        bar1.position = CGPoint(x: -5, y: 0)
+        bar1.position = CGPoint(x: -5 * hs, y: 0)
         bar1.name = "pauseBtn"
         pauseButton.addChild(bar1)
 
-        let bar2 = SKShapeNode(rectOf: CGSize(width: 4, height: 14), cornerRadius: 1)
+        let bar2 = SKShapeNode(rectOf: CGSize(width: 4 * hs, height: 14 * hs), cornerRadius: 1)
         bar2.fillColor = .white
         bar2.strokeColor = .clear
-        bar2.position = CGPoint(x: 5, y: 0)
+        bar2.position = CGPoint(x: 5 * hs, y: 0)
         bar2.name = "pauseBtn"
         pauseButton.addChild(bar2)
 
@@ -294,12 +295,14 @@ class GameHUD3D: SKScene {
         bg.position = CGPoint(x: size.width / 2, y: size.height / 2)
         overlay.addChild(bg)
 
+        let hs = DeviceLayout.hudScale
+
         // Pause title
         let title = SKLabelNode(fontNamed: "Menlo-Bold")
         title.text = "PAUSED"
-        title.fontSize = 32
+        title.fontSize = DeviceLayout.fontSize(32)
         title.fontColor = .white
-        title.position = CGPoint(x: size.width / 2, y: size.height / 2 + 60)
+        title.position = CGPoint(x: size.width / 2, y: size.height / 2 + 60 * hs)
         overlay.addChild(title)
 
         // Resume button
@@ -310,7 +313,7 @@ class GameHUD3D: SKScene {
 
         // Exit to Menu button
         let exitBtn = createMenuButton(text: "EXIT TO MENU", color: SKColor(red: 0.55, green: 0.15, blue: 0.15, alpha: 0.95))
-        exitBtn.position = CGPoint(x: size.width / 2, y: size.height / 2 - 60)
+        exitBtn.position = CGPoint(x: size.width / 2, y: size.height / 2 - 60 * hs)
         exitBtn.name = "exitBtn"
         overlay.addChild(exitBtn)
 
@@ -325,9 +328,10 @@ class GameHUD3D: SKScene {
     }
 
     private func createMenuButton(text: String, color: SKColor) -> SKNode {
+        let hs = DeviceLayout.hudScale
         let node = SKNode()
 
-        let bg = SKShapeNode(rectOf: CGSize(width: 200, height: 44), cornerRadius: 10)
+        let bg = SKShapeNode(rectOf: CGSize(width: 200 * hs, height: 44 * hs), cornerRadius: 10 * hs)
         bg.fillColor = color
         bg.strokeColor = SKColor(white: 0.8, alpha: 0.4)
         bg.lineWidth = 1.5
@@ -335,7 +339,7 @@ class GameHUD3D: SKScene {
 
         let label = SKLabelNode(fontNamed: "Menlo-Bold")
         label.text = text
-        label.fontSize = 15
+        label.fontSize = DeviceLayout.fontSize(15)
         label.fontColor = .white
         label.verticalAlignmentMode = .center
         node.addChild(label)
@@ -380,18 +384,19 @@ class GameHUD3D: SKScene {
     }
 
     private func setupHealthBar() {
-        let barWidth: CGFloat = 140
-        let barHeight: CGFloat = 14
+        let hs = DeviceLayout.hudScale
+        let barWidth: CGFloat = 140 * hs
+        let barHeight: CGFloat = 14 * hs
 
-        healthBarBg = SKShapeNode(rectOf: CGSize(width: barWidth, height: barHeight), cornerRadius: 4)
+        healthBarBg = SKShapeNode(rectOf: CGSize(width: barWidth, height: barHeight), cornerRadius: 4 * hs)
         healthBarBg.fillColor = SKColor(white: 0.15, alpha: 0.7)
         healthBarBg.strokeColor = SKColor(white: 0.8, alpha: 0.7)
         healthBarBg.lineWidth = 1.5
-        healthBarBg.position = CGPoint(x: size.width / 2, y: size.height - safeTop - 24)
+        healthBarBg.position = CGPoint(x: size.width / 2, y: size.height - safeTop - 24 * hs)
         healthBarBg.zPosition = 10
         addChild(healthBarBg)
 
-        healthBarFill = SKShapeNode(rectOf: CGSize(width: barWidth - 4, height: barHeight - 4), cornerRadius: 3)
+        healthBarFill = SKShapeNode(rectOf: CGSize(width: barWidth - 4, height: barHeight - 4), cornerRadius: 3 * hs)
         healthBarFill.fillColor = SKColor(red: 0.2, green: 0.8, blue: 0.2, alpha: 1)
         healthBarFill.strokeColor = .clear
         healthBarFill.position = healthBarBg.position
@@ -400,29 +405,30 @@ class GameHUD3D: SKScene {
 
         let hpLabel = SKLabelNode(fontNamed: "Menlo-Bold")
         hpLabel.text = "HP"
-        hpLabel.fontSize = 10
+        hpLabel.fontSize = DeviceLayout.fontSize(10)
         hpLabel.fontColor = .white
-        hpLabel.position = CGPoint(x: size.width / 2 - 82, y: size.height - safeTop - 29)
+        hpLabel.position = CGPoint(x: size.width / 2 - 82 * hs, y: size.height - safeTop - 29 * hs)
         hpLabel.zPosition = 10
         addChild(hpLabel)
     }
 
     private func setupScore() {
+        let hs = DeviceLayout.hudScale
         scoreLabel = SKLabelNode(fontNamed: "Menlo-Bold")
         scoreLabel.text = "0"
-        scoreLabel.fontSize = 20
+        scoreLabel.fontSize = DeviceLayout.fontSize(20)
         scoreLabel.fontColor = .white
         scoreLabel.horizontalAlignmentMode = .right
-        scoreLabel.position = CGPoint(x: size.width - safeRight - 28, y: size.height - safeTop - 32)
+        scoreLabel.position = CGPoint(x: size.width - safeRight - 28 * hs, y: size.height - safeTop - 32 * hs)
         scoreLabel.zPosition = 10
         addChild(scoreLabel)
 
         let scoreIcon = SKLabelNode(fontNamed: "Menlo-Bold")
         scoreIcon.text = "SCORE"
-        scoreIcon.fontSize = 10
+        scoreIcon.fontSize = DeviceLayout.fontSize(10)
         scoreIcon.fontColor = SKColor(white: 0.8, alpha: 0.8)
         scoreIcon.horizontalAlignmentMode = .right
-        scoreIcon.position = CGPoint(x: size.width - safeRight - 28, y: size.height - safeTop - 16)
+        scoreIcon.position = CGPoint(x: size.width - safeRight - 28 * hs, y: size.height - safeTop - 16 * hs)
         scoreIcon.zPosition = 10
         addChild(scoreIcon)
     }
@@ -433,12 +439,14 @@ class GameHUD3D: SKScene {
         isMissionMode = true
         hasNextMission = hasNext
 
+        let hs = DeviceLayout.hudScale
+
         // Mission name label (top center, above health bar)
         let ml = SKLabelNode(fontNamed: "Menlo-Bold")
         ml.text = missionName.uppercased()
-        ml.fontSize = 10
+        ml.fontSize = DeviceLayout.fontSize(10)
         ml.fontColor = SKColor(red: 0.95, green: 0.75, blue: 0.15, alpha: 0.9)
-        ml.position = CGPoint(x: size.width / 2, y: size.height - safeTop - 8)
+        ml.position = CGPoint(x: size.width / 2, y: size.height - safeTop - 8 * hs)
         ml.zPosition = 10
         addChild(ml)
         missionLabel = ml
@@ -446,20 +454,20 @@ class GameHUD3D: SKScene {
         // Enemy counter (left side, below pause button)
         let ecl = SKLabelNode(fontNamed: "Menlo-Bold")
         ecl.text = "0 / \(enemyTotal)"
-        ecl.fontSize = 12
+        ecl.fontSize = DeviceLayout.fontSize(12)
         ecl.fontColor = .white
         ecl.horizontalAlignmentMode = .left
-        ecl.position = CGPoint(x: safeLeft + 24, y: size.height - safeTop - 54)
+        ecl.position = CGPoint(x: safeLeft + 24 * hs, y: size.height - safeTop - 54 * hs)
         ecl.zPosition = 10
         addChild(ecl)
         enemyCountLabel = ecl
 
         let ecIcon = SKLabelNode(fontNamed: "Menlo-Bold")
         ecIcon.text = "ENEMIES"
-        ecIcon.fontSize = 8
+        ecIcon.fontSize = DeviceLayout.fontSize(8)
         ecIcon.fontColor = SKColor(white: 0.7, alpha: 0.8)
         ecIcon.horizontalAlignmentMode = .left
-        ecIcon.position = CGPoint(x: safeLeft + 24, y: size.height - safeTop - 41)
+        ecIcon.position = CGPoint(x: safeLeft + 24 * hs, y: size.height - safeTop - 41 * hs)
         ecIcon.zPosition = 10
         addChild(ecIcon)
     }
@@ -493,6 +501,7 @@ class GameHUD3D: SKScene {
     }
 
     func showGameOver(score: Int, highScore: Int, coins: Int, gems: Int) {
+        let hs = DeviceLayout.hudScale
         let overlay = SKNode()
         overlay.zPosition = 50
 
@@ -504,37 +513,37 @@ class GameHUD3D: SKScene {
 
         let title = SKLabelNode(fontNamed: "Menlo-Bold")
         title.text = "GAME OVER"
-        title.fontSize = 40
+        title.fontSize = DeviceLayout.fontSize(40)
         title.fontColor = .white
-        title.position = CGPoint(x: size.width / 2, y: size.height / 2 + 50)
+        title.position = CGPoint(x: size.width / 2, y: size.height / 2 + 50 * hs)
         overlay.addChild(title)
 
         let scoreLbl = SKLabelNode(fontNamed: "Menlo")
         scoreLbl.text = "Score: \(score)"
-        scoreLbl.fontSize = 22
+        scoreLbl.fontSize = DeviceLayout.fontSize(22)
         scoreLbl.fontColor = SKColor(white: 0.9, alpha: 1)
-        scoreLbl.position = CGPoint(x: size.width / 2, y: size.height / 2 + 10)
+        scoreLbl.position = CGPoint(x: size.width / 2, y: size.height / 2 + 10 * hs)
         overlay.addChild(scoreLbl)
 
         let bestLbl = SKLabelNode(fontNamed: "Menlo")
         bestLbl.text = "Best: \(highScore)"
-        bestLbl.fontSize = 16
+        bestLbl.fontSize = DeviceLayout.fontSize(16)
         bestLbl.fontColor = SKColor(white: 0.7, alpha: 1)
-        bestLbl.position = CGPoint(x: size.width / 2, y: size.height / 2 - 15)
+        bestLbl.position = CGPoint(x: size.width / 2, y: size.height / 2 - 15 * hs)
         overlay.addChild(bestLbl)
 
         let rewardsLbl = SKLabelNode(fontNamed: "Menlo-Bold")
         rewardsLbl.text = "+\(coins) coins  +\(gems) gems"
-        rewardsLbl.fontSize = 14
+        rewardsLbl.fontSize = DeviceLayout.fontSize(14)
         rewardsLbl.fontColor = SKColor(red: 0.9, green: 0.8, blue: 0.2, alpha: 1)
-        rewardsLbl.position = CGPoint(x: size.width / 2, y: size.height / 2 - 40)
+        rewardsLbl.position = CGPoint(x: size.width / 2, y: size.height / 2 - 40 * hs)
         overlay.addChild(rewardsLbl)
 
         let tapLbl = SKLabelNode(fontNamed: "Menlo-Bold")
         tapLbl.text = "Tap to Continue"
-        tapLbl.fontSize = 18
+        tapLbl.fontSize = DeviceLayout.fontSize(18)
         tapLbl.fontColor = SKColor(white: 0.8, alpha: 1)
-        tapLbl.position = CGPoint(x: size.width / 2, y: size.height / 2 - 75)
+        tapLbl.position = CGPoint(x: size.width / 2, y: size.height / 2 - 75 * hs)
         tapLbl.run(.repeatForever(.sequence([
             .fadeAlpha(to: 0.4, duration: 0.6),
             .fadeAlpha(to: 1.0, duration: 0.6)
@@ -563,6 +572,7 @@ class GameHUD3D: SKScene {
     }
 
     func showMissionComplete(score: Int, enemies: Int, coins: Int, gems: Int) {
+        let hs = DeviceLayout.hudScale
         let overlay = SKNode()
         overlay.zPosition = 50
 
@@ -573,47 +583,47 @@ class GameHUD3D: SKScene {
         overlay.addChild(bg)
 
         let cx = size.width / 2
-        var y = size.height / 2 + 80
+        var y = size.height / 2 + 80 * hs
 
         let title = SKLabelNode(fontNamed: "Menlo-Bold")
         title.text = "MISSION COMPLETE"
-        title.fontSize = 28
+        title.fontSize = DeviceLayout.fontSize(28)
         title.fontColor = SKColor(red: 0.2, green: 0.95, blue: 0.3, alpha: 1)
         title.position = CGPoint(x: cx, y: y)
         overlay.addChild(title)
 
-        y -= 35
+        y -= 35 * hs
         let scoreLbl = SKLabelNode(fontNamed: "Menlo")
         scoreLbl.text = "Score: \(score)"
-        scoreLbl.fontSize = 20
+        scoreLbl.fontSize = DeviceLayout.fontSize(20)
         scoreLbl.fontColor = SKColor(white: 0.9, alpha: 1)
         scoreLbl.position = CGPoint(x: cx, y: y)
         overlay.addChild(scoreLbl)
 
-        y -= 25
+        y -= 25 * hs
         let enemyLbl = SKLabelNode(fontNamed: "Menlo")
         enemyLbl.text = "Enemies Destroyed: \(enemies)"
-        enemyLbl.fontSize = 13
+        enemyLbl.fontSize = DeviceLayout.fontSize(13)
         enemyLbl.fontColor = SKColor(white: 0.7, alpha: 1)
         enemyLbl.position = CGPoint(x: cx, y: y)
         overlay.addChild(enemyLbl)
 
-        y -= 25
+        y -= 25 * hs
         let rewardsLbl = SKLabelNode(fontNamed: "Menlo-Bold")
         rewardsLbl.text = "+\(coins) coins  +\(gems) gems"
-        rewardsLbl.fontSize = 14
+        rewardsLbl.fontSize = DeviceLayout.fontSize(14)
         rewardsLbl.fontColor = SKColor(red: 0.9, green: 0.8, blue: 0.2, alpha: 1)
         rewardsLbl.position = CGPoint(x: cx, y: y)
         overlay.addChild(rewardsLbl)
 
         // Next Mission button (if available)
-        y -= 45
+        y -= 45 * hs
         if hasNextMission {
             let nextBtn = createMenuButton(text: "NEXT MISSION", color: SKColor(red: 0.10, green: 0.45, blue: 0.12, alpha: 0.95))
             nextBtn.position = CGPoint(x: cx, y: y)
             nextBtn.name = "nextMissionBtn"
             overlay.addChild(nextBtn)
-            y -= 55
+            y -= 55 * hs
         }
 
         // Exit to Menu button
@@ -632,6 +642,7 @@ class GameHUD3D: SKScene {
     }
 
     func showMissionFailed(score: Int, enemies: Int, total: Int) {
+        let hs = DeviceLayout.hudScale
         let overlay = SKNode()
         overlay.zPosition = 50
 
@@ -642,40 +653,40 @@ class GameHUD3D: SKScene {
         overlay.addChild(bg)
 
         let cx = size.width / 2
-        var y = size.height / 2 + 70
+        var y = size.height / 2 + 70 * hs
 
         let title = SKLabelNode(fontNamed: "Menlo-Bold")
         title.text = "MISSION FAILED"
-        title.fontSize = 30
+        title.fontSize = DeviceLayout.fontSize(30)
         title.fontColor = SKColor(red: 1.0, green: 0.3, blue: 0.2, alpha: 1)
         title.position = CGPoint(x: cx, y: y)
         overlay.addChild(title)
 
-        y -= 35
+        y -= 35 * hs
         let scoreLbl = SKLabelNode(fontNamed: "Menlo")
         scoreLbl.text = "Score: \(score)"
-        scoreLbl.fontSize = 20
+        scoreLbl.fontSize = DeviceLayout.fontSize(20)
         scoreLbl.fontColor = SKColor(white: 0.9, alpha: 1)
         scoreLbl.position = CGPoint(x: cx, y: y)
         overlay.addChild(scoreLbl)
 
-        y -= 25
+        y -= 25 * hs
         let progressLbl = SKLabelNode(fontNamed: "Menlo")
         progressLbl.text = "Enemies: \(enemies) / \(total)"
-        progressLbl.fontSize = 13
+        progressLbl.fontSize = DeviceLayout.fontSize(13)
         progressLbl.fontColor = SKColor(white: 0.6, alpha: 1)
         progressLbl.position = CGPoint(x: cx, y: y)
         overlay.addChild(progressLbl)
 
         // Retry button
-        y -= 45
+        y -= 45 * hs
         let retryBtn = createMenuButton(text: "RETRY", color: SKColor(red: 0.50, green: 0.35, blue: 0.08, alpha: 0.95))
         retryBtn.position = CGPoint(x: cx, y: y)
         retryBtn.name = "retryBtn"
         overlay.addChild(retryBtn)
 
         // Exit button
-        y -= 55
+        y -= 55 * hs
         let exitBtn = createMenuButton(text: "BACK TO MENU", color: SKColor(red: 0.2, green: 0.2, blue: 0.3, alpha: 0.95))
         exitBtn.position = CGPoint(x: cx, y: y)
         exitBtn.name = "exitBtn"
@@ -786,7 +797,7 @@ class GameHUD3D: SKScene {
             // ECM button
             if let ecm = ecmButton {
                 let ecmDist = hypot(loc.x - ecm.position.x, loc.y - ecm.position.y)
-                if ecmDist <= 50 {
+                if ecmDist <= hitR {
                     shouldActivateECM = true
                     pressButton(ecm)
                     ecm.run(.sequence([
