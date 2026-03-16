@@ -110,6 +110,10 @@ class GameHUD3D: SKScene {
     private var missionLabel: SKLabelNode?
     private var enemyCountLabel: SKLabelNode?
 
+    // Off-screen enemy indicators
+    private var indicatorPool: [SKNode] = []
+    private var activeIndicatorCount: Int = 0
+
     // Touch tracking
     private var joystickTouch: UITouch?
     private var fireTouch: UITouch?
@@ -907,5 +911,136 @@ class GameHUD3D: SKScene {
         } else {
             hasSteeringInput = false
         }
+    }
+
+    // MARK: - Off-Screen Enemy Indicators
+
+    struct OffscreenIndicator {
+        let type: EnemyType
+        let screenY: CGFloat    // mapped Y position on screen
+        let angle: CGFloat      // angle from indicator toward enemy (radians)
+    }
+
+    /// Create a single reusable indicator node (circle + icon + arrow)
+    private func createIndicatorNode() -> SKNode {
+        let hs = DeviceLayout.hudScale
+        let container = SKNode()
+        container.name = "offscreenIndicator"
+        container.alpha = 0.6
+        container.zPosition = 45
+
+        let radius: CGFloat = 16 * hs
+
+        // Circle background
+        let bg = SKShapeNode(circleOfRadius: radius)
+        bg.fillColor = SKColor(white: 0.30, alpha: 0.85)
+        bg.strokeColor = SKColor(white: 0.55, alpha: 0.6)
+        bg.lineWidth = 1.5 * hs
+        bg.name = "bg"
+        container.addChild(bg)
+
+        // Icon sprite (placeholder; swapped per-type during update)
+        let icon = SKSpriteNode(texture: SpriteGenerator.enemyIndicatorIcon(for: .tank))
+        let iconSize = radius * 1.2
+        icon.size = CGSize(width: iconSize, height: iconSize)
+        icon.name = "icon"
+        container.addChild(icon)
+
+        // Directional arrow (small triangle)
+        let arrowSize: CGFloat = 7 * hs
+        let arrowPath = CGMutablePath()
+        arrowPath.move(to: CGPoint(x: -arrowSize, y: -arrowSize * 0.6))
+        arrowPath.addLine(to: CGPoint(x: 0, y: 0))
+        arrowPath.addLine(to: CGPoint(x: -arrowSize, y: arrowSize * 0.6))
+        arrowPath.closeSubpath()
+        let arrow = SKShapeNode(path: arrowPath)
+        arrow.fillColor = SKColor(white: 0.55, alpha: 0.9)
+        arrow.strokeColor = .clear
+        arrow.name = "arrow"
+        arrow.position = CGPoint(x: -(radius + arrowSize * 0.6), y: 0)
+        container.addChild(arrow)
+
+        return container
+    }
+
+    /// Update off-screen indicators with current frame data
+    func updateOffscreenIndicators(_ indicators: [OffscreenIndicator]) {
+        let hs = DeviceLayout.hudScale
+        let radius: CGFloat = 16 * hs
+        let spacing: CGFloat = 36 * hs   // minimum vertical spacing between icons
+        let leftMargin: CGFloat = safeLeft + radius + 12 * hs
+
+        // Grow pool if needed
+        while indicatorPool.count < indicators.count {
+            let node = createIndicatorNode()
+            node.isHidden = true
+            addChild(node)
+            indicatorPool.append(node)
+        }
+
+        // Compute final Y positions with anti-overlap
+        var positions: [(idx: Int, targetY: CGFloat, finalY: CGFloat)] = []
+        for (i, ind) in indicators.enumerated() {
+            let clampedY = max(safeBottom + radius + 10, min(size.height - safeTop - radius - 10, ind.screenY))
+            positions.append((idx: i, targetY: clampedY, finalY: clampedY))
+        }
+
+        // Sort by target Y and push apart overlaps
+        positions.sort { $0.targetY < $1.targetY }
+        for i in 1..<positions.count {
+            if positions[i].finalY < positions[i - 1].finalY + spacing {
+                positions[i].finalY = positions[i - 1].finalY + spacing
+            }
+        }
+
+        // Clamp again after pushing
+        let maxY = size.height - safeTop - radius - 10
+        for i in positions.indices.reversed() {
+            positions[i].finalY = min(positions[i].finalY, maxY)
+            if i > 0 && positions[i].finalY < positions[i - 1].finalY + spacing {
+                positions[i - 1].finalY = positions[i].finalY - spacing
+            }
+        }
+        for i in positions.indices {
+            positions[i].finalY = max(safeBottom + radius + 10, positions[i].finalY)
+        }
+
+        // Configure visible indicators
+        for pos in positions {
+            let ind = indicators[pos.idx]
+            let node = indicatorPool[pos.idx]
+            node.isHidden = false
+            node.position = CGPoint(x: leftMargin, y: pos.finalY)
+
+            // Swap icon texture
+            if let icon = node.childNode(withName: "icon") as? SKSpriteNode {
+                icon.texture = SpriteGenerator.enemyIndicatorIcon(for: ind.type)
+            }
+
+            // Rotate arrow to point toward enemy
+            if let arrow = node.childNode(withName: "arrow") as? SKShapeNode {
+                let arrowDist = radius + 7 * hs * 0.6
+                arrow.position = CGPoint(
+                    x: cos(ind.angle) * arrowDist,
+                    y: sin(ind.angle) * arrowDist
+                )
+                arrow.zRotation = ind.angle
+            }
+        }
+
+        // Hide unused pool nodes
+        for i in indicators.count..<indicatorPool.count {
+            indicatorPool[i].isHidden = true
+        }
+
+        activeIndicatorCount = indicators.count
+    }
+
+    /// Clear all off-screen indicators (used during victory/failure)
+    func clearOffscreenIndicators() {
+        for node in indicatorPool {
+            node.isHidden = true
+        }
+        activeIndicatorCount = 0
     }
 }
