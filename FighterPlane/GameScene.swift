@@ -600,7 +600,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private func restartGame() {
         let hangar = HangarScene(size: size)
-        hangar.scaleMode = scaleMode
+        hangar.scaleMode = .resizeFill
         view?.presentScene(hangar, transition: .fade(withDuration: 0.5))
     }
 }

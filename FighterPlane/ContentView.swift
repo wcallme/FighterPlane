@@ -57,21 +57,17 @@ struct MenuSpriteView: UIViewRepresentable {
     func updateUIView(_ uiView: MenuSKView, context: Context) {}
 }
 
-/// Custom SKView that presents the scene once layout provides valid landscape bounds.
-/// Waits for width > height to avoid creating a portrait-sized scene that gets
-/// cropped by aspectFill when the rotation to landscape completes.
+/// Custom SKView that presents the menu scene with .resizeFill so the scene
+/// automatically tracks the view's bounds — no cropping, no stale sizes.
 class MenuSKView: SKView {
     private var scenePresented = false
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        let w = bounds.size.width
-        let h = bounds.size.height
-        // Wait until we have valid landscape bounds (width > height)
-        guard !scenePresented, w > 0, h > 0, w >= h else { return }
+        guard !scenePresented, bounds.size.width > 0, bounds.size.height > 0 else { return }
         scenePresented = true
         let scene = HangarScene(size: bounds.size)
-        scene.scaleMode = .aspectFill
+        scene.scaleMode = .resizeFill
         presentScene(scene)
     }
 }

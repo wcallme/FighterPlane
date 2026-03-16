@@ -594,7 +594,7 @@ class ShopScene: SKScene {
 
     private func goBack() {
         let armory = ArmoryScene(size: size)
-        armory.scaleMode = scaleMode
+        armory.scaleMode = .resizeFill
         view?.presentScene(armory, transition: .push(with: .right, duration: 0.3))
     }
 }

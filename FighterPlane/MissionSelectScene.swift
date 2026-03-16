@@ -360,7 +360,7 @@ class MissionSelectScene: SKScene {
 
     private func goBack() {
         let hangar = HangarScene(size: size)
-        hangar.scaleMode = scaleMode
+        hangar.scaleMode = .resizeFill
         view?.presentScene(hangar, transition: .push(with: .right, duration: 0.3))
     }
 

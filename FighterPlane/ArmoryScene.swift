@@ -719,13 +719,13 @@ class ArmoryScene: SKScene {
 
     private func openShop() {
         let shop = ShopScene(size: size)
-        shop.scaleMode = scaleMode
+        shop.scaleMode = .resizeFill
         view?.presentScene(shop, transition: .push(with: .left, duration: 0.3))
     }
 
     private func goBack() {
         let hangar = HangarScene(size: size)
-        hangar.scaleMode = scaleMode
+        hangar.scaleMode = .resizeFill
         view?.presentScene(hangar, transition: .push(with: .right, duration: 0.3))
     }
 }

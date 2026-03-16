@@ -7,7 +7,7 @@ class MenuScene: SKScene {
 
     static func create(size: CGSize) -> MenuScene {
         let scene = MenuScene(size: size)
-        scene.scaleMode = .aspectFill
+        scene.scaleMode = .resizeFill
         return scene
     }
 
@@ -154,7 +154,7 @@ class MenuScene: SKScene {
 
     private func startGame() {
         let hangar = HangarScene(size: size)
-        hangar.scaleMode = scaleMode
+        hangar.scaleMode = .resizeFill
         view?.presentScene(hangar, transition: .fade(withDuration: 0.5))
     }
 }

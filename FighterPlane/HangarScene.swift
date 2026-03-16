@@ -19,10 +19,25 @@ class HangarScene: SKScene {
 
     override func didMove(to view: SKView) {
         backgroundColor = SKColor(red: 0.06, green: 0.07, blue: 0.11, alpha: 1.0)
+        MenuMusicManager.shared.play()
+        rebuildUI()
+        NotificationCenter.default.post(name: .menuSceneReady, object: nil)
+    }
+
+    override func didChangeSize(_ oldSize: CGSize) {
+        super.didChangeSize(oldSize)
+        guard oldSize != size, size.width > 0, size.height > 0, view != nil else { return }
+        rebuildUI()
+    }
+
+    private func rebuildUI() {
+        removeAllChildren()
+        removeAllActions()
+        loadoutSlots.removeAll()
+        upgradeNodes.removeAll()
+
         safeTop = max(SafeArea.top, 10)
         safeBottom = max(SafeArea.bottom, 34)
-
-        MenuMusicManager.shared.play()
 
         computeLayout()
         setupAtmosphericBackground()
@@ -31,9 +46,6 @@ class HangarScene: SKScene {
         setupUpgradeRow()
         setupLoadoutBar()
         setupActionButtons()
-
-        // Signal that the menu is fully built so the splash overlay can fade out
-        NotificationCenter.default.post(name: .menuSceneReady, object: nil)
     }
 
     // MARK: - Layout Computation
@@ -836,13 +848,13 @@ class HangarScene: SKScene {
 
     private func openMissions() {
         let missionScene = MissionSelectScene(size: size)
-        missionScene.scaleMode = scaleMode
+        missionScene.scaleMode = .resizeFill
         view?.presentScene(missionScene, transition: .push(with: .left, duration: 0.3))
     }
 
     private func openArmory() {
         let armory = ArmoryScene(size: size)
-        armory.scaleMode = scaleMode
+        armory.scaleMode = .resizeFill
         view?.presentScene(armory, transition: .push(with: .left, duration: 0.3))
     }
 
