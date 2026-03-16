@@ -9,64 +9,140 @@
 /* Begin PBXBuildFile section */
 		009A428F139AF74FEBA8F92E /* GameHUD3D.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAD1D91FBFFB2FC910EF5FC9 /* GameHUD3D.swift */; };
 		01563731CD0B051CA7E209A3 /* WeaponData.swift in Sources */ = {isa = PBXBuildFile; fileRef = E562AFD2EC9C85FCD2D5B860 /* WeaponData.swift */; };
+		09BB12A58375DD378CA1FE76 /* BLENDER_ARTIST_SPEC.txt in Resources */ = {isa = PBXBuildFile; fileRef = 1CBA9F0571D17100B5DCA20D /* BLENDER_ARTIST_SPEC.txt */; };
 		0AF5DEFEF546C62297A54486 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8E7D83B437AB57AF45C1EC0 /* ContentView.swift */; };
+		0C8B901310DCEFDADF60FA5E /* F16.usdz in Resources */ = {isa = PBXBuildFile; fileRef = 091C54F83079E58BB6287DC8 /* F16.usdz */; };
+		0FBC3F4F3F2C52060B2FE1C7 /* F22.usdz in Resources */ = {isa = PBXBuildFile; fileRef = A8CFC6C8407E88A710073683 /* F22.usdz */; };
 		163EBC9146FAED549D1958C0 /* GameManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63AA476F9115E0CD3218FAFC /* GameManager.swift */; };
+		1828CFF8184AE2A65BB62500 /* fighterplane_missions.json in Resources */ = {isa = PBXBuildFile; fileRef = CB7AC09A6CC3139E71F1B74D /* fighterplane_missions.json */; };
+		1C63F0F9C3CB6D68C3093D2F /* MissionData.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEFFAB7867603AA7347EC989 /* MissionData.swift */; };
 		23BE8B3901DB554068A71616 /* NavigationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B327E7BE3162CB0CC93AAD3C /* NavigationManager.swift */; };
 		27F08836936919F72C6E18C5 /* ExplosionNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B524F50E378DF38FEDB0592 /* ExplosionNode.swift */; };
 		32F023B03B6E9580E54FE877 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = DACE5E6B25234B0DEAE54CB1 /* Constants.swift */; };
+		372B6B94933979DC14AC3B49 /* ShopScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 942FB9E91C48C1462809E0CE /* ShopScene.swift */; };
 		3E2DA7B0ADB6AEEC4EE2253E /* GameScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = A21F88D46A2AAFFE0EF0C756 /* GameScene.swift */; };
 		4126C17CF23D00494189E563 /* PlayerNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECCF607FAD5D8584B753D400 /* PlayerNode.swift */; };
 		5092D12ACD96D6078E6E37FA /* HUD.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0947D09CEFB432EEEC208E68 /* HUD.swift */; };
 		5AC73E8AC254185E397EA2A5 /* ArmoryScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FBD99F7179980663872AD54 /* ArmoryScene.swift */; };
+		5D80076310D3C3C93D3F2CDB /* mission1.json in Resources */ = {isa = PBXBuildFile; fileRef = FD8DBEB9BBE8C9B3CCACD854 /* mission1.json */; };
 		6132E8D465F54EC79CCEEF96 /* Game3DView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DEF9055EEB8ABA9FF95369C /* Game3DView.swift */; };
 		625F210993A291EA40FD85DD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 86E7EF70CD319A95E2A99854 /* Assets.xcassets */; };
+		6502B38017C035C150047440 /* F16_menu.png in Resources */ = {isa = PBXBuildFile; fileRef = C80E496EE95348BA8099B5C1 /* F16_menu.png */; };
+		67549773CC7E7B776410ABA0 /* B2.usdz in Resources */ = {isa = PBXBuildFile; fileRef = F15993CF30127A636F4EF700 /* B2.usdz */; };
+		6DBEEFA8162B8C0C3008F2A2 /* f22.jpeg in Resources */ = {isa = PBXBuildFile; fileRef = 466A4E42EFED3246AAB1566C /* f22.jpeg */; };
 		70B4FD31544E539D43791817 /* ModelGenerator3D.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220DE599DD3FB8CF108FF292 /* ModelGenerator3D.swift */; };
+		733CCABD07E1DCF685CBBBB0 /* B2_backup.usdz in Resources */ = {isa = PBXBuildFile; fileRef = E837340C7093CC96523FB81C /* B2_backup.usdz */; };
 		76D0DC5B6906C6AE001EBCAE /* Game3DController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BC3360A1D6F34AB44661771 /* Game3DController.swift */; };
 		76EE177BCF1ACC500205A2F2 /* EnemyNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9314BB7C9654C2295511D31D /* EnemyNode.swift */; };
+		799381CFD1C6F091EA44C03B /* f22image.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 867869BDA38BE564F1068A74 /* f22image.jpg */; };
 		7EA6720E09DF1A89CBE878BF /* SpriteGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 711043217C56094BC4C07A25 /* SpriteGenerator.swift */; };
+		8232833694B4529A38061164 /* mission2.json in Resources */ = {isa = PBXBuildFile; fileRef = 7F3FF4FCC293758BEACE11EE /* mission2.json */; };
+		86425A52230D56FC3E0BF713 /* B2_menu.png in Resources */ = {isa = PBXBuildFile; fileRef = 28FBC280753805029018C50B /* B2_menu.png */; };
+		8A107869D3C3E33028271D5B /* b2image.jpg in Resources */ = {isa = PBXBuildFile; fileRef = FE527256C2DC7017B87F6AE9 /* b2image.jpg */; };
+		ABD23A978799577E9B4573FD /* f16image.jpeg in Resources */ = {isa = PBXBuildFile; fileRef = 971D0CBB3ADC7464AF04DFCD /* f16image.jpeg */; };
 		B412F2C93952C846F00A149E /* ParallaxBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10237EAB50C44DBDFBBD6664 /* ParallaxBackground.swift */; };
 		B8F6FCE1E92ED47E4EA02F44 /* MenuScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0898725B766B785D16B991 /* MenuScene.swift */; };
 		B9039D4DEA6FEB18B164EAC5 /* BombNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 886CE2257AE62EB9F3C4BD53 /* BombNode.swift */; };
 		BCFA45882BC14D7F34FF7B09 /* HangarScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01C3AA94438BC62934C776F6 /* HangarScene.swift */; };
 		C04373F63645C3070525981F /* FighterPlaneApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73115F2F5B0D39CC1FD0BC4B /* FighterPlaneApp.swift */; };
+		C088E85644E516A5F32E2513 /* convert_to_png.py in Resources */ = {isa = PBXBuildFile; fileRef = 7D2D70D3985FDAFF795E0F4F /* convert_to_png.py */; };
+		D77063BD6DB51155FC8F4084 /* F22_menu.png in Resources */ = {isa = PBXBuildFile; fileRef = B09038509998B3BDA5568F6A /* F22_menu.png */; };
 		E3532EFA432DCED2C95B35C3 /* PlayerData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DBB8D4E077DDF2D07D1C0E5 /* PlayerData.swift */; };
+		EA76A5B662C1F5F3A9C1B361 /* b3New.usdz in Resources */ = {isa = PBXBuildFile; fileRef = 8598F284BCB3DA1FA1F88A14 /* b3New.usdz */; };
+		ED0C797AAE248F7C60DDA7C7 /* MissionSelectScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = A13FEA9FC5735757C5EF1572 /* MissionSelectScene.swift */; };
+		FB8F84DB5202ACDAE8250F5E /* B3.usdz in Resources */ = {isa = PBXBuildFile; fileRef = 9BA4F90828AB02FC1557A81F /* B3.usdz */; };
+		FBF71C2954B0F70BD133EC77 /* loadingscreen.jpg in Resources */ = {isa = PBXBuildFile; fileRef = FE937CC9D87BFE4D2DB5529E /* loadingscreen.jpg */; };
+		A7D4E1F2B3C5068192A3B4C5 /* GunSoundManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4A1B3C5E6F708192A3B4C5D /* GunSoundManager.swift */; };
+		B8E5F2A3C4D6179283B4C5D6 /* minigun_spinup.wav in Resources */ = {isa = PBXBuildFile; fileRef = E5B2C4D6F7A8091B2C3D4E5F /* minigun_spinup.wav */; };
+		C9F6A3B4D5E728A394C5D6E7 /* minigun_loop.wav in Resources */ = {isa = PBXBuildFile; fileRef = F6C3D5E7A8B90A1C2D3E4F60 /* minigun_loop.wav */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		01C3AA94438BC62934C776F6 /* HangarScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HangarScene.swift; sourceTree = "<group>"; };
+		091C54F83079E58BB6287DC8 /* F16.usdz */ = {isa = PBXFileReference; lastKnownFileType = file.usdz; path = F16.usdz; sourceTree = "<group>"; };
 		0947D09CEFB432EEEC208E68 /* HUD.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HUD.swift; sourceTree = "<group>"; };
 		0B524F50E378DF38FEDB0592 /* ExplosionNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExplosionNode.swift; sourceTree = "<group>"; };
 		0DEF9055EEB8ABA9FF95369C /* Game3DView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Game3DView.swift; sourceTree = "<group>"; };
 		10237EAB50C44DBDFBBD6664 /* ParallaxBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParallaxBackground.swift; sourceTree = "<group>"; };
 		1B53D3EFFFE8CDB347886202 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		1CBA9F0571D17100B5DCA20D /* BLENDER_ARTIST_SPEC.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = BLENDER_ARTIST_SPEC.txt; sourceTree = "<group>"; };
 		220DE599DD3FB8CF108FF292 /* ModelGenerator3D.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelGenerator3D.swift; sourceTree = "<group>"; };
+		28FBC280753805029018C50B /* B2_menu.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = B2_menu.png; sourceTree = "<group>"; };
 		2FBD99F7179980663872AD54 /* ArmoryScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArmoryScene.swift; sourceTree = "<group>"; };
+		466A4E42EFED3246AAB1566C /* f22.jpeg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = f22.jpeg; sourceTree = "<group>"; };
 		5D0898725B766B785D16B991 /* MenuScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuScene.swift; sourceTree = "<group>"; };
 		63AA476F9115E0CD3218FAFC /* GameManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameManager.swift; sourceTree = "<group>"; };
 		6BC3360A1D6F34AB44661771 /* Game3DController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Game3DController.swift; sourceTree = "<group>"; };
 		711043217C56094BC4C07A25 /* SpriteGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpriteGenerator.swift; sourceTree = "<group>"; };
 		73115F2F5B0D39CC1FD0BC4B /* FighterPlaneApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FighterPlaneApp.swift; sourceTree = "<group>"; };
+		7D2D70D3985FDAFF795E0F4F /* convert_to_png.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = convert_to_png.py; sourceTree = "<group>"; };
+		7F3FF4FCC293758BEACE11EE /* mission2.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = mission2.json; sourceTree = "<group>"; };
+		8598F284BCB3DA1FA1F88A14 /* b3New.usdz */ = {isa = PBXFileReference; lastKnownFileType = file.usdz; path = b3New.usdz; sourceTree = "<group>"; };
 		85B20EEF1D8F0AD3069163B8 /* FighterPlane.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FighterPlane.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		867869BDA38BE564F1068A74 /* f22image.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = f22image.jpg; sourceTree = "<group>"; };
 		86E7EF70CD319A95E2A99854 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		886CE2257AE62EB9F3C4BD53 /* BombNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BombNode.swift; sourceTree = "<group>"; };
 		9314BB7C9654C2295511D31D /* EnemyNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnemyNode.swift; sourceTree = "<group>"; };
+		942FB9E91C48C1462809E0CE /* ShopScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShopScene.swift; sourceTree = "<group>"; };
+		971D0CBB3ADC7464AF04DFCD /* f16image.jpeg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = f16image.jpeg; sourceTree = "<group>"; };
+		9BA4F90828AB02FC1557A81F /* B3.usdz */ = {isa = PBXFileReference; lastKnownFileType = file.usdz; path = B3.usdz; sourceTree = "<group>"; };
 		9DBB8D4E077DDF2D07D1C0E5 /* PlayerData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerData.swift; sourceTree = "<group>"; };
+		A13FEA9FC5735757C5EF1572 /* MissionSelectScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MissionSelectScene.swift; sourceTree = "<group>"; };
 		A21F88D46A2AAFFE0EF0C756 /* GameScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameScene.swift; sourceTree = "<group>"; };
+		A8CFC6C8407E88A710073683 /* F22.usdz */ = {isa = PBXFileReference; lastKnownFileType = file.usdz; path = F22.usdz; sourceTree = "<group>"; };
 		A8E7D83B437AB57AF45C1EC0 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		AAD1D91FBFFB2FC910EF5FC9 /* GameHUD3D.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameHUD3D.swift; sourceTree = "<group>"; };
+		B09038509998B3BDA5568F6A /* F22_menu.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = F22_menu.png; sourceTree = "<group>"; };
 		B327E7BE3162CB0CC93AAD3C /* NavigationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationManager.swift; sourceTree = "<group>"; };
+		C80E496EE95348BA8099B5C1 /* F16_menu.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = F16_menu.png; sourceTree = "<group>"; };
+		CB7AC09A6CC3139E71F1B74D /* fighterplane_missions.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = fighterplane_missions.json; sourceTree = "<group>"; };
 		DACE5E6B25234B0DEAE54CB1 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
+		DEFFAB7867603AA7347EC989 /* MissionData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MissionData.swift; sourceTree = "<group>"; };
 		E562AFD2EC9C85FCD2D5B860 /* WeaponData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeaponData.swift; sourceTree = "<group>"; };
+		E837340C7093CC96523FB81C /* B2_backup.usdz */ = {isa = PBXFileReference; lastKnownFileType = file.usdz; path = B2_backup.usdz; sourceTree = "<group>"; };
 		ECCF607FAD5D8584B753D400 /* PlayerNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerNode.swift; sourceTree = "<group>"; };
+		F15993CF30127A636F4EF700 /* B2.usdz */ = {isa = PBXFileReference; lastKnownFileType = file.usdz; path = B2.usdz; sourceTree = "<group>"; };
+		FD8DBEB9BBE8C9B3CCACD854 /* mission1.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = mission1.json; sourceTree = "<group>"; };
+		FE527256C2DC7017B87F6AE9 /* b2image.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = b2image.jpg; sourceTree = "<group>"; };
+		FE937CC9D87BFE4D2DB5529E /* loadingscreen.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = loadingscreen.jpg; sourceTree = "<group>"; };
+		D4A1B3C5E6F708192A3B4C5D /* GunSoundManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GunSoundManager.swift; sourceTree = "<group>"; };
+		E5B2C4D6F7A8091B2C3D4E5F /* minigun_spinup.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = minigun_spinup.wav; sourceTree = "<group>"; };
+		F6C3D5E7A8B90A1C2D3E4F60 /* minigun_loop.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = minigun_loop.wav; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
+		1C5C3E51D0371C22AD70EC3F /* loadingscreen */ = {
+			isa = PBXGroup;
+			children = (
+				466A4E42EFED3246AAB1566C /* f22.jpeg */,
+				FE937CC9D87BFE4D2DB5529E /* loadingscreen.jpg */,
+			);
+			path = loadingscreen;
+			sourceTree = "<group>";
+		};
 		1E2C111CFE6368843A7B98E3 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				85B20EEF1D8F0AD3069163B8 /* FighterPlane.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		338E4A022E249A44F51BAFC4 /* Game Assets */ = {
+			isa = PBXGroup;
+			children = (
+				E837340C7093CC96523FB81C /* B2_backup.usdz */,
+				F15993CF30127A636F4EF700 /* B2.usdz */,
+				9BA4F90828AB02FC1557A81F /* B3.usdz */,
+				8598F284BCB3DA1FA1F88A14 /* b3New.usdz */,
+				1CBA9F0571D17100B5DCA20D /* BLENDER_ARTIST_SPEC.txt */,
+				091C54F83079E58BB6287DC8 /* F16.usdz */,
+				A8CFC6C8407E88A710073683 /* F22.usdz */,
+				1C5C3E51D0371C22AD70EC3F /* loadingscreen */,
+				D5CF9D5F52D9D46ABF394104 /* MenuPlaneImages */,
+				C691FA24F34D6E4D131BAAA2 /* Missions */,
+			);
+			path = "Game Assets";
 			sourceTree = "<group>";
 		};
 		867238291A32F2740B90E6CD /* FighterPlane */ = {
@@ -85,16 +161,21 @@
 				AAD1D91FBFFB2FC910EF5FC9 /* GameHUD3D.swift */,
 				63AA476F9115E0CD3218FAFC /* GameManager.swift */,
 				A21F88D46A2AAFFE0EF0C756 /* GameScene.swift */,
+				D4A1B3C5E6F708192A3B4C5D /* GunSoundManager.swift */,
 				01C3AA94438BC62934C776F6 /* HangarScene.swift */,
 				0947D09CEFB432EEEC208E68 /* HUD.swift */,
 				1B53D3EFFFE8CDB347886202 /* Info.plist */,
 				5D0898725B766B785D16B991 /* MenuScene.swift */,
+				DEFFAB7867603AA7347EC989 /* MissionData.swift */,
+				A13FEA9FC5735757C5EF1572 /* MissionSelectScene.swift */,
 				220DE599DD3FB8CF108FF292 /* ModelGenerator3D.swift */,
 				B327E7BE3162CB0CC93AAD3C /* NavigationManager.swift */,
 				10237EAB50C44DBDFBBD6664 /* ParallaxBackground.swift */,
 				9DBB8D4E077DDF2D07D1C0E5 /* PlayerData.swift */,
 				ECCF607FAD5D8584B753D400 /* PlayerNode.swift */,
+				942FB9E91C48C1462809E0CE /* ShopScene.swift */,
 				711043217C56094BC4C07A25 /* SpriteGenerator.swift */,
+				DA07B4C5E6F839B4A5D6E7F8 /* SoundEffects */,
 				E562AFD2EC9C85FCD2D5B860 /* WeaponData.swift */,
 			);
 			path = FighterPlane;
@@ -104,8 +185,42 @@
 			isa = PBXGroup;
 			children = (
 				867238291A32F2740B90E6CD /* FighterPlane */,
+				338E4A022E249A44F51BAFC4 /* Game Assets */,
 				1E2C111CFE6368843A7B98E3 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		C691FA24F34D6E4D131BAAA2 /* Missions */ = {
+			isa = PBXGroup;
+			children = (
+				CB7AC09A6CC3139E71F1B74D /* fighterplane_missions.json */,
+				FD8DBEB9BBE8C9B3CCACD854 /* mission1.json */,
+				7F3FF4FCC293758BEACE11EE /* mission2.json */,
+			);
+			path = Missions;
+			sourceTree = "<group>";
+		};
+		D5CF9D5F52D9D46ABF394104 /* MenuPlaneImages */ = {
+			isa = PBXGroup;
+			children = (
+				28FBC280753805029018C50B /* B2_menu.png */,
+				FE527256C2DC7017B87F6AE9 /* b2image.jpg */,
+				7D2D70D3985FDAFF795E0F4F /* convert_to_png.py */,
+				C80E496EE95348BA8099B5C1 /* F16_menu.png */,
+				971D0CBB3ADC7464AF04DFCD /* f16image.jpeg */,
+				B09038509998B3BDA5568F6A /* F22_menu.png */,
+				867869BDA38BE564F1068A74 /* f22image.jpg */,
+			);
+			path = MenuPlaneImages;
+			sourceTree = "<group>";
+		};
+		DA07B4C5E6F839B4A5D6E7F8 /* SoundEffects */ = {
+			isa = PBXGroup;
+			children = (
+				F6C3D5E7A8B90A1C2D3E4F60 /* minigun_loop.wav */,
+				E5B2C4D6F7A8091B2C3D4E5F /* minigun_spinup.wav */,
+			);
+			path = SoundEffects;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -137,6 +252,11 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1620;
+				TargetAttributes = {
+					6FA29D21AAE61AD4EA52E9A0 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
 			};
 			buildConfigurationList = DF255CC124633718CD472187 /* Build configuration list for PBXProject "FighterPlane" */;
 			compatibilityVersion = "Xcode 14.0";
@@ -162,6 +282,27 @@
 			buildActionMask = 2147483647;
 			files = (
 				625F210993A291EA40FD85DD /* Assets.xcassets in Resources */,
+				67549773CC7E7B776410ABA0 /* B2.usdz in Resources */,
+				733CCABD07E1DCF685CBBBB0 /* B2_backup.usdz in Resources */,
+				86425A52230D56FC3E0BF713 /* B2_menu.png in Resources */,
+				FB8F84DB5202ACDAE8250F5E /* B3.usdz in Resources */,
+				09BB12A58375DD378CA1FE76 /* BLENDER_ARTIST_SPEC.txt in Resources */,
+				0C8B901310DCEFDADF60FA5E /* F16.usdz in Resources */,
+				6502B38017C035C150047440 /* F16_menu.png in Resources */,
+				0FBC3F4F3F2C52060B2FE1C7 /* F22.usdz in Resources */,
+				D77063BD6DB51155FC8F4084 /* F22_menu.png in Resources */,
+				8A107869D3C3E33028271D5B /* b2image.jpg in Resources */,
+				EA76A5B662C1F5F3A9C1B361 /* b3New.usdz in Resources */,
+				C088E85644E516A5F32E2513 /* convert_to_png.py in Resources */,
+				ABD23A978799577E9B4573FD /* f16image.jpeg in Resources */,
+				6DBEEFA8162B8C0C3008F2A2 /* f22.jpeg in Resources */,
+				799381CFD1C6F091EA44C03B /* f22image.jpg in Resources */,
+				1828CFF8184AE2A65BB62500 /* fighterplane_missions.json in Resources */,
+				FBF71C2954B0F70BD133EC77 /* loadingscreen.jpg in Resources */,
+				C9F6A3B4D5E728A394C5D6E7 /* minigun_loop.wav in Resources */,
+				B8E5F2A3C4D6179283B4C5D6 /* minigun_spinup.wav in Resources */,
+				5D80076310D3C3C93D3F2CDB /* mission1.json in Resources */,
+				8232833694B4529A38061164 /* mission2.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -184,14 +325,18 @@
 				009A428F139AF74FEBA8F92E /* GameHUD3D.swift in Sources */,
 				163EBC9146FAED549D1958C0 /* GameManager.swift in Sources */,
 				3E2DA7B0ADB6AEEC4EE2253E /* GameScene.swift in Sources */,
+				A7D4E1F2B3C5068192A3B4C5 /* GunSoundManager.swift in Sources */,
 				5092D12ACD96D6078E6E37FA /* HUD.swift in Sources */,
 				BCFA45882BC14D7F34FF7B09 /* HangarScene.swift in Sources */,
 				B8F6FCE1E92ED47E4EA02F44 /* MenuScene.swift in Sources */,
+				1C63F0F9C3CB6D68C3093D2F /* MissionData.swift in Sources */,
+				ED0C797AAE248F7C60DDA7C7 /* MissionSelectScene.swift in Sources */,
 				70B4FD31544E539D43791817 /* ModelGenerator3D.swift in Sources */,
 				23BE8B3901DB554068A71616 /* NavigationManager.swift in Sources */,
 				B412F2C93952C846F00A149E /* ParallaxBackground.swift in Sources */,
 				E3532EFA432DCED2C95B35C3 /* PlayerData.swift in Sources */,
 				4126C17CF23D00494189E563 /* PlayerNode.swift in Sources */,
+				372B6B94933979DC14AC3B49 /* ShopScene.swift in Sources */,
 				7EA6720E09DF1A89CBE878BF /* SpriteGenerator.swift in Sources */,
 				01563731CD0B051CA7E209A3 /* WeaponData.swift in Sources */,
 			);
@@ -323,7 +468,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 6WTJNN7GSL;
@@ -347,7 +493,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 6WTJNN7GSL;
