@@ -34,6 +34,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     private var isInvincible = false
     private var shootCooldownTimer: TimeInterval = 0
     private var bombCooldownTimers: [TimeInterval] = []
+    private var wasFiring = false   // track fire-button transitions for sound
 
     // Water
     private let waterNode: SCNNode
@@ -678,6 +679,8 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
         // Handle exit to menu (from pause menu or game over)
         if input.shouldExitToMenu {
+            GunSoundManager.shared.stopFiring()
+            wasFiring = false
             DispatchQueue.main.async {
                 NavigationManager.shared.isInGame = false
             }
@@ -686,7 +689,11 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
         // Handle pause — also pause SCNActions so animations freeze
         if input.isGamePaused {
-            if !scene.isPaused { scene.isPaused = true }
+            if !scene.isPaused {
+                scene.isPaused = true
+                GunSoundManager.shared.stopFiring()
+                wasFiring = false
+            }
             lastUpdateTime = 0 // Reset so dt doesn't spike on resume
             return
         } else if scene.isPaused {
@@ -768,6 +775,13 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         // Fire when button is held
         if input.isFiring {
             fireGun()
+            if !wasFiring {
+                GunSoundManager.shared.startFiring()
+                wasFiring = true
+            }
+        } else if wasFiring {
+            GunSoundManager.shared.stopFiring()
+            wasFiring = false
         }
 
         // Process staggered bullet spawns on the render thread (#1)
@@ -1344,9 +1358,12 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
             let y: Float
             if type.isGround {
-                y = groundHeight(x: placement.x, z: placement.z)
+                // Small offset to prevent clipping on slopes
+                y = groundHeight(x: placement.x, z: placement.z) + 0.2
             } else {
-                y = placement.altitude ?? 15
+                // Ensure air enemies stay above terrain
+                let terrainH = groundHeight(x: placement.x, z: placement.z)
+                y = max(placement.altitude ?? 15, terrainH + 5)
             }
             node.position = SCNVector3(placement.x, y, placement.z)
             scene.rootNode.addChildNode(node)
@@ -1400,7 +1417,8 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         // Only place on land
         guard h > 0.5 else { return }
 
-        node.position = SCNVector3(x, h, z)
+        // Small offset above terrain to prevent clipping on slopes
+        node.position = SCNVector3(x, h + 0.2, z)
         scene.rootNode.addChildNode(node)
 
         // Detection range ring for AA guns and SAM launchers
@@ -1449,7 +1467,11 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         let x = Float.random(in: -5...5)
         let z = playerZ + 90 + Float.random(in: 0...30)
 
-        node.position = SCNVector3(x, playerY + Float.random(in: -3...3), z)
+        // Ensure air enemies never spawn below terrain
+        let rawY = playerY + Float.random(in: -3...3)
+        let terrainH = groundHeight(x: x, z: z)
+        let y = max(rawY, terrainH + 5)
+        node.position = SCNVector3(x, y, z)
         scene.rootNode.addChildNode(node)
 
         let bonus = GameManager.shared.enemyHealthBonus
@@ -1490,6 +1512,11 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 enemies[i].node.position.z -= 8 * dt
                 let sineOffset = sin(Float(time) * 2.0 + Float(i)) * 5 * dt
                 enemies[i].node.position.y += sineOffset
+                // Prevent flying through terrain
+                let terrainH = groundHeight(x: enemies[i].node.position.x, z: enemies[i].node.position.z)
+                if enemies[i].node.position.y < terrainH + 4 {
+                    enemies[i].node.position.y = terrainH + 4
+                }
             }
 
             // Fire at player — range-limited
@@ -1718,6 +1745,8 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     private func missionComplete() {
         guard gameState == .playing else { return }
         gameState = .missionVictory
+        GunSoundManager.shared.stopFiring()
+        wasFiring = false
         missionVictoryTimer = 3.0
 
         // Record mission progress immediately
@@ -1977,6 +2006,8 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     private func gameOver() {
         guard gameState == .playing else { return }
         gameState = .gameOver
+        GunSoundManager.shared.stopFiring()
+        wasFiring = false
 
         GameManager.shared.endGame()
 
