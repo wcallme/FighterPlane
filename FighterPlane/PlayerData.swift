@@ -11,7 +11,6 @@ enum PlaneCatalog {
         PlaneInfo(id: "F16", name: "F-16 Falcon", weaponSlots: 5),
         PlaneInfo(id: "F22", name: "F-22 Raptor", weaponSlots: 7),
         PlaneInfo(id: "B2", name: "B-2 Spirit", weaponSlots: 9),
-        PlaneInfo(id: "B3", name: "B-3 Phantom", weaponSlots: 6),
     ]
 
     static func plane(byId id: String) -> PlaneInfo? {
@@ -52,8 +51,8 @@ class PlayerData {
     var selectedPlaneId: String {
         get {
             let id = defaults.string(forKey: "pd_selectedPlane") ?? "F16"
-            // Migrate legacy "default" plane to F16
-            if id == "default" { defaults.set("F16", forKey: "pd_selectedPlane"); return "F16" }
+            // Migrate legacy or removed planes to F16
+            if id == "default" || id == "B3" { defaults.set("F16", forKey: "pd_selectedPlane"); return "F16" }
             return id
         }
         set { defaults.set(newValue, forKey: "pd_selectedPlane") }
