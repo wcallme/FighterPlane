@@ -69,12 +69,97 @@ enum ModelGenerator3D {
 
     static func selectedPlayerPlane() -> SCNNode {
         let planeId = PlayerData.shared.selectedPlaneId
-        return loadUSDZPlane(named: planeId) ?? loadUSDZPlane(named: "F16")!
+        return loadUSDZPlane(named: planeId) ?? loadUSDZPlane(named: "F16") ?? fallbackPlayerPlane()
     }
 
     /// Load a plane model for hangar/UI display (no game orientation correction)
     static func hangarPlane(forId planeId: String) -> SCNNode {
-        return loadHangarUSDZPlane(named: planeId) ?? loadHangarUSDZPlane(named: "F16")!
+        return loadHangarUSDZPlane(named: planeId) ?? loadHangarUSDZPlane(named: "F16") ?? fallbackHangarPlane()
+    }
+
+    /// Procedural fallback plane when USDZ files fail to load (e.g. simulator)
+    private static func fallbackPlayerPlane() -> SCNNode {
+        let root = SCNNode()
+        root.name = "player"
+
+        let container = SCNNode()
+
+        // Fuselage
+        let fuselage = SCNBox(width: 0.6, height: 0.25, length: 2.5, chamferRadius: 0.1)
+        fuselage.firstMaterial?.diffuse.contents = UIColor(red: 0.6, green: 0.6, blue: 0.65, alpha: 1)
+        container.addChildNode(SCNNode(geometry: fuselage))
+
+        // Wings
+        let wing = SCNBox(width: 5.0, height: 0.06, length: 1.0, chamferRadius: 0.02)
+        wing.firstMaterial?.diffuse.contents = UIColor(red: 0.55, green: 0.55, blue: 0.60, alpha: 1)
+        let wingNode = SCNNode(geometry: wing)
+        wingNode.position = SCNVector3(0, 0, -0.2)
+        container.addChildNode(wingNode)
+
+        // Tail
+        let tail = SCNBox(width: 1.8, height: 0.05, length: 0.4, chamferRadius: 0.02)
+        tail.firstMaterial?.diffuse.contents = UIColor(red: 0.55, green: 0.55, blue: 0.60, alpha: 1)
+        let tailNode = SCNNode(geometry: tail)
+        tailNode.position = SCNVector3(0, 0.1, -1.2)
+        container.addChildNode(tailNode)
+
+        // Vertical stabilizer
+        let vstab = SCNBox(width: 0.06, height: 0.6, length: 0.5, chamferRadius: 0.02)
+        vstab.firstMaterial?.diffuse.contents = UIColor(red: 0.55, green: 0.55, blue: 0.60, alpha: 1)
+        let vstabNode = SCNNode(geometry: vstab)
+        vstabNode.position = SCNVector3(0, 0.35, -1.1)
+        container.addChildNode(vstabNode)
+
+        // Cockpit
+        let cockpit = SCNSphere(radius: 0.18)
+        cockpit.firstMaterial?.diffuse.contents = UIColor(red: 0.3, green: 0.5, blue: 0.8, alpha: 0.9)
+        let cockpitNode = SCNNode(geometry: cockpit)
+        cockpitNode.position = SCNVector3(0, 0.2, 0.4)
+        container.addChildNode(cockpitNode)
+
+        container.eulerAngles.y = .pi / 2
+
+        let targetSize: Float = 5.5
+        let (minB, maxB) = container.boundingBox
+        let maxDim = max(maxB.x - minB.x, maxB.y - minB.y, maxB.z - minB.z)
+        if maxDim > 0 {
+            let s = targetSize / maxDim
+            root.scale = SCNVector3(s, s, s)
+        }
+
+        root.addChildNode(container)
+
+        let trail = afterburnerTrail(scale: 1.0)
+        trail.position = SCNVector3(0, 0, -targetSize * 0.45)
+        root.addChildNode(trail)
+
+        return root
+    }
+
+    /// Procedural fallback for hangar display
+    private static func fallbackHangarPlane() -> SCNNode {
+        let root = SCNNode()
+        root.name = "hangarModel"
+
+        let fuselage = SCNBox(width: 0.6, height: 0.25, length: 2.5, chamferRadius: 0.1)
+        fuselage.firstMaterial?.diffuse.contents = UIColor(red: 0.6, green: 0.6, blue: 0.65, alpha: 1)
+        root.addChildNode(SCNNode(geometry: fuselage))
+
+        let wing = SCNBox(width: 5.0, height: 0.06, length: 1.0, chamferRadius: 0.02)
+        wing.firstMaterial?.diffuse.contents = UIColor(red: 0.55, green: 0.55, blue: 0.60, alpha: 1)
+        let wingNode = SCNNode(geometry: wing)
+        wingNode.position = SCNVector3(0, 0, -0.2)
+        root.addChildNode(wingNode)
+
+        let targetSize: Float = 4.0
+        let (minB, maxB) = root.boundingBox
+        let maxDim = max(maxB.x - minB.x, maxB.y - minB.y, maxB.z - minB.z)
+        if maxDim > 0 {
+            let s = targetSize / maxDim
+            root.scale = SCNVector3(s, s, s)
+        }
+
+        return root
     }
 
     private static func loadHangarUSDZPlane(named name: String) -> SCNNode? {
