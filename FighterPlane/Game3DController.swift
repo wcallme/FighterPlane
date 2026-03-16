@@ -35,6 +35,8 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     private var shootCooldownTimer: TimeInterval = 0
     private var bombCooldownTimers: [TimeInterval] = []
     private var wasFiring = false   // track fire-button transitions for sound
+    private var gunSpinUpTimer: TimeInterval = 0  // must hold fire 0.9s before bullets fly
+    private let gunSpinUpDelay: TimeInterval = 0.9
 
     // Water
     private let waterNode: SCNNode
@@ -682,6 +684,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         if input.shouldExitToMenu {
             GunSoundManager.shared.stopFiring()
             wasFiring = false
+            gunSpinUpTimer = 0
             DispatchQueue.main.async {
                 NavigationManager.shared.isInGame = false
             }
@@ -694,6 +697,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 scene.isPaused = true
                 GunSoundManager.shared.stopFiring()
                 wasFiring = false
+                gunSpinUpTimer = 0
             }
             lastUpdateTime = 0 // Reset so dt doesn't spike on resume
             return
@@ -773,16 +777,21 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         // Spawn enemies
         spawnEnemies(time: time)
 
-        // Fire when button is held
+        // Fire when button is held (0.9s spin-up before bullets fly)
         if input.isFiring {
-            fireGun()
             if !wasFiring {
                 GunSoundManager.shared.startFiring()
                 wasFiring = true
+                gunSpinUpTimer = 0
+            }
+            gunSpinUpTimer += dt
+            if gunSpinUpTimer >= gunSpinUpDelay {
+                fireGun()
             }
         } else if wasFiring {
             GunSoundManager.shared.stopFiring()
             wasFiring = false
+            gunSpinUpTimer = 0
         }
 
         // Process staggered bullet spawns on the render thread (#1)
@@ -1840,6 +1849,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         gameState = .missionVictory
         GunSoundManager.shared.stopFiring()
         wasFiring = false
+        gunSpinUpTimer = 0
         missionVictoryTimer = 3.0
 
         // Record mission progress immediately
@@ -2101,6 +2111,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         gameState = .gameOver
         GunSoundManager.shared.stopFiring()
         wasFiring = false
+        gunSpinUpTimer = 0
 
         GameManager.shared.endGame()
 
