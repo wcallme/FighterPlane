@@ -35,6 +35,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     private var shootCooldownTimer: TimeInterval = 0
     private var bombCooldownTimers: [TimeInterval] = []
     private var wasFiring = false   // track fire-button transitions for sound
+    private var burstShotCount = 0   // consecutive shots fired in current burst (for accuracy bloom)
     private var gunSoundLingerTimer: TimeInterval = 0  // keep gun sound playing briefly after release
     private let gunSoundLingerDuration: TimeInterval = 0.3
 
@@ -145,6 +146,11 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         var aiHeading: Float = .pi   // initially flying toward -Z (toward the player)
         var aiSpeed: Float = 0
         var aiActivated: Bool = false
+        var aiEvading: Bool = false          // true while in evasion maneuver
+        var aiEvadeHeading: Float = 0        // direction to flee during evasion
+        var aiEvadeTimer: Float = 0          // seconds remaining in current evasion
+        var aiNextEvadeAt: Float = 0         // time (seconds since activation) to start next evasion
+        var aiActiveTime: Float = 0          // seconds since activation
     }
 
     struct Bullet3D {
@@ -826,6 +832,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             gunSoundLingerTimer = gunSoundLingerDuration
             fireGun()
         } else if wasFiring {
+            burstShotCount = 0
             gunSoundLingerTimer -= dt
             if gunSoundLingerTimer <= 0 {
                 GunSoundManager.shared.stopFiring()
@@ -1081,17 +1088,18 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
     // MARK: - Shooting
 
     // Pending staggered gun fires (render-thread safe)
-    private var pendingGunFires: [(gun: WeaponInfo, gunIndex: Int, fireAt: TimeInterval)] = []
+    private var pendingGunFires: [(gun: WeaponInfo, gunIndex: Int, fireAt: TimeInterval, burstShot: Int)] = []
 
     private func fireGun() {
         guard shootCooldownTimer <= 0 else { return }
 
         GameManager.shared.shotsFired += 1
+        burstShotCount += 1
 
         // Queue staggered fires on the render thread (no DispatchQueue.main needed)
         for (gunIndex, gun) in equippedGuns.enumerated() {
             let fireAt = lastUpdateTime + Double(gunIndex) * 0.1
-            pendingGunFires.append((gun: gun, gunIndex: gunIndex, fireAt: fireAt))
+            pendingGunFires.append((gun: gun, gunIndex: gunIndex, fireAt: fireAt, burstShot: burstShotCount))
         }
 
         // Use fastest fire rate among equipped guns
@@ -1134,7 +1142,12 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 } else if spread > 0 {
                     angle += Float.random(in: -Float(spread)...Float(spread))
                 }
-                let jitterDeg = Float.random(in: -3.0...3.0)
+                // Accuracy bloom: first 2 shots are laser-accurate, then jitter ramps to a modest cap
+                let accurateShots = 2
+                let bloomPerShotDeg: Float = 0.5
+                let maxBloomDeg: Float = 2.0
+                let bloomDeg = min(maxBloomDeg, bloomPerShotDeg * Float(max(0, entry.burstShot - accurateShots)))
+                let jitterDeg = Float.random(in: -bloomDeg...bloomDeg)
                 angle += jitterDeg * .pi / 180.0
 
                 let vz = cos(angle) * speed
@@ -1458,7 +1471,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 healthBarNode: healthBar
             )
             if type == .aiFighter {
-                enemy.aiSpeed = 18.0
+                enemy.aiSpeed = 16.0
             }
             enemies.append(enemy)
         }
@@ -1509,7 +1522,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                     healthBarNode: healthBar
                 )
                 if type == .aiFighter {
-                    enemy.aiSpeed = 18.0
+                    enemy.aiSpeed = 16.0
                 }
                 enemies.append(enemy)
             }
@@ -1663,7 +1676,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 healthBarNode: healthBar
             )
             if type == .aiFighter {
-                enemy.aiSpeed = 18.0  // faster than player (14.0)
+                enemy.aiSpeed = 16.0  // faster than player (14.0)
             }
             enemies.append(enemy)
         }
@@ -1699,7 +1712,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 isAir: true,
                 healthBarNode: healthBar
             )
-            enemy.aiSpeed = 18.0
+            enemy.aiSpeed = 16.0
             enemies.append(enemy)
         }
     }

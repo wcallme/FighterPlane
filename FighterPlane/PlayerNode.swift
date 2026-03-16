@@ -7,6 +7,7 @@ class PlayerNode: SKNode {
     var isInvincible = false
     var canShoot = true
     var canBomb = true
+    var burstShotCount = 0
 
     private let bodySprite: SKSpriteNode
     let shadowSprite: SKSpriteNode
@@ -107,11 +108,11 @@ class PlayerNode: SKNode {
     // MARK: - Actions
 
     func bankLeft() {
-        bodySprite.run(.rotate(toAngle: 0.25, duration: 0.12))
+        bodySprite.run(.rotate(toAngle: -0.25, duration: 0.12))
     }
 
     func bankRight() {
-        bodySprite.run(.rotate(toAngle: -0.25, duration: 0.12))
+        bodySprite.run(.rotate(toAngle: 0.25, duration: 0.12))
     }
 
     func bankCenter() {
@@ -140,50 +141,71 @@ class PlayerNode: SKNode {
     func fireBullets() -> [SKNode] {
         guard canShoot else { return [] }
         canShoot = false
+        burstShotCount += 1
 
-        let gun = PlayerData.shared.equippedGun
+        let guns = PlayerData.shared.equippedGuns
+        // Use the fastest fire rate among all equipped guns for cooldown
+        let fastestFireRate = guns.map(\.fireRate).min() ?? 0.22
 
-        // Cooldown based on equipped weapon
+        // Cooldown based on fastest equipped weapon
         run(.sequence([
-            .wait(forDuration: gun.fireRate),
+            .wait(forDuration: fastestFireRate),
             .run { [weak self] in self?.canShoot = true }
         ]))
 
+        // Accuracy bloom: first 2 shots laser-accurate, then jitter ramps to a modest cap
+        let accurateShots = 2
+        let bloomPerShot: CGFloat = 0.5 * .pi / 180.0
+        let maxBloom: CGFloat = 2.0 * .pi / 180.0
+        let bloom = min(maxBloom, bloomPerShot * CGFloat(max(0, burstShotCount - accurateShots)))
+
         var bullets: [SKNode] = []
-        let count = gun.bulletCount
-        let spread = gun.bulletSpread
 
-        for i in 0..<count {
-            let bullet = SKSpriteNode(texture: SpriteGenerator.bullet())
-            bullet.position = CGPoint(x: position.x, y: position.y + 30)
-            bullet.zPosition = ZLayer.bullets.rawValue
-            bullet.name = "playerBullet"
+        // Each equipped gun fires its own bullets
+        for (gunIndex, gun) in guns.enumerated() {
+            let count = gun.bulletCount
+            let spread = gun.bulletSpread
 
-            let body = SKPhysicsBody(rectangleOf: bullet.size)
-            body.categoryBitMask = PhysicsCategory.playerBullet
-            body.contactTestBitMask = PhysicsCategory.enemy | PhysicsCategory.groundTarget
-            body.collisionBitMask = PhysicsCategory.none
-            body.isDynamic = true
-            body.affectedByGravity = false
-            bullet.physicsBody = body
+            // Slight X offset per gun to simulate multiple barrels
+            let gunSpacing: CGFloat = guns.count > 1 ? 8 : 0
+            let gunOffset = CGFloat(gunIndex) - CGFloat(guns.count - 1) / 2.0
 
-            // Calculate spread angle for multi-bullet weapons
-            var angle: CGFloat = .pi / 2 // straight up
-            if count > 1 {
-                let offset = CGFloat(i) - CGFloat(count - 1) / 2.0
-                angle += offset * spread
-            } else if spread > 0 {
-                // Single bullet with spread = random deviation
-                angle += CGFloat.random(in: -spread...spread)
+            for i in 0..<count {
+                let bullet = SKSpriteNode(texture: SpriteGenerator.bullet(weaponId: gun.id))
+                bullet.position = CGPoint(
+                    x: position.x + gunOffset * gunSpacing,
+                    y: position.y + 30
+                )
+                bullet.zPosition = ZLayer.bullets.rawValue
+                bullet.name = "playerBullet"
+
+                let body = SKPhysicsBody(rectangleOf: bullet.size)
+                body.categoryBitMask = PhysicsCategory.playerBullet
+                body.contactTestBitMask = PhysicsCategory.enemy | PhysicsCategory.groundTarget
+                body.collisionBitMask = PhysicsCategory.none
+                body.isDynamic = true
+                body.affectedByGravity = false
+                bullet.physicsBody = body
+
+                // Calculate spread angle for multi-bullet weapons
+                var angle: CGFloat = .pi / 2 // straight up
+                if count > 1 {
+                    let offset = CGFloat(i) - CGFloat(count - 1) / 2.0
+                    angle += offset * spread
+                } else if spread > 0 {
+                    angle += CGFloat.random(in: -spread...spread)
+                }
+
+                // Apply burst accuracy bloom
+                angle += CGFloat.random(in: -bloom...bloom)
+
+                bullet.userData = NSMutableDictionary()
+                bullet.userData?["speed"] = gun.projectileSpeed
+                bullet.userData?["angle"] = angle
+                bullet.userData?["damage"] = gun.damage
+
+                bullets.append(bullet)
             }
-
-            // Store speed and angle for GameScene to use
-            bullet.userData = NSMutableDictionary()
-            bullet.userData?["speed"] = gun.projectileSpeed
-            bullet.userData?["angle"] = angle
-            bullet.userData?["damage"] = gun.damage
-
-            bullets.append(bullet)
         }
 
         return bullets

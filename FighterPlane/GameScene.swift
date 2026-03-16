@@ -331,7 +331,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     private func updateAutoFire() {
         // Check if fire button is being held
         let isFiring = activeTouches.values.contains("fire")
-        guard isFiring else { return }
+        guard isFiring else {
+            player.burstShotCount = 0
+            return
+        }
 
         let bullets = player.fireBullets()
         for bullet in bullets {
