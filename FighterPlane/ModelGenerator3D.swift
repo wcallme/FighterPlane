@@ -611,22 +611,6 @@ enum ModelGenerator3D {
         exhaustNode.position = SCNVector3(0, -0.42, 0)
         root.addChildNode(exhaustNode)
 
-        // Smoke trail particle system
-        let trail = SCNParticleSystem()
-        trail.particleSize = 0.12
-        trail.particleSizeVariation = 0.06
-        trail.birthRate = 50
-        trail.particleLifeSpan = 0.6
-        trail.particleLifeSpanVariation = 0.2
-        trail.emissionDuration = .greatestFiniteMagnitude
-        trail.spreadingAngle = 15
-        trail.particleColor = UIColor(white: 0.7, alpha: 0.6)
-        trail.particleColorVariation = SCNVector4(0, 0, 0.1, 0.2)
-        trail.isAffectedByGravity = false
-        trail.particleVelocity = 0.5
-        trail.emitterShape = nil
-        root.addParticleSystem(trail)
-
         root.scale = SCNVector3(2, 2, 2)
         return root
     }}

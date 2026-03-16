@@ -2401,6 +2401,54 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         node.runAction(.sequence([fadeOut, remove]))
     }
 
+    // MARK: - AIM Smoke Trail
+
+    private func spawnAIMSmokeTrail(at position: SCNVector3, velocity: SCNVector3) {
+        let mag = sqrt(velocity.y * velocity.y + velocity.z * velocity.z)
+        guard mag > 0 else { return }
+
+        // Tail offset: opposite to direction of travel, ~1.2 units behind
+        let tailY = -velocity.y / mag * 1.2
+        let tailZ = -velocity.z / mag * 1.2
+
+        // Spawn 2 puffs per call for denser trail
+        for _ in 0..<2 {
+            let jitter = SCNVector3(
+                Float.random(in: -0.3...0.3),
+                Float.random(in: -0.3...0.3) + tailY,
+                Float.random(in: -0.3...0.3) + tailZ
+            )
+            let radius = CGFloat(Float.random(in: 0.15...0.35))
+            let sphere = SCNSphere(radius: radius)
+            let mat = SCNMaterial()
+            // Warm gray smoke with strong opacity
+            let shade = CGFloat(Float.random(in: 0.55...0.72))
+            mat.diffuse.contents = UIColor(red: shade, green: shade * 0.95, blue: shade * 0.88, alpha: 0.8)
+            mat.emission.contents = UIColor(red: shade * 0.3, green: shade * 0.25, blue: shade * 0.2, alpha: 0.3)
+            mat.lightingModel = .constant
+            mat.isDoubleSided = true
+            mat.writesToDepthBuffer = false
+            mat.transparencyMode = .aOne
+            mat.blendMode = .alpha
+            sphere.firstMaterial = mat
+
+            let node = SCNNode(geometry: sphere)
+            node.position = SCNVector3(
+                position.x + jitter.x,
+                position.y + jitter.y,
+                position.z + jitter.z
+            )
+            scene.rootNode.addChildNode(node)
+
+            // Grow slightly and fade out
+            let grow = SCNAction.scale(to: 1.6, duration: 0.35)
+            let fadeOut = SCNAction.fadeOut(duration: 0.35)
+            let group = SCNAction.group([grow, fadeOut])
+            let remove = SCNAction.removeFromParentNode()
+            node.runAction(.sequence([group, remove]))
+        }
+    }
+
     // MARK: - AIM Rockets
 
     private func fireAIMRocket() {
@@ -2582,6 +2630,13 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             // Orient missile to face direction of travel (rotated 90° to be parallel nose-to-tail)
             let pitch = atan2(v.y, v.z)
             activeAIMRockets[i].node.eulerAngles = SCNVector3(-.pi / 2 - pitch, 0, 0)
+
+            // Spawn smoke trail puffs
+            activeAIMRockets[i].smokeTimer -= dt
+            if activeAIMRockets[i].smokeTimer <= 0 {
+                activeAIMRockets[i].smokeTimer = 0.06
+                spawnAIMSmokeTrail(at: activeAIMRockets[i].node.position, velocity: v)
+            }
         }
     }
 
