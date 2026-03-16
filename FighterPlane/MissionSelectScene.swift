@@ -361,6 +361,7 @@ class MissionSelectScene: SKScene {
 
     private func launchMission(index: Int) {
         guard index < missions.count else { return }
+        MenuMusicManager.shared.stop()
         NavigationManager.shared.gameMode = .mission(missions[index])
         NavigationManager.shared.isInGame = true
     }

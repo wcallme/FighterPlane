@@ -21,6 +21,8 @@ class HangarScene: SKScene {
         safeTop = SafeArea.top
         safeBottom = SafeArea.bottom
 
+        MenuMusicManager.shared.play()
+
         computeLayout()
         setupAtmosphericBackground()
         setupHeader()
@@ -812,6 +814,7 @@ class HangarScene: SKScene {
     // MARK: - Actions
 
     private func startGame() {
+        MenuMusicManager.shared.stop()
         NavigationManager.shared.gameMode = .infiniteBattle
         NavigationManager.shared.isInGame = true
     }
