@@ -261,10 +261,23 @@ class PlayerData {
         return true
     }
 
+    /// Weapons restricted from specific planes (weaponId → set of plane IDs that CANNOT use it)
+    static let planeRestrictions: [String: Set<String>] = [
+        "aim_rockets": ["F16"]
+    ]
+
+    /// Check if a weapon can be equipped on the currently selected plane
+    func canEquipOnCurrentPlane(_ weaponId: String) -> Bool {
+        guard let restricted = PlayerData.planeRestrictions[weaponId] else { return true }
+        return !restricted.contains(selectedPlaneId)
+    }
+
     func equipWeapon(_ weaponId: String, toSlot slot: Int) {
         guard slot >= 0 && slot < slotCount else { return }
         // Must have an unequipped copy available
         guard availableCount(of: weaponId) > 0 else { return }
+        // Plane-specific restrictions
+        guard canEquipOnCurrentPlane(weaponId) else { return }
         var current = loadout
         current[slot] = weaponId
         loadout = current

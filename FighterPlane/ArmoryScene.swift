@@ -651,6 +651,12 @@ class ArmoryScene: SKScene {
         let data = PlayerData.shared
         guard data.availableCount(of: weaponId) > 0 else { return }
 
+        // Check plane restrictions
+        if !data.canEquipOnCurrentPlane(weaponId) {
+            showMessage("Not compatible with \(data.selectedPlaneName)!", color: SKColor(red: 1, green: 0.4, blue: 0.3, alpha: 1))
+            return
+        }
+
         if let emptySlot = data.loadout.firstIndex(where: { $0 == nil }) {
             data.equipWeapon(weaponId, toSlot: emptySlot)
             refreshAll()
