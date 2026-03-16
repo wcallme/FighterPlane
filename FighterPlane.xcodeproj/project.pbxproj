@@ -62,6 +62,9 @@
 		FBF71C2954B0F70BD133EC77 /* loadingscreen.jpg in Resources */ = {isa = PBXBuildFile; fileRef = FE937CC9D87BFE4D2DB5529E /* loadingscreen.jpg */; };
 		FCECD696A8A418127971D826 /* minigun_spinup.wav in Resources */ = {isa = PBXBuildFile; fileRef = B8C59FD8DD4222F4115AFBF0 /* minigun_spinup.wav */; };
 		A1B2C3D4E5F60718293A4B5C /* sam_launch.wav in Resources */ = {isa = PBXBuildFile; fileRef = D6E7F8091A2B3C4D5E6F7081 /* sam_launch.wav */; };
+		B2C3D4E5F6071829A3B4C5D6 /* jet_engine_player.wav in Resources */ = {isa = PBXBuildFile; fileRef = E7F80192A3B4C5D6E7F80192 /* jet_engine_player.wav */; };
+		C3D4E5F607182930B4C5D6E7 /* jet_engine_enemy.wav in Resources */ = {isa = PBXBuildFile; fileRef = F8019203B4C5D6E7F8019203 /* jet_engine_enemy.wav */; };
+		D4E5F60718293A40C5D6E7F8 /* EngineSoundManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0192A3B4C5D6E7F801920304 /* EngineSoundManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -122,6 +125,9 @@
 		FE527256C2DC7017B87F6AE9 /* b2image.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = b2image.jpg; sourceTree = "<group>"; };
 		FE937CC9D87BFE4D2DB5529E /* loadingscreen.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = loadingscreen.jpg; sourceTree = "<group>"; };
 		D6E7F8091A2B3C4D5E6F7081 /* sam_launch.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = sam_launch.wav; sourceTree = "<group>"; };
+		E7F80192A3B4C5D6E7F80192 /* jet_engine_player.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = jet_engine_player.wav; sourceTree = "<group>"; };
+		F8019203B4C5D6E7F8019203 /* jet_engine_enemy.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = jet_engine_enemy.wav; sourceTree = "<group>"; };
+		0192A3B4C5D6E7F801920304 /* EngineSoundManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineSoundManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -166,6 +172,7 @@
 				90F02FD8FDA02ADB7A80147D /* BombSoundManager.swift */,
 				DACE5E6B25234B0DEAE54CB1 /* Constants.swift */,
 				A8E7D83B437AB57AF45C1EC0 /* ContentView.swift */,
+				0192A3B4C5D6E7F801920304 /* EngineSoundManager.swift */,
 				9314BB7C9654C2295511D31D /* EnemyNode.swift */,
 				0B524F50E378DF38FEDB0592 /* ExplosionNode.swift */,
 				73115F2F5B0D39CC1FD0BC4B /* FighterPlaneApp.swift */,
@@ -205,6 +212,8 @@
 				0826EB56CA55BF77EB539D5C /* bomb_impact3.wav */,
 				9530F1855D7CC3332631C482 /* menusong.wav */,
 				E58E0FD983E359D9A1BF7D3E /* minigun_loop.wav */,
+				E7F80192A3B4C5D6E7F80192 /* jet_engine_player.wav */,
+				F8019203B4C5D6E7F8019203 /* jet_engine_enemy.wav */,
 				D6E7F8091A2B3C4D5E6F7081 /* sam_launch.wav */,
 				B8C59FD8DD4222F4115AFBF0 /* minigun_spinup.wav */,
 			);
@@ -326,6 +335,8 @@
 				337E5F68EBFA739673F919E1 /* minigun_loop.wav in Resources */,
 				FCECD696A8A418127971D826 /* minigun_spinup.wav in Resources */,
 				A1B2C3D4E5F60718293A4B5C /* sam_launch.wav in Resources */,
+				B2C3D4E5F6071829A3B4C5D6 /* jet_engine_player.wav in Resources */,
+				C3D4E5F607182930B4C5D6E7 /* jet_engine_enemy.wav in Resources */,
 				5D80076310D3C3C93D3F2CDB /* mission1.json in Resources */,
 				8232833694B4529A38061164 /* mission2.json in Resources */,
 			);
@@ -343,6 +354,7 @@
 				26117808470FAAE27F2D2061 /* BombSoundManager.swift in Sources */,
 				32F023B03B6E9580E54FE877 /* Constants.swift in Sources */,
 				0AF5DEFEF546C62297A54486 /* ContentView.swift in Sources */,
+				D4E5F60718293A40C5D6E7F8 /* EngineSoundManager.swift in Sources */,
 				76EE177BCF1ACC500205A2F2 /* EnemyNode.swift in Sources */,
 				27F08836936919F72C6E18C5 /* ExplosionNode.swift in Sources */,
 				C04373F63645C3070525981F /* FighterPlaneApp.swift in Sources */,

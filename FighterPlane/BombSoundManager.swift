@@ -55,11 +55,13 @@ final class BombSoundManager {
 
             // Find an idle player in that pool
             if let player = pool.first(where: { !$0.isPlaying }) {
+                player.volume = 0.4
                 player.currentTime = 0
                 player.play()
             }
             // All busy in chosen variant — try to steal the one closest to finishing
             else if let oldest = pool.min(by: { $0.currentTime > $1.currentTime }) {
+                oldest.volume = 0.4
                 oldest.currentTime = 0
                 oldest.play()
             }

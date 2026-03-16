@@ -36,6 +36,7 @@ final class GunSoundManager: NSObject, AVAudioPlayerDelegate {
         if let url = Bundle.main.url(forResource: "minigun_spinup", withExtension: "wav") {
             spinUpPlayer = try? AVAudioPlayer(contentsOf: url)
             spinUpPlayer?.numberOfLoops = 0
+            spinUpPlayer?.volume = 0.35
             spinUpPlayer?.delegate = self
             spinUpPlayer?.prepareToPlay()
         }
@@ -50,10 +51,12 @@ final class GunSoundManager: NSObject, AVAudioPlayerDelegate {
 
     // MARK: - Public API
 
+    private let maxVolume: Float = 0.35
+
     func startFiring() {
         // Cancel any fade-out in progress and restore volume
         fadeRemaining = 0
-        loopPlayer?.volume = 1.0
+        loopPlayer?.volume = maxVolume
 
         guard !isFiringSound else { return }
         isFiringSound = true
@@ -109,7 +112,7 @@ final class GunSoundManager: NSObject, AVAudioPlayerDelegate {
             fadeRemaining = 0
             resetLoop()
         } else {
-            loop.volume = Float(fadeRemaining / fadeDuration)
+            loop.volume = Float(fadeRemaining / fadeDuration) * maxVolume
         }
     }
 
@@ -126,7 +129,7 @@ final class GunSoundManager: NSObject, AVAudioPlayerDelegate {
 
     private func resetLoop() {
         loopPlayer?.stop()
-        loopPlayer?.volume = 1.0
+        loopPlayer?.volume = maxVolume
         loopPlayer?.currentTime = 0
         loopPlayer?.prepareToPlay()
     }
