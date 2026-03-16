@@ -19,7 +19,7 @@ struct FighterPlaneApp: App {
                 .statusBarHidden()
                 .background(Color.black)
         }
-        .onChange(of: scenePhase) { _, newPhase in
+        .onChange(of: scenePhase) { newPhase in
             if newPhase != .active {
                 GunSoundManager.shared.stopFiring()
             }
