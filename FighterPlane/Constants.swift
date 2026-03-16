@@ -56,7 +56,7 @@ enum GameConfig {
     static let aiFighterScore = 400
     static let aiFighterTurnSpeed: CGFloat = 4.0     // radians per second (tight pursuit turns)
     static let aiFighterMoveSpeed: CGFloat = 280.0   // pixels per second (faster than player)
-    static let aiFighterFireRate: TimeInterval = 0.12 // rapid fire bursts
+    static let aiFighterFireRate: TimeInterval = 0.16 // rapid fire bursts (33% slower for perf)
     static let aiFighterBulletDamage = 2              // low damage per round
     static let aiFighterBulletSpeed: CGFloat = 380.0
     static let aiFighterFiringCone: CGFloat = 0.55    // radians (~31°) — fires when roughly aimed at player

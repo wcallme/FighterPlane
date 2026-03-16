@@ -9,6 +9,10 @@ final class SFXPlayer {
     private var pools: [String: [AVAudioPlayer]] = [:]
     private let poolSize = 4  // max simultaneous plays per sound
 
+    /// Throttle: minimum interval between plays of the same sound (prevents audio spam)
+    private var lastPlayTime: [String: TimeInterval] = [:]
+    private let minPlayInterval: TimeInterval = 0.06  // ~16 plays/sec max per sound
+
     private init() {}
 
     /// Pre-load a sound into the pool so first play is instant.
@@ -26,7 +30,15 @@ final class SFXPlayer {
     }
 
     /// Play a one-shot sound. Auto-preloads on first call if needed.
+    /// Automatically throttled so the same sound won't fire more than ~16x/sec.
     func play(_ name: String, ext: String = "wav", volume: Float = 1.0) {
+        // Global per-sound throttle to prevent audio system overload
+        let now = CACurrentMediaTime()
+        if let last = lastPlayTime[name], now - last < minPlayInterval {
+            return
+        }
+        lastPlayTime[name] = now
+
         if pools[name] == nil { preload(name, ext: ext) }
         guard let pool = pools[name] else { return }
 

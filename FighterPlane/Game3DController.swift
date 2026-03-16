@@ -1939,9 +1939,9 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         // Tanks, AA guns, and fighters fire bullets
         guard enemy.type == .tank || enemy.type == .aaGun || enemy.type == .fighter else { return }
 
-        // AA fire sound — volume falls off with distance
+        // AA fire sound — volume falls off with distance, skip if far away
         let distToPlayer = abs(enemy.node.position.z - playerZ)
-        let maxHearDist: Float = 80
+        let maxHearDist: Float = 50
         if distToPlayer < maxHearDist {
             let vol = Float(1.0 - distToPlayer / maxHearDist)
             SFXPlayer.shared.play("aa_fire", volume: vol * 0.6)
