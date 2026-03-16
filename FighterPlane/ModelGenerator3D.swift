@@ -1055,75 +1055,42 @@ enum ModelGenerator3D {
         let root = SCNNode()
         root.name = "bomb3D"
 
-        // Massive pear bulb
-        let bulb = SCNSphere(radius: 0.26)
-        bulb.firstMaterial?.diffuse.contents = UIColor(red: 0.16, green: 0.16, blue: 0.16, alpha: 1)
-        bulb.firstMaterial?.specular.contents = UIColor(white: 0.25, alpha: 1)
-        let bulbNode = SCNNode(geometry: bulb)
-        bulbNode.position = SCNVector3(0, -0.08, 0)
-        root.addChildNode(bulbNode)
+        // Big egg body — low-poly sphere scaled into an egg shape
+        let egg = SCNSphere(radius: 0.38)
+        egg.segmentCount = 12 // low poly
+        let mat = SCNMaterial()
+        mat.diffuse.contents = UIColor(red: 0.12, green: 0.12, blue: 0.13, alpha: 1)
+        mat.specular.contents = UIColor(white: 0.2, alpha: 1)
+        mat.roughness.contents = 0.7
+        egg.materials = [mat]
+        let eggNode = SCNNode(geometry: egg)
+        // Stretch vertically into egg/oval shape
+        eggNode.scale = SCNVector3(1.0, 1.4, 1.0)
+        root.addChildNode(eggNode)
 
-        // Rear taper
-        let taper = SCNCapsule(capRadius: 0.16, height: 0.40)
-        taper.firstMaterial?.diffuse.contents = UIColor(red: 0.16, green: 0.16, blue: 0.16, alpha: 1)
-        let taperNode = SCNNode(geometry: taper)
-        taperNode.position = SCNVector3(0, 0.14, 0)
-        root.addChildNode(taperNode)
-
-        // Rounded nose cap
-        let noseCap = SCNSphere(radius: 0.16)
-        noseCap.firstMaterial?.diffuse.contents = UIColor(red: 0.24, green: 0.22, blue: 0.20, alpha: 1)
-        noseCap.firstMaterial?.specular.contents = UIColor(white: 0.35, alpha: 1)
+        // Subtle darker cap on nose end
+        let noseCap = SCNSphere(radius: 0.22)
+        noseCap.segmentCount = 10
+        let noseMat = SCNMaterial()
+        noseMat.diffuse.contents = UIColor(red: 0.08, green: 0.08, blue: 0.09, alpha: 1)
+        noseMat.roughness.contents = 0.8
+        noseCap.materials = [noseMat]
         let noseNode = SCNNode(geometry: noseCap)
-        noseNode.position = SCNVector3(0, -0.32, 0)
+        noseNode.position = SCNVector3(0, -0.42, 0)
         root.addChildNode(noseNode)
 
-        // Fuze nub
-        let fuze = SCNCylinder(radius: 0.04, height: 0.06)
-        fuze.firstMaterial?.diffuse.contents = UIColor(white: 0.45, alpha: 1)
-        fuze.firstMaterial?.metalness.contents = 0.7
-        let fuzeNode = SCNNode(geometry: fuze)
-        fuzeNode.position = SCNVector3(0, -0.40, 0)
-        root.addChildNode(fuzeNode)
-
-        // Red warning bands
-        let band1 = SCNTorus(ringRadius: 0.24, pipeRadius: 0.018)
-        band1.firstMaterial?.diffuse.contents = UIColor(red: 0.78, green: 0.12, blue: 0.08, alpha: 1)
-        band1.firstMaterial?.emission.contents = UIColor(red: 0.3, green: 0.05, blue: 0.02, alpha: 0.3)
-        let bandNode1 = SCNNode(geometry: band1)
-        bandNode1.position = SCNVector3(0, -0.12, 0)
-        root.addChildNode(bandNode1)
-
-        let band2 = SCNTorus(ringRadius: 0.22, pipeRadius: 0.012)
-        band2.firstMaterial?.diffuse.contents = UIColor(red: 0.70, green: 0.10, blue: 0.06, alpha: 1)
-        let bandNode2 = SCNNode(geometry: band2)
-        bandNode2.position = SCNVector3(0, 0.06, 0)
-        root.addChildNode(bandNode2)
-
-        // Wide tail shroud
-        let shroud = SCNCylinder(radius: 0.12, height: 0.12)
-        shroud.firstMaterial?.diffuse.contents = UIColor(red: 0.18, green: 0.18, blue: 0.18, alpha: 1)
-        let shroudNode = SCNNode(geometry: shroud)
-        shroudNode.position = SCNVector3(0, 0.36, 0)
-        root.addChildNode(shroudNode)
-
-        // Huge flared tail fins
+        // Small stub fins at the tail
+        let finMat = SCNMaterial()
+        finMat.diffuse.contents = UIColor(red: 0.18, green: 0.18, blue: 0.18, alpha: 1)
         for angle: Float in [0, .pi / 2, .pi, .pi * 1.5] {
-            let fin = SCNBox(width: 0.48, height: 0.025, length: 0.24, chamferRadius: 0.005)
-            fin.firstMaterial?.diffuse.contents = UIColor(red: 0.24, green: 0.24, blue: 0.22, alpha: 1)
+            let fin = SCNBox(width: 0.28, height: 0.02, length: 0.14, chamferRadius: 0.003)
+            fin.materials = [finMat]
             let finNode = SCNNode(geometry: fin)
-            finNode.position = SCNVector3(cos(angle) * 0.05, 0.44, sin(angle) * 0.05)
+            finNode.position = SCNVector3(cos(angle) * 0.03, 0.48, sin(angle) * 0.03)
             finNode.eulerAngles.y = angle
-            finNode.eulerAngles.z = 0.18
+            finNode.eulerAngles.z = 0.12
             root.addChildNode(finNode)
         }
-
-        // Tail ring
-        let ring = SCNTorus(ringRadius: 0.13, pipeRadius: 0.015)
-        ring.firstMaterial?.diffuse.contents = UIColor(white: 0.28, alpha: 1)
-        let ringNode = SCNNode(geometry: ring)
-        ringNode.position = SCNVector3(0, 0.38, 0)
-        root.addChildNode(ringNode)
 
         return root
     }
