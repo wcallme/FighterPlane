@@ -787,8 +787,8 @@ class Editor {
         const cy = e.clientY - rect.top;
 
         const oldZoom = this.zoom;
-        if (e.deltaY < 0) this.zoom = Math.min(16, this.zoom * 1.15);
-        else this.zoom = Math.max(0.5, this.zoom / 1.15);
+        if (e.deltaY < 0) this.zoom = Math.min(16, this.zoom * 1.05);
+        else this.zoom = Math.max(0.5, this.zoom / 1.05);
 
         // Zoom toward cursor
         const scale = this.zoom / oldZoom;
