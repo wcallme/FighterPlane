@@ -11,11 +11,11 @@ final class BombSoundManager {
     private var playerPools: [[AVAudioPlayer]] = []
 
     /// Max concurrent bomb sounds (8 bomblets don't need 8 sounds)
-    private let maxConcurrent = 4
+    private let maxConcurrent = 6
     private let poolPerVariant = 2
 
     /// Throttle: minimum interval between successive plays
-    private let minInterval: TimeInterval = 0.05
+    private let minInterval: TimeInterval = 0.03
     private var lastPlayTime: TimeInterval = 0
 
     private init() {
