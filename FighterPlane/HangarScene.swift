@@ -46,7 +46,7 @@ class HangarScene: SKScene {
 
         // Bottom sections (compact — reduce dead space between rows)
         buttonRowY = usableBottom + 36
-        loadoutRowY = buttonRowY + 52
+        loadoutRowY = buttonRowY + 64
         upgradeRowY = loadoutRowY + 52
 
         // Plane area: centered between upgrade section top and screen top
@@ -598,23 +598,39 @@ class HangarScene: SKScene {
         armoryBtn.zPosition = 20
         addChild(armoryBtn)
 
-        // DEPLOY button - center (green theme, hero button)
+        // MISSIONS button - center (gold theme, hero button)
+        let missionsBtn = createPremiumButton(
+            text: "MISSIONS",
+            icon: "\u{1F3AF}",
+            width: centerWidth,
+            height: 58,
+            primaryColor: SKColor(red: 0.50, green: 0.35, blue: 0.08, alpha: 1),
+            accentColor: SKColor(red: 0.95, green: 0.75, blue: 0.15, alpha: 1),
+            glowColor: SKColor(red: 0.8, green: 0.6, blue: 0.1, alpha: 0.3),
+            fontSize: 18
+        )
+        missionsBtn.position = CGPoint(x: centerX, y: buttonRowY)
+        missionsBtn.name = "missionsButton"
+        missionsBtn.zPosition = 20
+        addChild(missionsBtn)
+
+        // DEPLOY button - right (green theme)
         let goBtn = createPremiumButton(
             text: "DEPLOY",
             icon: "\u{1F680}",
-            width: centerWidth,
-            height: 58,
+            width: sideWidth,
+            height: 52,
             primaryColor: SKColor(red: 0.10, green: 0.45, blue: 0.12, alpha: 1),
             accentColor: SKColor(red: 0.2, green: 0.9, blue: 0.3, alpha: 1),
             glowColor: SKColor(red: 0.15, green: 0.8, blue: 0.25, alpha: 0.4),
-            fontSize: 18
+            fontSize: 12
         )
-        goBtn.position = CGPoint(x: centerX, y: buttonRowY)
+        goBtn.position = CGPoint(x: rightX, y: buttonRowY)
         goBtn.name = "goButton"
         goBtn.zPosition = 20
         addChild(goBtn)
 
-        // Hero button pulse animation
+        // Deploy button pulse animation
         let pulse = SKAction.sequence([
             .group([
                 .scale(to: 1.04, duration: 0.8),
@@ -626,12 +642,12 @@ class HangarScene: SKScene {
         goBtn.run(.repeatForever(pulse))
 
         // Animated glow ring behind deploy button
-        let glowRing = SKShapeNode(rectOf: CGSize(width: centerWidth + 6, height: 64), cornerRadius: 16)
+        let glowRing = SKShapeNode(rectOf: CGSize(width: sideWidth + 6, height: 58), cornerRadius: 16)
         glowRing.fillColor = .clear
         glowRing.strokeColor = SKColor(red: 0.2, green: 0.9, blue: 0.3, alpha: 0.2)
         glowRing.lineWidth = 2
         glowRing.glowWidth = 6
-        glowRing.position = CGPoint(x: centerX, y: buttonRowY)
+        glowRing.position = CGPoint(x: rightX, y: buttonRowY)
         glowRing.zPosition = 19
         addChild(glowRing)
 
@@ -640,22 +656,6 @@ class HangarScene: SKScene {
             .fadeAlpha(to: 0.35, duration: 1.0)
         ])
         glowRing.run(.repeatForever(ringPulse))
-
-        // MISSIONS button - right (gold theme)
-        let missionsBtn = createPremiumButton(
-            text: "MISSIONS",
-            icon: "\u{1F3AF}",
-            width: sideWidth,
-            height: 52,
-            primaryColor: SKColor(red: 0.50, green: 0.35, blue: 0.08, alpha: 1),
-            accentColor: SKColor(red: 0.95, green: 0.75, blue: 0.15, alpha: 1),
-            glowColor: SKColor(red: 0.8, green: 0.6, blue: 0.1, alpha: 0.3),
-            fontSize: 12
-        )
-        missionsBtn.position = CGPoint(x: rightX, y: buttonRowY)
-        missionsBtn.name = "missionsButton"
-        missionsBtn.zPosition = 20
-        addChild(missionsBtn)
     }
 
     private func createPremiumButton(
