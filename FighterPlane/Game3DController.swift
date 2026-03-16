@@ -139,7 +139,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         let type: EnemyType
         var health: Int
         let maxHealth: Int
-        var lastFireTime: TimeInterval
+        var lastFireTime: TimeInterval  // stagger at spawn to desync firing
         let isAir: Bool
         let healthBarNode: SCNNode
         // AI fighter chase fields (Y-Z plane: 0 = +Z forward, π/2 = +Y up)
@@ -217,6 +217,8 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
         // Pre-load sound effects
         SFXPlayer.shared.preload("aa_fire")
+        SFXPlayer.shared.preload("sam_launch")
+        EngineSoundManager.shared.startEngines()
 
         // Show ECM button if equipped
         if hasECM {
@@ -706,6 +708,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         // Handle exit to menu (from pause menu or game over)
         if input.shouldExitToMenu {
             GunSoundManager.shared.stopFiringImmediate()
+            EngineSoundManager.shared.stopAll()
             wasFiring = false
             DispatchQueue.main.async {
                 NavigationManager.shared.isInGame = false
@@ -718,12 +721,14 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             if !scene.isPaused {
                 scene.isPaused = true
                 GunSoundManager.shared.stopFiringImmediate()
+                EngineSoundManager.shared.pause()
                 wasFiring = false
                 }
             lastUpdateTime = 0 // Reset so dt doesn't spike on resume
             return
         } else if scene.isPaused {
             scene.isPaused = false
+            EngineSoundManager.shared.resume()
         }
 
         guard gameState == .playing || gameState == .missionVictory else {
@@ -843,6 +848,13 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
         // Update enemies
         updateEnemies(dt: floatDt, time: time)
+
+        // Update enemy engine sound volume based on closest fighter
+        let closestFighterDist = enemies
+            .filter { $0.isAir && $0.node.parent != nil }
+            .map { distanceYZ($0.node.position, playerNode.position) }
+            .min() ?? 999
+        EngineSoundManager.shared.updateEnemyVolume(closestFighterDist: closestFighterDist)
 
         // Auto-complete mission when player flies past terrain into water zone
         if isMissionMode && gameState == .playing,
@@ -1445,7 +1457,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 type: type,
                 health: type.health,
                 maxHealth: type.health,
-                lastFireTime: -1,
+                lastFireTime: CACurrentMediaTime() + Double.random(in: 0...0.5),
                 isAir: !type.isGround,
                 healthBarNode: healthBar
             )
@@ -1496,7 +1508,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                     type: type,
                     health: hp,
                     maxHealth: hp,
-                    lastFireTime: -1,
+                    lastFireTime: CACurrentMediaTime() + Double.random(in: 0...0.5),
                     isAir: true,
                     healthBarNode: healthBar
                 )
@@ -1580,7 +1592,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             type: type,
             health: totalHealth,
             maxHealth: totalHealth,
-            lastFireTime: -1,
+            lastFireTime: CACurrentMediaTime() + Double.random(in: 0...0.5),
             isAir: false,
             healthBarNode: healthBar
         ))
@@ -1609,7 +1621,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             type: .fighter,
             health: hp,
             maxHealth: hp,
-            lastFireTime: -1,
+            lastFireTime: CACurrentMediaTime() + Double.random(in: 0...0.5),
             isAir: true,
             healthBarNode: healthBar
         ))
@@ -1650,7 +1662,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 type: type,
                 health: hp,
                 maxHealth: hp,
-                lastFireTime: -1,
+                lastFireTime: CACurrentMediaTime() + Double.random(in: 0...0.5),
                 isAir: true,
                 healthBarNode: healthBar
             )
@@ -1687,7 +1699,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 type: .aiFighter,
                 health: hp,
                 maxHealth: hp,
-                lastFireTime: -1,
+                lastFireTime: CACurrentMediaTime() + Double.random(in: 0...0.5),
                 isAir: true,
                 healthBarNode: healthBar
             )
@@ -1738,10 +1750,6 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
             // Fire at player — range-limited, skip if bullet cap reached
             guard enemyBullets.count < 40 else { continue }
-
-            if enemies[i].lastFireTime < 0 {
-                enemies[i].lastFireTime = time
-            }
 
             // Distance check for firing range (use Y-Z; X is visual depth only)
             let dist = distanceYZ(enemies[i].node.position, playerNode.position)
@@ -1894,9 +1902,6 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         let maxEnemyBullets = 40
         guard enemyBullets.count < maxEnemyBullets else { return }
 
-        if enemies[i].lastFireTime < 0 {
-            enemies[i].lastFireTime = time
-        }
         let fireInterval = TimeInterval(Float(GameConfig.aiFighterFireRate) * GameManager.shared.fireRateMultiplier)
         if time - enemies[i].lastFireTime >= fireInterval {
             enemies[i].lastFireTime = time
@@ -1930,7 +1935,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             let maxHearDist: Float = 80
             if distToPlayer < maxHearDist {
                 let vol = Float(1.0 - distToPlayer / maxHearDist)
-                SFXPlayer.shared.play("aa_fire", volume: vol * 0.4)
+                SFXPlayer.shared.play("aa_fire", volume: vol * 0.15)
             }
         }
     }
@@ -1944,7 +1949,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         let maxHearDist: Float = 50
         if distToPlayer < maxHearDist {
             let vol = Float(1.0 - distToPlayer / maxHearDist)
-            SFXPlayer.shared.play("aa_fire", volume: vol * 0.6)
+            SFXPlayer.shared.play("aa_fire", volume: vol * 0.25)
         }
 
         let bullet = ModelGenerator3D.enemyBullet()
@@ -1995,7 +2000,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         let maxHearDist: Float = 100
         if distToPlayer < maxHearDist {
             let vol = Float(1.0 - distToPlayer / maxHearDist)
-            SFXPlayer.shared.play("sam_launch", volume: vol * 0.7)
+            SFXPlayer.shared.play("sam_launch", volume: vol * 0.3)
         }
 
         // Initial velocity: upward at ~60° angle toward the player's Z direction
@@ -2149,6 +2154,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         guard gameState == .playing else { return }
         gameState = .missionVictory
         GunSoundManager.shared.stopFiringImmediate()
+        EngineSoundManager.shared.stopAll()
         wasFiring = false
         missionVictoryTimer = 3.0
 
@@ -2410,6 +2416,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         guard gameState == .playing else { return }
         gameState = .gameOver
         GunSoundManager.shared.stopFiringImmediate()
+        EngineSoundManager.shared.stopAll()
         wasFiring = false
 
         GameManager.shared.endGame()
