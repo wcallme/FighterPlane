@@ -793,6 +793,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             wasFiring = false
             gunSpinUpTimer = 0
         }
+        GunSoundManager.shared.updateFade(dt: dt)
 
         // Process staggered bullet spawns on the render thread (#1)
         processPendingBullets(time: time)

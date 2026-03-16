@@ -5,6 +5,7 @@ import AVFoundation
 /// Usage:
 ///   - Call `startFiring()` when the fire button is pressed.
 ///   - Call `stopFiring()` when the fire button is released.
+///   - Call `updateFade(dt:)` every frame from the game loop.
 ///   - Each press plays the spin-up once, then loops steady fire.
 final class GunSoundManager: NSObject, AVAudioPlayerDelegate {
 
@@ -13,7 +14,10 @@ final class GunSoundManager: NSObject, AVAudioPlayerDelegate {
     private var spinUpPlayer: AVAudioPlayer?
     private var loopPlayer: AVAudioPlayer?
     private var isFiringSound = false
-    private var fadeOutTimer: Timer?
+
+    /// Remaining fade-out time; driven by `updateFade(dt:)` from the game loop.
+    private var fadeRemaining: TimeInterval = 0
+    private let fadeDuration: TimeInterval = 1.0
 
     private override init() {
         super.init()
@@ -48,8 +52,7 @@ final class GunSoundManager: NSObject, AVAudioPlayerDelegate {
 
     func startFiring() {
         // Cancel any fade-out in progress and restore volume
-        fadeOutTimer?.invalidate()
-        fadeOutTimer = nil
+        fadeRemaining = 0
         loopPlayer?.volume = 1.0
 
         guard !isFiringSound else { return }
@@ -76,38 +79,43 @@ final class GunSoundManager: NSObject, AVAudioPlayerDelegate {
         guard isFiringSound else { return }
         isFiringSound = false
 
+        let wasSpinningUp = spinUpPlayer?.isPlaying ?? false
+
         // Stop spin-up immediately
         spinUpPlayer?.stop()
         spinUpPlayer?.currentTime = 0
         spinUpPlayer?.prepareToPlay()
 
-        // Fade out the loop over 1 second
-        guard let loop = loopPlayer, loop.isPlaying else {
+        // If still in spin-up phase, loop hasn't started audibly — kill it now
+        if wasSpinningUp {
+            fadeRemaining = 0
             resetLoop()
             return
         }
 
-        let fadeSteps = 20
-        let fadeInterval = 1.0 / Double(fadeSteps)
-        let volumeStep = loop.volume / Float(fadeSteps)
-        var remaining = fadeSteps
+        // Fade out the loop over ~1 second, driven by updateFade(dt:)
+        guard loopPlayer?.isPlaying == true else {
+            resetLoop()
+            return
+        }
+        fadeRemaining = fadeDuration
+    }
 
-        fadeOutTimer?.invalidate()
-        fadeOutTimer = Timer.scheduledTimer(withTimeInterval: fadeInterval, repeats: true) { [weak self] timer in
-            remaining -= 1
-            loop.volume -= volumeStep
-            if remaining <= 0 {
-                timer.invalidate()
-                self?.fadeOutTimer = nil
-                self?.resetLoop()
-            }
+    /// Drive the fade-out each frame — call from the game loop with the frame delta.
+    func updateFade(dt: TimeInterval) {
+        guard fadeRemaining > 0, let loop = loopPlayer else { return }
+        fadeRemaining -= dt
+        if fadeRemaining <= 0 {
+            fadeRemaining = 0
+            resetLoop()
+        } else {
+            loop.volume = Float(fadeRemaining / fadeDuration)
         }
     }
 
     /// Immediately stop and reset — used for game over, pause, backgrounding
     func stopFiringImmediate() {
-        fadeOutTimer?.invalidate()
-        fadeOutTimer = nil
+        fadeRemaining = 0
         isFiringSound = false
 
         spinUpPlayer?.stop()
