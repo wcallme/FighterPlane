@@ -864,6 +864,24 @@ class HangarScene: SKScene {
         setupLoadoutBar()
     }
 
+    private func refreshUpgrades() {
+        for (id, node) in upgradeNodes {
+            node.removeFromParent()
+            upgradeNodes.removeValue(forKey: id)
+        }
+        let upgrades = UpgradeCatalog.all
+        let spacing: CGFloat = 120
+        let totalWidth = CGFloat(upgrades.count - 1) * spacing
+        let startX = size.width / 2 - totalWidth / 2
+        for (index, upgrade) in upgrades.enumerated() {
+            let node = createUpgradeChip(upgrade: upgrade)
+            node.position = CGPoint(x: startX + CGFloat(index) * spacing, y: upgradeRowY)
+            node.name = "upgrade_\(upgrade.id)"
+            addChild(node)
+            upgradeNodes[upgrade.id] = node
+        }
+    }
+
     private func handleUpgradeTap(_ upgradeId: String) {
         guard let upgrade = UpgradeCatalog.all.first(where: { $0.id == upgradeId }) else { return }
 
@@ -906,8 +924,9 @@ class HangarScene: SKScene {
         // Update the 3D plane render
         updatePlaneSprite(planeId: newPlane.id)
 
-        // Refresh loadout since each plane has its own weapon slots
+        // Refresh loadout and upgrades since they are per-plane
         refreshLoadout()
+        refreshUpgrades()
     }
 
     private func refreshCurrency() {

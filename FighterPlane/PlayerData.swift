@@ -129,21 +129,21 @@ class PlayerData {
         }
     }
 
-    // MARK: - Upgrades
+    // MARK: - Upgrades (per-plane)
 
     var armorLevel: Int {
-        get { defaults.integer(forKey: "pd_armorLevel") }
-        set { defaults.set(newValue, forKey: "pd_armorLevel") }
+        get { defaults.integer(forKey: "pd_armorLevel_\(selectedPlaneId)") }
+        set { defaults.set(newValue, forKey: "pd_armorLevel_\(selectedPlaneId)") }
     }
 
     var wingsLevel: Int {
-        get { defaults.integer(forKey: "pd_wingsLevel") }
-        set { defaults.set(newValue, forKey: "pd_wingsLevel") }
+        get { defaults.integer(forKey: "pd_wingsLevel_\(selectedPlaneId)") }
+        set { defaults.set(newValue, forKey: "pd_wingsLevel_\(selectedPlaneId)") }
     }
 
     var engineLevel: Int {
-        get { defaults.integer(forKey: "pd_engineLevel") }
-        set { defaults.set(newValue, forKey: "pd_engineLevel") }
+        get { defaults.integer(forKey: "pd_engineLevel_\(selectedPlaneId)") }
+        set { defaults.set(newValue, forKey: "pd_engineLevel_\(selectedPlaneId)") }
     }
 
     // MARK: - Player Level
@@ -309,6 +309,34 @@ class PlayerData {
     private init() {
         ensureDefaults()
         migrateWeaponIds()
+        migrateGlobalUpgradesToPerPlane()
+    }
+
+    /// Migrate legacy global upgrade levels to per-plane keys.
+    /// Awards the old global levels to ALL planes so existing players keep progress.
+    private func migrateGlobalUpgradesToPerPlane() {
+        guard defaults.object(forKey: "pd_armorLevel") != nil else { return }
+        let oldArmor = defaults.integer(forKey: "pd_armorLevel")
+        let oldWings = defaults.integer(forKey: "pd_wingsLevel")
+        let oldEngine = defaults.integer(forKey: "pd_engineLevel")
+
+        for plane in PlaneCatalog.all {
+            // Only write if per-plane key doesn't already exist
+            if defaults.object(forKey: "pd_armorLevel_\(plane.id)") == nil {
+                defaults.set(oldArmor, forKey: "pd_armorLevel_\(plane.id)")
+            }
+            if defaults.object(forKey: "pd_wingsLevel_\(plane.id)") == nil {
+                defaults.set(oldWings, forKey: "pd_wingsLevel_\(plane.id)")
+            }
+            if defaults.object(forKey: "pd_engineLevel_\(plane.id)") == nil {
+                defaults.set(oldEngine, forKey: "pd_engineLevel_\(plane.id)")
+            }
+        }
+
+        // Remove old global keys to prevent re-migration
+        defaults.removeObject(forKey: "pd_armorLevel")
+        defaults.removeObject(forKey: "pd_wingsLevel")
+        defaults.removeObject(forKey: "pd_engineLevel")
     }
 
     /// Migrate renamed weapon IDs in saved data
