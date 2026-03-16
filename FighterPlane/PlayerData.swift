@@ -67,6 +67,37 @@ class PlayerData {
         PlaneCatalog.plane(byId: selectedPlaneId)?.gunDamageMultiplier ?? 1.0
     }
 
+    // MARK: - Plane Unlocks
+
+    static let planeCosts: [String: Int] = [
+        "F22": 800,
+        "B2": 2000,
+    ]
+
+    var unlockedPlaneIds: Set<String> {
+        get {
+            let arr = defaults.stringArray(forKey: "pd_unlockedPlanes") ?? ["F16"]
+            return Set(arr)
+        }
+        set {
+            defaults.set(Array(newValue), forKey: "pd_unlockedPlanes")
+        }
+    }
+
+    func isPlaneUnlocked(_ planeId: String) -> Bool {
+        unlockedPlaneIds.contains(planeId)
+    }
+
+    func purchasePlane(_ planeId: String) -> Bool {
+        guard let cost = PlayerData.planeCosts[planeId], !isPlaneUnlocked(planeId) else { return false }
+        guard gems >= cost else { return false }
+        gems -= cost
+        var unlocked = unlockedPlaneIds
+        unlocked.insert(planeId)
+        unlockedPlaneIds = unlocked
+        return true
+    }
+
     // MARK: - Weapons
 
     /// Stores owned weapons as a flat list allowing duplicates (e.g. ["bomb","bomb","basic_gun"])
@@ -324,6 +355,7 @@ class PlayerData {
             ownedWeaponIds = ["bomb"]
             loadout = ["bomb"] + Array(repeating: nil as String?, count: slotCount - 1)
             playerLevel = 1
+            unlockedPlaneIds = Set(["F16"])
         }
     }
 
@@ -331,6 +363,7 @@ class PlayerData {
         ensureDefaults()
         migrateWeaponIds()
         migrateGlobalUpgradesToPerPlane()
+        migratePlaneUnlocks()
     }
 
     /// Migrate legacy global upgrade levels to per-plane keys.
@@ -382,5 +415,11 @@ class PlayerData {
             }
         }
         if slotsChanged { loadout = slots }
+    }
+
+    /// Existing players before plane unlock feature get all planes unlocked
+    private func migratePlaneUnlocks() {
+        guard defaults.object(forKey: "pd_unlockedPlanes") == nil else { return }
+        unlockedPlaneIds = Set(PlaneCatalog.all.map { $0.id })
     }
 }

@@ -46,6 +46,7 @@ class HangarScene: SKScene {
         setupUpgradeRow()
         setupLoadoutBar()
         setupActionButtons()
+        updateLockOverlay()
     }
 
     // MARK: - Layout Computation
@@ -827,6 +828,10 @@ class HangarScene: SKScene {
                 cyclePlane(direction: 1)
                 return
             }
+            if name == "purchasePlaneButton" {
+                handlePurchasePlane()
+                return
+            }
             if name == "planeInfoButton" || name == "planeInfoPanelBg" {
                 showPlaneInfoPanel()
                 return
@@ -873,18 +878,30 @@ class HangarScene: SKScene {
     // MARK: - Actions
 
     private func startGame() {
+        guard PlayerData.shared.isPlaneUnlocked(PlayerData.shared.selectedPlaneId) else {
+            flashLockOverlay()
+            return
+        }
         MenuMusicManager.shared.stop()
         NavigationManager.shared.gameMode = .infiniteBattle
         NavigationManager.shared.isInGame = true
     }
 
     private func openMissions() {
+        guard PlayerData.shared.isPlaneUnlocked(PlayerData.shared.selectedPlaneId) else {
+            flashLockOverlay()
+            return
+        }
         let missionScene = MissionSelectScene(size: size)
         missionScene.scaleMode = .resizeFill
         view?.presentScene(missionScene, transition: .push(with: .left, duration: 0.3))
     }
 
     private func openArmory() {
+        guard PlayerData.shared.isPlaneUnlocked(PlayerData.shared.selectedPlaneId) else {
+            flashLockOverlay()
+            return
+        }
         let armory = ArmoryScene(size: size)
         armory.scaleMode = .resizeFill
         view?.presentScene(armory, transition: .push(with: .left, duration: 0.3))
@@ -892,6 +909,7 @@ class HangarScene: SKScene {
 
     private func handleSlotTap(_ slotIndex: Int) {
         let data = PlayerData.shared
+        guard data.isPlaneUnlocked(data.selectedPlaneId) else { return }
         guard slotIndex >= 0, slotIndex < data.slotCount, data.loadout[slotIndex] != nil else { return }
 
         data.unequipSlot(slotIndex)
@@ -946,6 +964,7 @@ class HangarScene: SKScene {
     }
 
     private func handleUpgradeTap(_ upgradeId: String) {
+        guard PlayerData.shared.isPlaneUnlocked(PlayerData.shared.selectedPlaneId) else { return }
         guard let upgrade = UpgradeCatalog.all.first(where: { $0.id == upgradeId }) else { return }
 
         if PlayerData.shared.purchaseUpgrade(upgrade) {
@@ -993,6 +1012,7 @@ class HangarScene: SKScene {
         // Refresh loadout and upgrades since they are per-plane
         refreshLoadout()
         refreshUpgrades()
+        updateLockOverlay()
     }
 
     private func refreshCurrency() {
@@ -1100,6 +1120,137 @@ class HangarScene: SKScene {
         if let panel = childNode(withName: "planeInfoPanel") {
             panel.run(.sequence([.fadeOut(withDuration: 0.15), .removeFromParent()]))
         }
+    }
+
+    // MARK: - Plane Lock Overlay
+
+    private func updateLockOverlay() {
+        childNode(withName: "lockOverlay")?.removeFromParent()
+
+        let data = PlayerData.shared
+        let planeId = data.selectedPlaneId
+        let locked = !data.isPlaneUnlocked(planeId)
+
+        // Restore or dim plane sprite
+        childNode(withName: "planeSprite")?.alpha = locked ? 0.3 : 1.0
+
+        // Show/hide info button (hidden when locked, buy button replaces it)
+        childNode(withName: "planeInfoButton")?.isHidden = locked
+
+        guard locked else { return }
+
+        let s = DeviceLayout.menuScale
+        let cost = PlayerData.planeCosts[planeId] ?? 0
+
+        let overlay = SKNode()
+        overlay.name = "lockOverlay"
+        overlay.zPosition = 15
+
+        // Dark circle behind padlock for contrast
+        let lockBg = SKShapeNode(circleOfRadius: 32 * s)
+        lockBg.fillColor = SKColor(white: 0.0, alpha: 0.5)
+        lockBg.strokeColor = SKColor(white: 0.3, alpha: 0.3)
+        lockBg.lineWidth = 1
+        lockBg.position = CGPoint(x: size.width / 2, y: planeAreaCenterY)
+        overlay.addChild(lockBg)
+
+        // Padlock icon
+        let lockIcon = SKLabelNode(text: "\u{1F512}")
+        lockIcon.fontSize = DeviceLayout.fontSize(36)
+        lockIcon.verticalAlignmentMode = .center
+        lockIcon.position = CGPoint(x: size.width / 2, y: planeAreaCenterY)
+        overlay.addChild(lockIcon)
+
+        // Purchase button below the plane
+        let buyBtn = SKNode()
+        buyBtn.name = "purchasePlaneButton"
+        buyBtn.position = CGPoint(x: size.width / 2, y: planeAreaCenterY - 70 * s)
+        buyBtn.zPosition = 1
+
+        let btnW: CGFloat = 120 * s
+        let btnH: CGFloat = 32 * s
+
+        let btnBg = SKShapeNode(rectOf: CGSize(width: btnW, height: btnH), cornerRadius: 8 * s)
+        btnBg.fillColor = SKColor(red: 0.35, green: 0.10, blue: 0.50, alpha: 0.95)
+        btnBg.strokeColor = SKColor(red: 0.6, green: 0.3, blue: 0.9, alpha: 0.6)
+        btnBg.lineWidth = 1.5
+        btnBg.glowWidth = 3
+        btnBg.name = "purchasePlaneButton"
+        buyBtn.addChild(btnBg)
+
+        // Gem icon
+        let gemSprite = SKSpriteNode(texture: SpriteGenerator.gemIcon())
+        gemSprite.setScale(1.0 * s)
+        gemSprite.position = CGPoint(x: -22 * s, y: 0)
+        gemSprite.name = "purchasePlaneButton"
+        buyBtn.addChild(gemSprite)
+
+        // Cost text
+        let costLabel = SKLabelNode(fontNamed: "Menlo-Bold")
+        costLabel.text = "\(cost)"
+        costLabel.fontSize = DeviceLayout.fontSize(13)
+        costLabel.fontColor = SKColor(red: 0.9, green: 0.3, blue: 0.8, alpha: 1)
+        costLabel.verticalAlignmentMode = .center
+        costLabel.horizontalAlignmentMode = .left
+        costLabel.position = CGPoint(x: -12 * s, y: 0)
+        costLabel.name = "purchasePlaneButton"
+        buyBtn.addChild(costLabel)
+
+        // Gentle pulse on buy button
+        let pulse = SKAction.sequence([
+            .scale(to: 1.06, duration: 0.9),
+            .scale(to: 1.0, duration: 0.9)
+        ])
+        buyBtn.run(.repeatForever(pulse))
+
+        overlay.addChild(buyBtn)
+        addChild(overlay)
+    }
+
+    private func handlePurchasePlane() {
+        let data = PlayerData.shared
+        let planeId = data.selectedPlaneId
+
+        guard data.purchasePlane(planeId) else {
+            // Not enough gems — flash gem count red
+            if let gemLabel = childNode(withName: "gemCount") as? SKLabelNode {
+                let origColor = gemLabel.fontColor ?? .white
+                gemLabel.fontColor = SKColor.red
+                gemLabel.run(.sequence([
+                    .wait(forDuration: 0.4),
+                    .run { [weak gemLabel] in gemLabel?.fontColor = origColor }
+                ]))
+            }
+            // Shake the buy button
+            flashLockOverlay()
+            return
+        }
+
+        // Success
+        refreshCurrency()
+        updateLockOverlay()
+
+        // Green flash on the plane
+        let s = DeviceLayout.menuScale
+        let flash = SKShapeNode(circleOfRadius: 80 * s)
+        flash.fillColor = SKColor(red: 0.3, green: 0.9, blue: 0.4, alpha: 0.25)
+        flash.strokeColor = SKColor(red: 0.2, green: 1.0, blue: 0.3, alpha: 0.5)
+        flash.lineWidth = 2
+        flash.glowWidth = 8
+        flash.position = CGPoint(x: size.width / 2, y: planeAreaCenterY)
+        flash.zPosition = 50
+        addChild(flash)
+        flash.run(.sequence([.fadeOut(withDuration: 0.6), .removeFromParent()]))
+    }
+
+    private func flashLockOverlay() {
+        guard let overlay = childNode(withName: "lockOverlay") else { return }
+        overlay.run(.sequence([
+            .scale(to: 1.12, duration: 0.06),
+            .scale(to: 0.95, duration: 0.06),
+            .scale(to: 1.05, duration: 0.06),
+            .scale(to: 1.0, duration: 0.06),
+        ]))
     }
 
     // MARK: - Settings Overlay
