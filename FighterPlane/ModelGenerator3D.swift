@@ -568,6 +568,69 @@ enum ModelGenerator3D {
         return root
     }}
 
+    // MARK: - AIM Rocket (player homing missile — gray body, red tip)
+
+    static func aimRocket() -> SCNNode { cachedEnemy("aimRocket") {
+        let root = SCNNode()
+        root.name = "aimRocket"
+
+        // Missile body (gray instead of white)
+        let body = SCNCapsule(capRadius: 0.08, height: 0.8)
+        body.firstMaterial?.diffuse.contents = UIColor(red: 0.45, green: 0.45, blue: 0.48, alpha: 1)
+        let bodyNode = SCNNode(geometry: body)
+        root.addChildNode(bodyNode)
+
+        // Nose cone (red)
+        let nose = SCNCone(topRadius: 0, bottomRadius: 0.08, height: 0.2)
+        nose.firstMaterial?.diffuse.contents = UIColor(red: 0.9, green: 0.15, blue: 0.1, alpha: 1)
+        nose.firstMaterial?.emission.contents = UIColor(red: 0.5, green: 0.1, blue: 0.05, alpha: 0.3)
+        let noseNode = SCNNode(geometry: nose)
+        noseNode.eulerAngles.x = -.pi / 2
+        noseNode.position = SCNVector3(0, 0.45, 0)
+        root.addChildNode(noseNode)
+
+        // Fins
+        for angle: Float in [0, .pi / 2, .pi, .pi * 1.5] {
+            let fin = SCNBox(width: 0.25, height: 0.02, length: 0.12, chamferRadius: 0.005)
+            fin.firstMaterial?.diffuse.contents = UIColor(red: 0.35, green: 0.35, blue: 0.37, alpha: 1)
+            let finNode = SCNNode(geometry: fin)
+            finNode.position = SCNVector3(
+                cos(angle) * 0.08,
+                -0.3,
+                sin(angle) * 0.08
+            )
+            finNode.eulerAngles.y = angle
+            root.addChildNode(finNode)
+        }
+
+        // Exhaust glow
+        let exhaust = SCNSphere(radius: 0.06)
+        exhaust.firstMaterial?.diffuse.contents = UIColor(red: 1, green: 0.6, blue: 0.1, alpha: 1)
+        exhaust.firstMaterial?.emission.contents = UIColor(red: 1, green: 0.5, blue: 0, alpha: 1)
+        let exhaustNode = SCNNode(geometry: exhaust)
+        exhaustNode.position = SCNVector3(0, -0.42, 0)
+        root.addChildNode(exhaustNode)
+
+        // Smoke trail particle system
+        let trail = SCNParticleSystem()
+        trail.particleSize = 0.12
+        trail.particleSizeVariation = 0.06
+        trail.birthRate = 50
+        trail.particleLifeSpan = 0.6
+        trail.particleLifeSpanVariation = 0.2
+        trail.emissionDuration = .greatestFiniteMagnitude
+        trail.spreadingAngle = 15
+        trail.particleColor = UIColor(white: 0.7, alpha: 0.6)
+        trail.particleColorVariation = SCNVector4(0, 0, 0.1, 0.2)
+        trail.isAffectedByGravity = false
+        trail.particleVelocity = 0.5
+        trail.emitterShape = nil
+        root.addParticleSystem(trail)
+
+        root.scale = SCNVector3(2, 2, 2)
+        return root
+    }}
+
     // MARK: - Trees
 
     static func tree(height: Float = 2.5, variation: Int = 0) -> SCNNode {
