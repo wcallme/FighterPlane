@@ -72,11 +72,13 @@ class HangarScene: SKScene {
         bgGradient.zPosition = -10
         addChild(bgGradient)
 
-        // Subtle radial glow behind plane area
-        let glow = SKShapeNode(circleOfRadius: size.width * 0.45)
+        // Oval glow behind plane / hangar area — taller to curve up around UI
+        let glowW = size.width * 0.95
+        let glowH = size.height * 0.75
+        let glow = SKShapeNode(ellipseOf: CGSize(width: glowW, height: glowH))
         glow.fillColor = SKColor(red: 0.08, green: 0.18, blue: 0.12, alpha: 0.35)
         glow.strokeColor = .clear
-        glow.position = CGPoint(x: size.width / 2, y: planeAreaCenterY)
+        glow.position = CGPoint(x: size.width / 2, y: planeAreaCenterY - glowH * 0.08)
         glow.zPosition = -5
         glow.glowWidth = 40
         addChild(glow)
