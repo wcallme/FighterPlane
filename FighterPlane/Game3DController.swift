@@ -1728,6 +1728,16 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                         enemies.remove(at: i)
                         continue
                     }
+                } else if isMissionMode && enemies[i].type.isGround {
+                    // Mission mode: keep ground enemies alive so player can backtrack.
+                    // Only despawn if extremely far behind (200 units).
+                    if enemies[i].node.position.z < playerZ - 200 {
+                        enemies[i].node.removeFromParentNode()
+                        enemies.remove(at: i)
+                        continue
+                    }
+                    // Skip further processing (no firing from off-screen)
+                    continue
                 } else {
                     enemies[i].node.removeFromParentNode()
                     enemies.remove(at: i)
