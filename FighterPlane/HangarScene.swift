@@ -43,21 +43,23 @@ class HangarScene: SKScene {
         let usableBottom = safeBottom
         let safeLeft = SafeArea.left
         let safeRight = SafeArea.right
+        let s = DeviceLayout.menuScale
 
         // Bottom sections — ensure enough clearance on iPhone 16/17 Pro
         let bottomPad = max(usableBottom, 21)
-        buttonRowY = bottomPad + 30
-        loadoutRowY = buttonRowY + 54
-        upgradeRowY = loadoutRowY + 48
+        buttonRowY = bottomPad + 30 * s
+        loadoutRowY = buttonRowY + 54 * s
+        upgradeRowY = loadoutRowY + 48 * s
 
         // Plane area: centered between upgrade section top and screen top
         let topBound = usableTop - 20
-        let upgradeTop = upgradeRowY + 34
+        let upgradeTop = upgradeRowY + 34 * s
         planeAreaCenterY = upgradeTop + (topBound - upgradeTop) * 0.5
 
         // Side info panels: centered in space between screen edges and plane zone
-        let planeZoneLeft = size.width / 2 - 130
-        let planeZoneRight = size.width / 2 + 130
+        let planeZoneHalf: CGFloat = 130 * s
+        let planeZoneLeft = size.width / 2 - planeZoneHalf
+        let planeZoneRight = size.width / 2 + planeZoneHalf
         leftInfoX = (safeLeft + planeZoneLeft) / 2
         rightInfoX = (planeZoneRight + size.width - safeRight) / 2
     }
@@ -120,7 +122,8 @@ class HangarScene: SKScene {
         ])))
 
         // Bottom panel backing
-        let bottomPanel = SKShapeNode(rect: CGRect(x: 0, y: 0, width: size.width, height: upgradeRowY + 42))
+        let panelTop = upgradeRowY + 42 * DeviceLayout.menuScale
+        let bottomPanel = SKShapeNode(rect: CGRect(x: 0, y: 0, width: size.width, height: panelTop))
         bottomPanel.fillColor = SKColor(red: 0.05, green: 0.06, blue: 0.09, alpha: 0.88)
         bottomPanel.strokeColor = .clear
         bottomPanel.zPosition = 0
@@ -130,7 +133,7 @@ class HangarScene: SKScene {
         let bottomDivider = SKShapeNode(rectOf: CGSize(width: size.width - 40, height: 1))
         bottomDivider.fillColor = SKColor(red: 0.2, green: 0.8, blue: 0.4, alpha: 0.2)
         bottomDivider.strokeColor = .clear
-        bottomDivider.position = CGPoint(x: size.width / 2, y: upgradeRowY + 42)
+        bottomDivider.position = CGPoint(x: size.width / 2, y: panelTop)
         bottomDivider.zPosition = 10
         bottomDivider.glowWidth = 1
         addChild(bottomDivider)
@@ -141,25 +144,26 @@ class HangarScene: SKScene {
     private func setupHeader() {
         let data = PlayerData.shared
         let centerY = planeAreaCenterY
+        let s = DeviceLayout.menuScale
 
         // --- LEFT SIDE: Title, Level, Settings ---
 
         // Title — centered above the plane (swapped with plane name position)
         let title = SKLabelNode(fontNamed: "Menlo-Bold")
         title.text = "FighterPlane"
-        title.fontSize = 14
+        title.fontSize = DeviceLayout.fontSize(14)
         title.fontColor = SKColor(white: 0.75, alpha: 0.9)
-        let titleY = min(planeAreaCenterY + 95, size.height - max(safeTop, 10) - 35)
+        let titleY = min(planeAreaCenterY + 95 * s, size.height - max(safeTop, 10) - 35)
         title.position = CGPoint(x: size.width / 2, y: titleY)
         title.zPosition = 11
         addChild(title)
 
         // Player level badge
         let levelBadge = SKNode()
-        levelBadge.position = CGPoint(x: leftInfoX, y: centerY - 10)
+        levelBadge.position = CGPoint(x: leftInfoX, y: centerY - 10 * s)
         levelBadge.zPosition = 11
 
-        let levelBg = SKShapeNode(rectOf: CGSize(width: 64, height: 26), cornerRadius: 13)
+        let levelBg = SKShapeNode(rectOf: CGSize(width: 64 * s, height: 26 * s), cornerRadius: 13 * s)
         levelBg.fillColor = SKColor(red: 0.15, green: 0.25, blue: 0.45, alpha: 0.9)
         levelBg.strokeColor = SKColor(red: 0.3, green: 0.5, blue: 0.9, alpha: 0.5)
         levelBg.lineWidth = 1
@@ -168,7 +172,7 @@ class HangarScene: SKScene {
 
         let levelLabel = SKLabelNode(fontNamed: "Menlo-Bold")
         levelLabel.text = "LV \(data.playerLevel)"
-        levelLabel.fontSize = 12
+        levelLabel.fontSize = DeviceLayout.fontSize(12)
         levelLabel.fontColor = SKColor(red: 0.6, green: 0.8, blue: 1, alpha: 1)
         levelLabel.verticalAlignmentMode = .center
         levelBadge.addChild(levelLabel)
@@ -178,10 +182,10 @@ class HangarScene: SKScene {
         // Settings button
         let settingsBtn = SKNode()
         settingsBtn.name = "settingsButton"
-        settingsBtn.position = CGPoint(x: leftInfoX, y: centerY - 45)
+        settingsBtn.position = CGPoint(x: leftInfoX, y: centerY - 45 * s)
         settingsBtn.zPosition = 11
 
-        let settingsBg = SKShapeNode(circleOfRadius: 13)
+        let settingsBg = SKShapeNode(circleOfRadius: 13 * s)
         settingsBg.fillColor = SKColor(white: 0.15, alpha: 0.6)
         settingsBg.strokeColor = SKColor(white: 0.3, alpha: 0.3)
         settingsBg.lineWidth = 1
@@ -190,7 +194,7 @@ class HangarScene: SKScene {
 
         let gearLabel = SKLabelNode(fontNamed: "Menlo-Bold")
         gearLabel.text = "\u{2699}"
-        gearLabel.fontSize = 16
+        gearLabel.fontSize = DeviceLayout.fontSize(16)
         gearLabel.fontColor = SKColor(white: 0.6, alpha: 0.8)
         gearLabel.verticalAlignmentMode = .center
         gearLabel.name = "settingsButton"
@@ -201,34 +205,34 @@ class HangarScene: SKScene {
 
         // Gems
         let gemIcon = SKSpriteNode(texture: SpriteGenerator.gemIcon())
-        gemIcon.position = CGPoint(x: rightInfoX - 14, y: centerY + 15)
-        gemIcon.setScale(1.2)
+        gemIcon.position = CGPoint(x: rightInfoX - 14 * s, y: centerY + 15 * s)
+        gemIcon.setScale(1.2 * s)
         gemIcon.zPosition = 11
         addChild(gemIcon)
 
         let gemLabel = SKLabelNode(fontNamed: "Menlo-Bold")
         gemLabel.text = "\(data.gems)"
-        gemLabel.fontSize = 14
+        gemLabel.fontSize = DeviceLayout.fontSize(14)
         gemLabel.fontColor = SKColor(red: 0.9, green: 0.3, blue: 0.8, alpha: 1)
         gemLabel.horizontalAlignmentMode = .left
-        gemLabel.position = CGPoint(x: rightInfoX, y: centerY + 10)
+        gemLabel.position = CGPoint(x: rightInfoX, y: centerY + 10 * s)
         gemLabel.zPosition = 11
         gemLabel.name = "gemCount"
         addChild(gemLabel)
 
         // Coins
         let coinIcon = SKSpriteNode(texture: SpriteGenerator.coinIcon())
-        coinIcon.position = CGPoint(x: rightInfoX - 14, y: centerY - 20)
-        coinIcon.setScale(1.2)
+        coinIcon.position = CGPoint(x: rightInfoX - 14 * s, y: centerY - 20 * s)
+        coinIcon.setScale(1.2 * s)
         coinIcon.zPosition = 11
         addChild(coinIcon)
 
         let coinLabel = SKLabelNode(fontNamed: "Menlo-Bold")
         coinLabel.text = "\(data.coins)"
-        coinLabel.fontSize = 14
+        coinLabel.fontSize = DeviceLayout.fontSize(14)
         coinLabel.fontColor = SKColor(red: 0.9, green: 0.8, blue: 0.2, alpha: 1)
         coinLabel.horizontalAlignmentMode = .left
-        coinLabel.position = CGPoint(x: rightInfoX, y: centerY - 25)
+        coinLabel.position = CGPoint(x: rightInfoX, y: centerY - 25 * s)
         coinLabel.zPosition = 11
         coinLabel.name = "coinCount"
         addChild(coinLabel)
@@ -237,23 +241,26 @@ class HangarScene: SKScene {
     // MARK: - Plane Display
 
     private func setupPlaneDisplay() {
+        let s = DeviceLayout.menuScale
+
         // Plane model label — on the left side (swapped with title position)
         let modelLabel = SKLabelNode(fontNamed: "Menlo-Bold")
         modelLabel.text = PlayerData.shared.selectedPlaneName
-        modelLabel.fontSize = 18
+        modelLabel.fontSize = DeviceLayout.fontSize(18)
         modelLabel.fontColor = SKColor(white: 0.92, alpha: 1)
-        modelLabel.position = CGPoint(x: leftInfoX, y: planeAreaCenterY + 30)
+        modelLabel.position = CGPoint(x: leftInfoX, y: planeAreaCenterY + 30 * s)
         modelLabel.zPosition = 10
         modelLabel.name = "planeNameLabel"
         addChild(modelLabel)
 
         // Plane selection arrows — just outside the plane image edges
+        let arrowOffset: CGFloat = 105 * s
         let leftArrow = createArrowButton(text: "\u{25C0}", name: "planeLeft")
-        leftArrow.position = CGPoint(x: size.width / 2 - 105, y: planeAreaCenterY)
+        leftArrow.position = CGPoint(x: size.width / 2 - arrowOffset, y: planeAreaCenterY)
         addChild(leftArrow)
 
         let rightArrow = createArrowButton(text: "\u{25B6}", name: "planeRight")
-        rightArrow.position = CGPoint(x: size.width / 2 + 105, y: planeAreaCenterY)
+        rightArrow.position = CGPoint(x: size.width / 2 + arrowOffset, y: planeAreaCenterY)
         addChild(rightArrow)
 
         // 3D plane rendered as a sprite (SCNRenderer snapshot - avoids SK3DNode crashes)
@@ -267,16 +274,16 @@ class HangarScene: SKScene {
 
         // Gentle floating hover
         let hover = SKAction.sequence([
-            .moveBy(x: 0, y: 7, duration: 1.6),
-            .moveBy(x: 0, y: -7, duration: 1.6)
+            .moveBy(x: 0, y: 7 * s, duration: 1.6),
+            .moveBy(x: 0, y: -7 * s, duration: 1.6)
         ])
         planeSprite.run(.repeatForever(hover))
 
         // Under-plane glow disc
-        let planeGlow = SKShapeNode(ellipseOf: CGSize(width: 100, height: 30))
+        let planeGlow = SKShapeNode(ellipseOf: CGSize(width: 100 * s, height: 30 * s))
         planeGlow.fillColor = SKColor(red: 0.15, green: 0.6, blue: 0.25, alpha: 0.15)
         planeGlow.strokeColor = .clear
-        planeGlow.position = CGPoint(x: size.width / 2, y: planeAreaCenterY - 50)
+        planeGlow.position = CGPoint(x: size.width / 2, y: planeAreaCenterY - 50 * s)
         planeGlow.zPosition = 3
         planeGlow.glowWidth = 8
         addChild(planeGlow)
@@ -302,7 +309,8 @@ class HangarScene: SKScene {
            let img = UIImage(named: assetName) {
             let texture = SKTexture(image: img)
             sprite.texture = texture
-            sprite.size = CGSize(width: 180, height: 138)
+            let ps = DeviceLayout.menuScale
+            sprite.size = CGSize(width: 180 * ps, height: 138 * ps)
             return
         }
 
@@ -312,7 +320,8 @@ class HangarScene: SKScene {
 
         let texture = SKTexture(image: image)
         sprite.texture = texture
-        sprite.size = CGSize(width: 180, height: 138)
+        let ps = DeviceLayout.menuScale
+        sprite.size = CGSize(width: 180 * ps, height: 138 * ps)
     }
 
     private func renderPlaneSnapshot(planeId: String, size: CGSize) -> UIImage? {
@@ -370,11 +379,12 @@ class HangarScene: SKScene {
     }
 
     private func createArrowButton(text: String, name: String) -> SKNode {
+        let s = DeviceLayout.menuScale
         let node = SKNode()
         node.name = name
         node.zPosition = 10
 
-        let bg = SKShapeNode(circleOfRadius: 18)
+        let bg = SKShapeNode(circleOfRadius: 18 * s)
         bg.fillColor = SKColor(white: 0.15, alpha: 0.6)
         bg.strokeColor = SKColor(white: 0.4, alpha: 0.3)
         bg.lineWidth = 1
@@ -383,7 +393,7 @@ class HangarScene: SKScene {
 
         let label = SKLabelNode(fontNamed: "Menlo-Bold")
         label.text = text
-        label.fontSize = 16
+        label.fontSize = DeviceLayout.fontSize(16)
         label.fontColor = SKColor(white: 0.7, alpha: 0.9)
         label.verticalAlignmentMode = .center
         label.name = name
@@ -395,17 +405,18 @@ class HangarScene: SKScene {
     // MARK: - Upgrade Row
 
     private func setupUpgradeRow() {
+        let s = DeviceLayout.menuScale
         let upgrades = UpgradeCatalog.all
-        let spacing: CGFloat = 120
+        let spacing: CGFloat = 120 * s
         let totalWidth = CGFloat(upgrades.count - 1) * spacing
         let startX = size.width / 2 - totalWidth / 2
 
         // Section label
         let label = SKLabelNode(fontNamed: "Menlo-Bold")
         label.text = "UPGRADES"
-        label.fontSize = 9
+        label.fontSize = DeviceLayout.fontSize(9)
         label.fontColor = SKColor(white: 0.35, alpha: 0.6)
-        label.position = CGPoint(x: size.width / 2, y: upgradeRowY + 28)
+        label.position = CGPoint(x: size.width / 2, y: upgradeRowY + 28 * s)
         label.zPosition = 11
         addChild(label)
 
@@ -429,14 +440,15 @@ class HangarScene: SKScene {
     }
 
     private func createUpgradeChip(upgrade: UpgradeInfo) -> SKNode {
+        let s = DeviceLayout.menuScale
         let node = SKNode()
         let data = PlayerData.shared
         let level = data.upgradeLevel(for: upgrade.id)
 
-        let chipW: CGFloat = 110
-        let chipH: CGFloat = 40
+        let chipW: CGFloat = 110 * s
+        let chipH: CGFloat = 40 * s
 
-        let bg = SKShapeNode(rectOf: CGSize(width: chipW, height: chipH), cornerRadius: 8)
+        let bg = SKShapeNode(rectOf: CGSize(width: chipW, height: chipH), cornerRadius: 8 * s)
         bg.fillColor = SKColor(red: 0.10, green: 0.12, blue: 0.18, alpha: 0.95)
         bg.strokeColor = SKColor(red: 0.25, green: 0.5, blue: 0.35, alpha: 0.3)
         bg.lineWidth = 1
@@ -446,28 +458,28 @@ class HangarScene: SKScene {
         // Top row: upgrade name (left) + stat value (right)
         let nameLabel = SKLabelNode(fontNamed: "Menlo-Bold")
         nameLabel.text = upgrade.name.uppercased()
-        nameLabel.fontSize = 9
+        nameLabel.fontSize = DeviceLayout.fontSize(9)
         nameLabel.fontColor = SKColor(white: 0.75, alpha: 1)
         nameLabel.horizontalAlignmentMode = .left
-        nameLabel.position = CGPoint(x: -48, y: 7)
+        nameLabel.position = CGPoint(x: -48 * s, y: 7 * s)
         node.addChild(nameLabel)
 
         let statLabel = SKLabelNode(fontNamed: "Menlo-Bold")
         statLabel.text = statText(for: upgrade.id)
-        statLabel.fontSize = 9
+        statLabel.fontSize = DeviceLayout.fontSize(9)
         statLabel.fontColor = SKColor(red: 0.4, green: 0.85, blue: 0.55, alpha: 1)
         statLabel.horizontalAlignmentMode = .right
-        statLabel.position = CGPoint(x: 50, y: 7)
+        statLabel.position = CGPoint(x: 50 * s, y: 7 * s)
         node.addChild(statLabel)
 
         // Middle row: upgrade pips
         for i in 0..<upgrade.maxLevel {
-            let pip = SKShapeNode(rectOf: CGSize(width: 5, height: 4), cornerRadius: 1)
+            let pip = SKShapeNode(rectOf: CGSize(width: 5 * s, height: 4 * s), cornerRadius: 1)
             pip.fillColor = i < level
                 ? SKColor(red: 0.25, green: 0.85, blue: 0.35, alpha: 1)
                 : SKColor(white: 0.2, alpha: 0.4)
             pip.strokeColor = .clear
-            pip.position = CGPoint(x: -48 + CGFloat(i) * 7, y: -4)
+            pip.position = CGPoint(x: (-48 + CGFloat(i) * 7) * s, y: -4 * s)
             if i < level {
                 pip.glowWidth = 1
             }
@@ -479,23 +491,23 @@ class HangarScene: SKScene {
             let cost = upgrade.cost(forLevel: level)
             let costLabel = SKLabelNode(fontNamed: "Menlo-Bold")
             costLabel.text = "\(cost)"
-            costLabel.fontSize = 9
+            costLabel.fontSize = DeviceLayout.fontSize(9)
             costLabel.fontColor = SKColor(red: 0.9, green: 0.8, blue: 0.2, alpha: 1)
             costLabel.horizontalAlignmentMode = .right
-            costLabel.position = CGPoint(x: 50, y: -13)
+            costLabel.position = CGPoint(x: 50 * s, y: -13 * s)
             node.addChild(costLabel)
 
             let coinIcon = SKSpriteNode(texture: SpriteGenerator.coinIcon())
-            coinIcon.position = CGPoint(x: 50 - costLabel.frame.width - 6, y: -9)
-            coinIcon.setScale(0.55)
+            coinIcon.position = CGPoint(x: 50 * s - costLabel.frame.width - 6 * s, y: -9 * s)
+            coinIcon.setScale(0.55 * s)
             node.addChild(coinIcon)
         } else {
             let maxLabel = SKLabelNode(fontNamed: "Menlo-Bold")
             maxLabel.text = "MAX"
-            maxLabel.fontSize = 9
+            maxLabel.fontSize = DeviceLayout.fontSize(9)
             maxLabel.fontColor = SKColor(red: 0.25, green: 0.85, blue: 0.35, alpha: 1)
             maxLabel.horizontalAlignmentMode = .right
-            maxLabel.position = CGPoint(x: 50, y: -13)
+            maxLabel.position = CGPoint(x: 50 * s, y: -13 * s)
             node.addChild(maxLabel)
         }
 
@@ -505,13 +517,14 @@ class HangarScene: SKScene {
     // MARK: - Loadout Bar
 
     private func setupLoadoutBar() {
+        let s = DeviceLayout.menuScale
         let data = PlayerData.shared
         let slots = data.slotCount
         let currentLoadout = data.loadout  // cache once to avoid repeated UserDefaults reads
 
         // Dynamically size slots to fit the screen
-        let maxSlotSize: CGFloat = 40
-        let margin: CGFloat = 20
+        let maxSlotSize: CGFloat = 40 * s
+        let margin: CGFloat = 20 * s
         let gapRatio: CGFloat = 0.25  // gap = 25% of slot size
         let slotSize = min(maxSlotSize, (size.width - margin * 2) / (CGFloat(slots) * (1 + gapRatio) - gapRatio))
         let spacing = slotSize * (1 + gapRatio)
@@ -521,9 +534,9 @@ class HangarScene: SKScene {
         // Section label
         let loadoutLabel = SKLabelNode(fontNamed: "Menlo-Bold")
         loadoutLabel.text = "LOADOUT"
-        loadoutLabel.fontSize = 9
+        loadoutLabel.fontSize = DeviceLayout.fontSize(9)
         loadoutLabel.fontColor = SKColor(white: 0.35, alpha: 0.6)
-        loadoutLabel.position = CGPoint(x: size.width / 2, y: loadoutRowY + 28)
+        loadoutLabel.position = CGPoint(x: size.width / 2, y: loadoutRowY + 28 * s)
         loadoutLabel.zPosition = 10
         addChild(loadoutLabel)
 
@@ -533,7 +546,7 @@ class HangarScene: SKScene {
             slot.name = "slot_\(i)"
             slot.zPosition = 10
 
-            let bg = SKShapeNode(rectOf: CGSize(width: slotSize, height: slotSize), cornerRadius: 8)
+            let bg = SKShapeNode(rectOf: CGSize(width: slotSize, height: slotSize), cornerRadius: 8 * s)
             if currentLoadout[i] != nil {
                 bg.fillColor = SKColor(red: 0.10, green: 0.22, blue: 0.12, alpha: 0.95)
                 bg.strokeColor = SKColor(red: 0.25, green: 0.6, blue: 0.3, alpha: 0.6)
@@ -548,20 +561,20 @@ class HangarScene: SKScene {
 
             if let weaponId = currentLoadout[i] {
                 let icon = SKSpriteNode(texture: SpriteGenerator.weaponIcon(for: weaponId))
-                icon.setScale(0.40)
+                icon.setScale(0.40 * s)
                 icon.position = .zero
                 slot.addChild(icon)
 
                 let numLabel = SKLabelNode(fontNamed: "Menlo-Bold")
                 numLabel.text = "\(i + 1)"
-                numLabel.fontSize = 7
+                numLabel.fontSize = DeviceLayout.fontSize(7)
                 numLabel.fontColor = SKColor(white: 0.45, alpha: 0.5)
-                numLabel.position = CGPoint(x: -14, y: 12)
+                numLabel.position = CGPoint(x: -14 * s, y: 12 * s)
                 slot.addChild(numLabel)
             } else {
                 let emptyLabel = SKLabelNode(fontNamed: "Menlo")
                 emptyLabel.text = "\(i + 1)"
-                emptyLabel.fontSize = 13
+                emptyLabel.fontSize = DeviceLayout.fontSize(13)
                 emptyLabel.fontColor = SKColor(white: 0.2, alpha: 0.35)
                 emptyLabel.verticalAlignmentMode = .center
                 slot.addChild(emptyLabel)
@@ -575,24 +588,30 @@ class HangarScene: SKScene {
     // MARK: - Action Buttons (Premium Design)
 
     private func setupActionButtons() {
-        let btnSpacing: CGFloat = 8
-        let sideWidth: CGFloat = (size.width - btnSpacing * 4) * 0.28
-        let centerWidth: CGFloat = (size.width - btnSpacing * 4) * 0.44
+        let s = DeviceLayout.menuScale
+        let safeLeft = SafeArea.left
+        let safeRight = SafeArea.right
+        let btnSpacing: CGFloat = 8 * s
+        let usableWidth = size.width - safeLeft - safeRight
+        let sideWidth: CGFloat = (usableWidth - btnSpacing * 4) * 0.28
+        let centerWidth: CGFloat = (usableWidth - btnSpacing * 4) * 0.44
+        let btnH: CGFloat = 44 * s
+        let heroBtnH: CGFloat = 48 * s
 
-        let leftX = btnSpacing * 1.5 + sideWidth / 2
+        let leftX = safeLeft + btnSpacing * 1.5 + sideWidth / 2
         let centerX = size.width / 2
-        let rightX = size.width - btnSpacing * 1.5 - sideWidth / 2
+        let rightX = size.width - safeRight - btnSpacing * 1.5 - sideWidth / 2
 
         // ARMORY button - left (purple theme)
         let armoryBtn = createPremiumButton(
             text: "ARMORY",
             icon: "\u{2694}",
             width: sideWidth,
-            height: 44,
+            height: btnH,
             primaryColor: SKColor(red: 0.35, green: 0.15, blue: 0.55, alpha: 1),
             accentColor: SKColor(red: 0.6, green: 0.3, blue: 0.9, alpha: 1),
             glowColor: SKColor(red: 0.5, green: 0.2, blue: 0.8, alpha: 0.3),
-            fontSize: 11
+            fontSize: DeviceLayout.fontSize(11)
         )
         armoryBtn.position = CGPoint(x: leftX, y: buttonRowY)
         armoryBtn.name = "armoryButton"
@@ -604,11 +623,11 @@ class HangarScene: SKScene {
             text: "MISSIONS",
             icon: "\u{1F3AF}",
             width: centerWidth,
-            height: 48,
+            height: heroBtnH,
             primaryColor: SKColor(red: 0.50, green: 0.35, blue: 0.08, alpha: 1),
             accentColor: SKColor(red: 0.95, green: 0.75, blue: 0.15, alpha: 1),
             glowColor: SKColor(red: 0.8, green: 0.6, blue: 0.1, alpha: 0.3),
-            fontSize: 16
+            fontSize: DeviceLayout.fontSize(16)
         )
         missionsBtn.position = CGPoint(x: centerX, y: buttonRowY)
         missionsBtn.name = "missionsButton"
@@ -620,11 +639,11 @@ class HangarScene: SKScene {
             text: "DEPLOY",
             icon: "\u{1F680}",
             width: sideWidth,
-            height: 44,
+            height: btnH,
             primaryColor: SKColor(red: 0.10, green: 0.45, blue: 0.12, alpha: 1),
             accentColor: SKColor(red: 0.2, green: 0.9, blue: 0.3, alpha: 1),
             glowColor: SKColor(red: 0.15, green: 0.8, blue: 0.25, alpha: 0.4),
-            fontSize: 11
+            fontSize: DeviceLayout.fontSize(11)
         )
         goBtn.position = CGPoint(x: rightX, y: buttonRowY)
         goBtn.name = "goButton"
@@ -643,7 +662,7 @@ class HangarScene: SKScene {
         goBtn.run(.repeatForever(pulse))
 
         // Animated glow ring behind deploy button
-        let glowRing = SKShapeNode(rectOf: CGSize(width: sideWidth + 6, height: 50), cornerRadius: 14)
+        let glowRing = SKShapeNode(rectOf: CGSize(width: sideWidth + 6, height: btnH + 6), cornerRadius: 14 * s)
         glowRing.fillColor = .clear
         glowRing.strokeColor = SKColor(red: 0.2, green: 0.9, blue: 0.3, alpha: 0.2)
         glowRing.lineWidth = 2
@@ -870,8 +889,9 @@ class HangarScene: SKScene {
             node.removeFromParent()
             upgradeNodes.removeValue(forKey: id)
         }
+        let s = DeviceLayout.menuScale
         let upgrades = UpgradeCatalog.all
-        let spacing: CGFloat = 120
+        let spacing: CGFloat = 120 * s
         let totalWidth = CGFloat(upgrades.count - 1) * spacing
         let startX = size.width / 2 - totalWidth / 2
         for (index, upgrade) in upgrades.enumerated() {
