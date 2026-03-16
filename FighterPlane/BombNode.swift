@@ -29,7 +29,7 @@ class BombNode: SKNode {
 
     /// Called when a cluster warhead splits mid-air (passes world position of split + remaining fall fraction)
     var onClusterSplit: ((CGPoint, CGFloat, CGFloat) -> Void)?
-    private let clusterSplitTime: TimeInterval = 1.4
+    private let clusterSplitTime: TimeInterval = 0.8
     private var hasSplit = false
 
     init(startPosition: CGPoint, groundOffset: CGPoint, weaponId: String = "bomb",
