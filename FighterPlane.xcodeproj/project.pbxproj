@@ -62,6 +62,7 @@
 		FBF71C2954B0F70BD133EC77 /* loadingscreen.jpg in Resources */ = {isa = PBXBuildFile; fileRef = FE937CC9D87BFE4D2DB5529E /* loadingscreen.jpg */; };
 		FCECD696A8A418127971D826 /* minigun_spinup.wav in Resources */ = {isa = PBXBuildFile; fileRef = B8C59FD8DD4222F4115AFBF0 /* minigun_spinup.wav */; };
 		A1B2C3D4E5F60718293A4B5C /* sam_launch.wav in Resources */ = {isa = PBXBuildFile; fileRef = D6E7F8091A2B3C4D5E6F7081 /* sam_launch.wav */; };
+		A2B3C4D5E6F7081920A1B2C3 /* aim_fire.wav in Resources */ = {isa = PBXBuildFile; fileRef = B3C4D5E6F7081920A1B2C3D4 /* aim_fire.wav */; };
 		B2C3D4E5F6071829A3B4C5D6 /* jet_engine_player.wav in Resources */ = {isa = PBXBuildFile; fileRef = E7F80192A3B4C5D6E7F80192 /* jet_engine_player.wav */; };
 		C3D4E5F607182930B4C5D6E7 /* jet_engine_enemy.wav in Resources */ = {isa = PBXBuildFile; fileRef = F8019203B4C5D6E7F8019203 /* jet_engine_enemy.wav */; };
 		D4E5F60718293A40C5D6E7F8 /* EngineSoundManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0192A3B4C5D6E7F801920304 /* EngineSoundManager.swift */; };
@@ -124,6 +125,7 @@
 		FD8DBEB9BBE8C9B3CCACD854 /* mission1.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = mission1.json; sourceTree = "<group>"; };
 		FE527256C2DC7017B87F6AE9 /* b2image.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = b2image.jpg; sourceTree = "<group>"; };
 		FE937CC9D87BFE4D2DB5529E /* loadingscreen.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = loadingscreen.jpg; sourceTree = "<group>"; };
+		B3C4D5E6F7081920A1B2C3D4 /* aim_fire.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = aim_fire.wav; sourceTree = "<group>"; };
 		D6E7F8091A2B3C4D5E6F7081 /* sam_launch.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = sam_launch.wav; sourceTree = "<group>"; };
 		E7F80192A3B4C5D6E7F80192 /* jet_engine_player.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = jet_engine_player.wav; sourceTree = "<group>"; };
 		F8019203B4C5D6E7F8019203 /* jet_engine_enemy.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = jet_engine_enemy.wav; sourceTree = "<group>"; };
@@ -207,6 +209,7 @@
 			isa = PBXGroup;
 			children = (
 				62C2A59C0B2EDC159AFA541B /* aa_fire.wav */,
+				B3C4D5E6F7081920A1B2C3D4 /* aim_fire.wav */,
 				3A34AEE95DFCC05ACC7B8400 /* bomb_impact1.wav */,
 				06A1E79E9BF73040BA0C14DF /* bomb_impact2.wav */,
 				0826EB56CA55BF77EB539D5C /* bomb_impact3.wav */,
@@ -321,6 +324,7 @@
 				0FBC3F4F3F2C52060B2FE1C7 /* F22.usdz in Resources */,
 				D77063BD6DB51155FC8F4084 /* F22_menu.png in Resources */,
 				80F4C9E1B4CFA7E1070FECF7 /* aa_fire.wav in Resources */,
+				A2B3C4D5E6F7081920A1B2C3 /* aim_fire.wav in Resources */,
 				8A107869D3C3E33028271D5B /* b2image.jpg in Resources */,
 				98ADE04865B6B5935E6F4C5E /* bomb_impact1.wav in Resources */,
 				6DB4251020018681371BF9FA /* bomb_impact2.wav in Resources */,

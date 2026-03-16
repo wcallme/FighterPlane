@@ -202,6 +202,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         var launchTimer: Float = 0.2   // time remaining attached under the plane
         var launched: Bool = false      // true once the 0.2s hold is over
         let blastRadius: Float = 6.0   // ground detonation radius (small bomb)
+        var smokeTimer: Float = 0      // timer for spawning smoke trail puffs
     }
 
     // MARK: - Init
@@ -244,6 +245,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         // Pre-load sound effects
         SFXPlayer.shared.preload("aa_fire")
         SFXPlayer.shared.preload("sam_launch")
+        SFXPlayer.shared.preload("aim_fire")
         EngineSoundManager.shared.startEngines()
 
         // Show ECM button if equipped
@@ -2453,6 +2455,9 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             launched: false
         )
         activeAIMRockets.append(rocket)
+
+        // Play launch sound
+        SFXPlayer.shared.play("aim_fire", volume: 0.4)
 
         // Mark slot as reloading
         aimReady[slotIndex] = false
