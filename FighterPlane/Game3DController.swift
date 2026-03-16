@@ -849,12 +849,12 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         // Update enemies
         updateEnemies(dt: floatDt, time: time)
 
-        // Update enemy engine sound volume based on closest fighter
+        // Update engine sounds (fade-in + enemy proximity volume)
         let closestFighterDist = enemies
             .filter { $0.isAir && $0.node.parent != nil }
             .map { distanceYZ($0.node.position, playerNode.position) }
             .min() ?? 999
-        EngineSoundManager.shared.updateEnemyVolume(closestFighterDist: closestFighterDist)
+        EngineSoundManager.shared.update(dt: floatDt, closestFighterDist: closestFighterDist)
 
         // Auto-complete mission when player flies past terrain into water zone
         if isMissionMode && gameState == .playing,

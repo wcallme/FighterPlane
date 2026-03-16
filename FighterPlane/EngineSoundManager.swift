@@ -14,11 +14,15 @@ final class EngineSoundManager {
     private let enemyMaxVolume: Float = 0.05
     private let enemyHearRange: Float = 80  // world units
 
+    // Fade-in state
+    private var fadeInRemaining: Float = 0
+    private let fadeInDuration: Float = 3.0  // seconds to reach full volume
+
     private init() {
         if let url = Bundle.main.url(forResource: "jet_engine_player", withExtension: "wav") {
             playerEngine = try? AVAudioPlayer(contentsOf: url)
             playerEngine?.numberOfLoops = -1
-            playerEngine?.volume = playerBaseVolume
+            playerEngine?.volume = 0
             playerEngine?.prepareToPlay()
         }
         if let url = Bundle.main.url(forResource: "jet_engine_enemy", withExtension: "wav") {
@@ -31,22 +35,32 @@ final class EngineSoundManager {
 
     func startEngines() {
         playerEngine?.currentTime = 0
-        playerEngine?.volume = playerBaseVolume
+        playerEngine?.volume = 0
         playerEngine?.play()
+        fadeInRemaining = fadeInDuration
 
         enemyEngine?.currentTime = 0
         enemyEngine?.volume = 0
         enemyEngine?.play()
     }
 
-    /// Update enemy engine volume based on closest enemy fighter distance.
-    func updateEnemyVolume(closestFighterDist: Float) {
-        guard let enemy = enemyEngine else { return }
-        if closestFighterDist < enemyHearRange {
-            let t = 1.0 - closestFighterDist / enemyHearRange
-            enemy.volume = t * enemyMaxVolume
-        } else {
-            enemy.volume = 0
+    /// Call every frame from the game loop to drive the fade-in.
+    func update(dt: Float, closestFighterDist: Float) {
+        // Player engine fade-in
+        if fadeInRemaining > 0 {
+            fadeInRemaining -= dt
+            let progress = 1.0 - max(0, fadeInRemaining) / fadeInDuration
+            playerEngine?.volume = progress * playerBaseVolume
+        }
+
+        // Enemy engine volume based on distance
+        if let enemy = enemyEngine {
+            if closestFighterDist < enemyHearRange {
+                let t = 1.0 - closestFighterDist / enemyHearRange
+                enemy.volume = t * enemyMaxVolume
+            } else {
+                enemy.volume = 0
+            }
         }
     }
 
