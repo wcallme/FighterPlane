@@ -1471,7 +1471,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 healthBarNode: healthBar
             )
             if type == .aiFighter {
-                enemy.aiSpeed = 16.0
+                enemy.aiSpeed = 10.0
             }
             enemies.append(enemy)
         }
@@ -1522,7 +1522,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                     healthBarNode: healthBar
                 )
                 if type == .aiFighter {
-                    enemy.aiSpeed = 16.0
+                    enemy.aiSpeed = 10.0
                 }
                 enemies.append(enemy)
             }
@@ -1676,7 +1676,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 healthBarNode: healthBar
             )
             if type == .aiFighter {
-                enemy.aiSpeed = 16.0  // faster than player (14.0)
+                enemy.aiSpeed = 10.0  // faster than player (14.0)
             }
             enemies.append(enemy)
         }
@@ -1712,7 +1712,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
                 isAir: true,
                 healthBarNode: healthBar
             )
-            enemy.aiSpeed = 16.0
+            enemy.aiSpeed = 10.0
             enemies.append(enemy)
         }
     }
