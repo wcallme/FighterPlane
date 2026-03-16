@@ -1370,6 +1370,21 @@ class Editor {
         this.scheduleSave();
     }
 
+    clearMap() {
+        if (!confirm('Clear the entire map? This will remove all objects and flatten terrain.\n\n(Map settings like name, size, and terrain type are preserved.)')) return;
+        this.saveUndo();
+        const map = this.map;
+        for (let iz = 0; iz <= map.segmentsZ; iz++) {
+            map.heightmap[iz].fill(0);
+        }
+        map.trees = [];
+        map.rocks = [];
+        map.enemies = [];
+        map.planes = [];
+        this.render();
+        this.scheduleSave();
+    }
+
     buildMissionJSON() {
         const map = this.map;
         const heightmap = [];
