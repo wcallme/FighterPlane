@@ -147,6 +147,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         let damage: Int
         var lifetime: Float
         let turnRate: Float
+        let speed: Float
     }
 
     // MARK: - Init
@@ -1412,9 +1413,25 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         // Initial velocity: upward at ~60° angle toward the player's Z direction
         let toPlayerZ = playerNode.position.z - enemy.node.position.z
         let launchAngle: Float = .pi / 3  // 60° upward
-        let initialSpeed: Float = 0.14
-        let vz = (toPlayerZ > 0 ? 1.0 : -1.0) * cos(launchAngle) * initialSpeed
-        let vy = sin(launchAngle) * initialSpeed
+
+        // Endless mode: missiles get faster & more agile as difficulty climbs
+        // Mission mode: static nerfed values
+        let samSpeed: Float
+        let samTurnRate: Float
+        if case .infiniteBattle = gameMode {
+            let diff = Float(GameManager.shared.difficultyLevel)
+            // difficulty 3 (first SAMs): speed 0.14, turnRate 1.0
+            // ramps up to max at ~difficulty 12+: speed 0.32, turnRate 2.8
+            let t = min(1.0, (diff - 3.0) / 9.0)  // 0→1 over difficulties 3–12
+            samSpeed = 0.14 + t * 0.18
+            samTurnRate = 1.0 + t * 1.8
+        } else {
+            samSpeed = 0.14
+            samTurnRate = 1.2
+        }
+
+        let vz = (toPlayerZ > 0 ? 1.0 : -1.0) * cos(launchAngle) * samSpeed
+        let vy = sin(launchAngle) * samSpeed
 
         scene.rootNode.addChildNode(missile)
         activeSAMs.append(SAMMissile3D(
@@ -1422,7 +1439,8 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             velocity: SCNVector3(0, vy, vz),
             damage: GameConfig.samMissileDamage,
             lifetime: 6.0,
-            turnRate: 1.2
+            turnRate: samTurnRate,
+            speed: samSpeed
         ))
     }
 
@@ -1451,7 +1469,7 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
             // Homing with lead-target prediction in Y-Z plane only (X=0 always)
             // ECM active → missiles lose lock and fly straight (no homing)
             let pos = activeSAMs[i].node.position
-            let speed: Float = 0.148
+            let speed = activeSAMs[i].speed
 
             if !ecmActive {
                 let missileSpeed = speed * 60.0  // world-units per second
