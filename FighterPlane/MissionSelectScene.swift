@@ -29,7 +29,7 @@ class MissionSelectScene: SKScene {
         missions = MissionLoader.loadAll()
 
         listTopY = size.height - safeTop - 90
-        listBottomY = safeBottom + 20
+        listBottomY = max(safeBottom, 21) + 20
 
         setupBackground()
         setupHeader()

@@ -48,7 +48,7 @@ class ArmoryScene: SKScene {
         equippedSectionHeight = slotSize + 52
 
         scrollAreaTop = size.height - safeTop - headerHeight - equippedSectionHeight
-        scrollAreaBottom = safeBottom
+        scrollAreaBottom = max(safeBottom, 21)
     }
 
     // MARK: - Background

@@ -27,7 +27,7 @@ class ShopScene: SKScene {
         safeBottom = SafeArea.bottom
 
         scrollAreaTop = size.height - safeTop - headerHeight
-        scrollAreaBottom = safeBottom
+        scrollAreaBottom = max(safeBottom, 21)
 
         setupBackground()
         setupHeader()
