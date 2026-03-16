@@ -72,15 +72,15 @@ enum WeaponCatalog {
 
     static let bomb = WeaponInfo(
         id: "bomb", name: "Bomb", category: .bomb,
-        gemCost: 80, damage: 3, fireRate: 4.0,
-        blastRadius: 60, bulletCount: 1, bulletSpread: 0,
+        gemCost: 80, damage: 8, fireRate: 4.0,
+        blastRadius: 50, bulletCount: 1, bulletSpread: 0,
         projectileSpeed: 0, isHoming: false,
         description: "Standard explosive ordnance."
     )
 
     static let miningBomb = WeaponInfo(
         id: "mining_bomb", name: "Mining Bomb", category: .bomb,
-        gemCost: 150, damage: 4, fireRate: 4.5,
+        gemCost: 150, damage: 9, fireRate: 4.5,
         blastRadius: 45, bulletCount: 1, bulletSpread: 0,
         projectileSpeed: 0, isHoming: false,
         description: "Penetrating blast, focused radius."
@@ -88,18 +88,18 @@ enum WeaponCatalog {
 
     static let heavyBomb = WeaponInfo(
         id: "heavy_bomb", name: "Heavy Bomb", category: .bomb,
-        gemCost: 280, damage: 6, fireRate: 5.0,
-        blastRadius: 90, bulletCount: 1, bulletSpread: 0,
+        gemCost: 280, damage: 10, fireRate: 5.0,
+        blastRadius: 80, bulletCount: 1, bulletSpread: 0,
         projectileSpeed: 0, isHoming: false,
         description: "Massive blast radius, heavy payload."
     )
 
     static let clusterWarhead = WeaponInfo(
         id: "cluster_warhead", name: "Cluster Warhead", category: .bomb,
-        gemCost: 300, damage: 2, fireRate: 4.5,
-        blastRadius: 35, bulletCount: 8, bulletSpread: 0,
+        gemCost: 300, damage: 3, fireRate: 4.5,
+        blastRadius: 30, bulletCount: 7, bulletSpread: 0,
         projectileSpeed: 0, isHoming: false,
-        description: "Splits mid-air into 8 scatter bomblets."
+        description: "Splits mid-air into 7 scatter bomblets."
     )
 
     // --- Specials ---
