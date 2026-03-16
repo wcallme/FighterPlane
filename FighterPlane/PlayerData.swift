@@ -3,14 +3,15 @@ import Foundation
 struct PlaneInfo {
     let id: String
     let name: String
+    let weaponSlots: Int
 }
 
 enum PlaneCatalog {
     static let all: [PlaneInfo] = [
-        PlaneInfo(id: "F16", name: "F-16 Falcon"),
-        PlaneInfo(id: "F22", name: "F-22 Raptor"),
-        PlaneInfo(id: "B2", name: "B-2 Spirit"),
-        PlaneInfo(id: "B3", name: "B-3 Phantom"),
+        PlaneInfo(id: "F16", name: "F-16 Falcon", weaponSlots: 5),
+        PlaneInfo(id: "F22", name: "F-22 Raptor", weaponSlots: 7),
+        PlaneInfo(id: "B2", name: "B-2 Spirit", weaponSlots: 9),
+        PlaneInfo(id: "B3", name: "B-3 Phantom", weaponSlots: 6),
     ]
 
     static func plane(byId id: String) -> PlaneInfo? {
@@ -85,29 +86,46 @@ class PlayerData {
         ownedCount(of: weaponId) - equippedCount(of: weaponId)
     }
 
-    /// 6 loadout slots, nil means empty
+    /// Number of weapon slots for the currently selected plane
+    var slotCount: Int {
+        PlaneCatalog.plane(byId: selectedPlaneId)?.weaponSlots ?? 5
+    }
+
+    /// Loadout slots (per-plane), nil means empty
     /// Cached to avoid repeated UserDefaults deserialization (read by equippedGuns, equippedBombs, etc.)
     private var _loadoutCache: [String?]?
+    private var _loadoutCachePlane: String?
+
+    private var loadoutKey: String { "pd_loadout_\(selectedPlaneId)" }
 
     var loadout: [String?] {
         get {
-            if let cached = _loadoutCache { return cached }
-            guard let raw = defaults.stringArray(forKey: "pd_loadout") else {
-                let def: [String?] = ["basic_gun", "bomb", nil, nil, nil, nil]
+            let slots = slotCount
+            if let cached = _loadoutCache, _loadoutCachePlane == selectedPlaneId { return cached }
+            // Migrate legacy single loadout to F16 if needed
+            if defaults.stringArray(forKey: loadoutKey) == nil,
+               let legacy = defaults.stringArray(forKey: "pd_loadout") {
+                defaults.set(legacy, forKey: "pd_loadout_F16")
+                defaults.removeObject(forKey: "pd_loadout")
+            }
+            guard let raw = defaults.stringArray(forKey: loadoutKey) else {
+                let def: [String?] = ["basic_gun", "bomb"] + Array(repeating: nil as String?, count: slots - 2)
                 _loadoutCache = def
+                _loadoutCachePlane = selectedPlaneId
                 return def
             }
             var result = raw.map { $0.isEmpty ? nil : $0 } as [String?]
-            // Ensure exactly 6 slots
-            while result.count < 6 { result.append(nil) }
-            if result.count > 6 { result = Array(result.prefix(6)) }
+            while result.count < slots { result.append(nil) }
+            if result.count > slots { result = Array(result.prefix(slots)) }
             _loadoutCache = result
+            _loadoutCachePlane = selectedPlaneId
             return result
         }
         set {
             _loadoutCache = newValue
+            _loadoutCachePlane = selectedPlaneId
             let raw = newValue.map { $0 ?? "" }
-            defaults.set(raw, forKey: "pd_loadout")
+            defaults.set(raw, forKey: loadoutKey)
         }
     }
 
@@ -236,7 +254,7 @@ class PlayerData {
     }
 
     func equipWeapon(_ weaponId: String, toSlot slot: Int) {
-        guard slot >= 0 && slot < 6 else { return }
+        guard slot >= 0 && slot < slotCount else { return }
         // Must have an unequipped copy available
         guard availableCount(of: weaponId) > 0 else { return }
         var current = loadout
@@ -245,7 +263,7 @@ class PlayerData {
     }
 
     func unequipSlot(_ slot: Int) {
-        guard slot >= 0 && slot < 6 else { return }
+        guard slot >= 0 && slot < slotCount else { return }
         var current = loadout
         current[slot] = nil
         loadout = current
@@ -283,7 +301,7 @@ class PlayerData {
             coins = 30000
             gems = 1000
             ownedWeaponIds = ["basic_gun", "bomb"]
-            loadout = ["basic_gun", "bomb", nil, nil, nil, nil]
+            loadout = ["basic_gun", "bomb"] + Array(repeating: nil as String?, count: slotCount - 2)
             playerLevel = 1
         }
     }

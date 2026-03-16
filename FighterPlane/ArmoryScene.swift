@@ -42,8 +42,9 @@ class ArmoryScene: SKScene {
 
     private func computeLayout() {
         let w = size.width
-        let totalSlotPadding: CGFloat = 16 + 5 * 8 + 16
-        slotSize = min(52, floor((w - totalSlotPadding) / 6))
+        let slots = CGFloat(PlayerData.shared.slotCount)
+        let totalSlotPadding: CGFloat = 16 + (slots - 1) * 8 + 16
+        slotSize = min(52, floor((w - totalSlotPadding) / slots))
         equippedSectionHeight = slotSize + 52
 
         scrollAreaTop = size.height - safeTop - headerHeight - equippedSectionHeight
@@ -212,12 +213,13 @@ class ArmoryScene: SKScene {
         equippedSlotsNode.removeAllChildren()
 
         let data = PlayerData.shared
+        let slots = data.slotCount
         let gap: CGFloat = 8
-        let totalWidth = slotSize * 6 + gap * 5
+        let totalWidth = slotSize * CGFloat(slots) + gap * CGFloat(slots - 1)
         let startX = (size.width - totalWidth) / 2 + slotSize / 2
         let slotY = sectionTop - 24 - slotSize / 2 - 14
 
-        for i in 0..<6 {
+        for i in 0..<slots {
             let slot = SKNode()
             slot.position = CGPoint(x: startX + CGFloat(i) * (slotSize + gap), y: slotY)
             slot.name = "equipped_\(i)"
@@ -628,7 +630,7 @@ class ArmoryScene: SKScene {
 
     private func handleUnequipSlot(_ slotIndex: Int) {
         let data = PlayerData.shared
-        guard slotIndex >= 0, slotIndex < 6, data.loadout[slotIndex] != nil else { return }
+        guard slotIndex >= 0, slotIndex < data.slotCount, data.loadout[slotIndex] != nil else { return }
 
         data.unequipSlot(slotIndex)
         refreshAll()
@@ -668,8 +670,9 @@ class ArmoryScene: SKScene {
     // MARK: - Effects
 
     private func showSlotFlash(slotIndex: Int, color: SKColor) {
+        let slots = PlayerData.shared.slotCount
         let gap: CGFloat = 8
-        let totalWidth = slotSize * 6 + gap * 5
+        let totalWidth = slotSize * CGFloat(slots) + gap * CGFloat(slots - 1)
         let startX = (size.width - totalWidth) / 2 + slotSize / 2
         let sectionTop = size.height - safeTop - headerHeight
         let slotY = sectionTop - 24 - slotSize / 2 - 14

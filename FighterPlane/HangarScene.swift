@@ -505,13 +505,18 @@ class HangarScene: SKScene {
     // MARK: - Loadout Bar
 
     private func setupLoadoutBar() {
-        let slotSize: CGFloat = 40
-        let spacing: CGFloat = 50
-        let totalWidth = spacing * 5
-        let startX = (size.width - totalWidth) / 2
-
         let data = PlayerData.shared
+        let slots = data.slotCount
         let currentLoadout = data.loadout  // cache once to avoid repeated UserDefaults reads
+
+        // Dynamically size slots to fit the screen
+        let maxSlotSize: CGFloat = 40
+        let margin: CGFloat = 20
+        let gapRatio: CGFloat = 0.25  // gap = 25% of slot size
+        let slotSize = min(maxSlotSize, (size.width - margin * 2) / (CGFloat(slots) * (1 + gapRatio) - gapRatio))
+        let spacing = slotSize * (1 + gapRatio)
+        let totalWidth = spacing * CGFloat(slots - 1)
+        let startX = (size.width - totalWidth) / 2
 
         // Section label
         let loadoutLabel = SKLabelNode(fontNamed: "Menlo-Bold")
@@ -522,7 +527,7 @@ class HangarScene: SKScene {
         loadoutLabel.zPosition = 10
         addChild(loadoutLabel)
 
-        for i in 0..<min(6, currentLoadout.count) {
+        for i in 0..<slots {
             let slot = SKNode()
             slot.position = CGPoint(x: startX + CGFloat(i) * spacing, y: loadoutRowY)
             slot.name = "slot_\(i)"
@@ -825,14 +830,19 @@ class HangarScene: SKScene {
 
     private func handleSlotTap(_ slotIndex: Int) {
         let data = PlayerData.shared
-        guard slotIndex >= 0, slotIndex < 6, data.loadout[slotIndex] != nil else { return }
+        guard slotIndex >= 0, slotIndex < data.slotCount, data.loadout[slotIndex] != nil else { return }
 
         data.unequipSlot(slotIndex)
         refreshLoadout()
 
         // Red flash on the slot
-        let slotSpacing: CGFloat = 50
-        let totalWidth = slotSpacing * 5
+        let slots = data.slotCount
+        let maxSlotSize: CGFloat = 40
+        let margin: CGFloat = 20
+        let gapRatio: CGFloat = 0.25
+        let slotSz = min(maxSlotSize, (size.width - margin * 2) / (CGFloat(slots) * (1 + gapRatio) - gapRatio))
+        let slotSpacing = slotSz * (1 + gapRatio)
+        let totalWidth = slotSpacing * CGFloat(slots - 1)
         let startX = (size.width - totalWidth) / 2
         let slotX = startX + CGFloat(slotIndex) * slotSpacing
 
@@ -895,6 +905,9 @@ class HangarScene: SKScene {
 
         // Update the 3D plane render
         updatePlaneSprite(planeId: newPlane.id)
+
+        // Refresh loadout since each plane has its own weapon slots
+        refreshLoadout()
     }
 
     private func refreshCurrency() {
