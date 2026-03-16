@@ -823,6 +823,15 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         // Update enemies
         updateEnemies(dt: floatDt, time: time)
 
+        // Auto-complete mission when player flies past terrain into water zone
+        if isMissionMode && gameState == .playing,
+           case .mission(let mission) = gameMode {
+            let terrainEndZ = mission.terrain.originZ + mission.terrain.lengthZ
+            if playerZ > terrainEndZ {
+                missionComplete()
+            }
+        }
+
         // Collision detection
         checkCollisions()
 
