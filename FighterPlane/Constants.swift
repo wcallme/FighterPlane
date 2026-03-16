@@ -50,7 +50,7 @@ enum GameConfig {
     static let truckHealth = 4
     static let radioTowerHealth = 8
 
-    // AI Fighter — aggressive dogfight plane with machine gun
+    // AI Fighter — seeking-missile dogfight plane with machine gun
     static let aiFighterHealth = 6
     static let aiFighterScore = 400
     static let aiFighterTurnSpeed: CGFloat = 4.0     // radians per second (tight pursuit turns)
@@ -59,6 +59,7 @@ enum GameConfig {
     static let aiFighterBulletDamage = 2              // low damage per round
     static let aiFighterBulletSpeed: CGFloat = 380.0
     static let aiFighterFiringCone: CGFloat = 0.55    // radians (~31°) — fires when roughly aimed at player
+    static let aiFighterActivationRange: CGFloat = 500 // distance from player to trigger activation
 }
 
 enum PhysicsCategory {

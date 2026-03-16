@@ -189,12 +189,16 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             }
 
             let enemy = EnemyNode(type: type)
-            // Spread group members across the top with slight horizontal offset
+            // AI fighters spawn far ahead (off-screen) so they scroll into view;
+            // basic fighters spawn just above screen
             let baseX = CGFloat.random(in: margin...(size.width - margin))
             let offsetX = CGFloat(i) * 50 - CGFloat(count - 1) * 25
+            let spawnY: CGFloat = type == .aiFighter
+                ? size.height + 800 + CGFloat(i) * 40
+                : size.height + 60 + CGFloat(i) * 30
             enemy.position = CGPoint(
                 x: min(size.width - margin, max(margin, baseX + offsetX)),
-                y: size.height + 60 + CGFloat(i) * 30
+                y: spawnY
             )
 
             // Apply difficulty health bonus
