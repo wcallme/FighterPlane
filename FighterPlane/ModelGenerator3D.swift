@@ -1387,16 +1387,16 @@ enum ModelGenerator3D {
         node.eulerAngles.x = -.pi / 2 // lay flat
         node.name = "water"
 
-        // Gentle looping shimmer — slow transparency oscillation + texture scroll
+        // Gentle looping shimmer — slow transparency oscillation + X-axis texture drift
         let shimmer = SCNAction.customAction(duration: 6.0) { node, elapsed in
             let t = elapsed / 6.0
             let val = 0.85 + 0.10 * CGFloat(sin(Double(t) * .pi * 2)) // 0.85 → 0.95 → 0.85
             node.geometry?.firstMaterial?.transparency = val
-            // Slow texture drift for water movement
-            let offset = Float(t) * 0.15
+            // Very slow texture drift along X axis only (direction-independent)
+            let offset = Float(t) * 0.015
             let scale = tileScale
             node.geometry?.firstMaterial?.diffuse.contentsTransform = SCNMatrix4Translate(
-                SCNMatrix4MakeScale(scale, scale, 1), offset, offset * 0.7, 0)
+                SCNMatrix4MakeScale(scale, scale, 1), offset, 0, 0)
         }
         node.runAction(.repeatForever(shimmer))
 
