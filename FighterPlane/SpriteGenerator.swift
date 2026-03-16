@@ -886,6 +886,8 @@ enum SpriteGenerator {
             case "cluster_warhead": bgColor = UIColor(red: 0.35, green: 0.45, blue: 0.35, alpha: 1)
             case "decoy_flare": bgColor = UIColor(red: 0.6, green: 0.5, blue: 0.2, alpha: 1)
             case "missile_launcher": bgColor = UIColor(red: 0.4, green: 0.3, blue: 0.5, alpha: 1)
+            case "aim_rockets": bgColor = UIColor(red: 0.5, green: 0.25, blue: 0.25, alpha: 1)
+            case "ecm_jammer": bgColor = UIColor(red: 0.25, green: 0.4, blue: 0.55, alpha: 1)
             default: bgColor = UIColor(white: 0.35, alpha: 1)
             }
 
@@ -1052,6 +1054,21 @@ enum SpriteGenerator {
             ctx.fill(CGRect(x: cx - 10, y: cy + 10, width: 20, height: 6))
             ctx.setFillColor(UIColor(red: 0.8, green: 0.2, blue: 0.1, alpha: 0.7).cgColor)
             ctx.fillEllipse(in: CGRect(x: cx - 3, y: cy + 14, width: 6, height: 8))
+
+        case "aim_rockets":
+            // Two missiles side by side (gray body, red tip)
+            let offsetX: CGFloat = 7
+            for dx: CGFloat in [-offsetX, offsetX] {
+                // Gray body
+                ctx.setFillColor(UIColor(red: 0.45, green: 0.45, blue: 0.48, alpha: 0.9).cgColor)
+                ctx.fill(CGRect(x: cx + dx - 3, y: cy - 12, width: 6, height: 24))
+                // Red tip
+                ctx.setFillColor(UIColor(red: 0.9, green: 0.15, blue: 0.1, alpha: 0.9).cgColor)
+                ctx.fillEllipse(in: CGRect(x: cx + dx - 3, y: cy - 16, width: 6, height: 8))
+                // Fins
+                ctx.setFillColor(UIColor(red: 0.35, green: 0.35, blue: 0.37, alpha: 0.9).cgColor)
+                ctx.fill(CGRect(x: cx + dx - 7, y: cy + 8, width: 14, height: 4))
+            }
 
         default:
             ctx.fillEllipse(in: CGRect(x: cx - 10, y: cy - 10, width: 20, height: 20))
