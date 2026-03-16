@@ -1102,6 +1102,7 @@ enum ModelGenerator3D {
     private static func clusterWarhead3D() -> SCNNode {
         let root = SCNNode()
         root.name = "bomb3D"
+        root.scale = SCNVector3(6, 6, 6)
 
         // Small pear body
         let bulb = SCNSphere(radius: 0.10)
@@ -1144,6 +1145,7 @@ enum ModelGenerator3D {
     static func clusterBomblet3D() -> SCNNode {
         let root = SCNNode()
         root.name = "bomb3D"
+        root.scale = SCNVector3(2, 2, 2)
 
         let sphere = SCNSphere(radius: 0.06)
         sphere.firstMaterial?.diffuse.contents = UIColor(red: 0.22, green: 0.28, blue: 0.14, alpha: 1)
