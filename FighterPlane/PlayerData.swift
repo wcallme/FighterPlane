@@ -4,13 +4,14 @@ struct PlaneInfo {
     let id: String
     let name: String
     let weaponSlots: Int
+    let gunDamageMultiplier: Double
 }
 
 enum PlaneCatalog {
     static let all: [PlaneInfo] = [
-        PlaneInfo(id: "F16", name: "F-16 Falcon", weaponSlots: 5),
-        PlaneInfo(id: "F22", name: "F-22 Raptor", weaponSlots: 7),
-        PlaneInfo(id: "B2", name: "B-2 Spirit", weaponSlots: 9),
+        PlaneInfo(id: "F16", name: "F-16 Falcon", weaponSlots: 5, gunDamageMultiplier: 1.0),
+        PlaneInfo(id: "F22", name: "F-22 Raptor", weaponSlots: 7, gunDamageMultiplier: 1.2),
+        PlaneInfo(id: "B2", name: "B-2 Spirit", weaponSlots: 9, gunDamageMultiplier: 1.0),
     ]
 
     static func plane(byId id: String) -> PlaneInfo? {
@@ -60,6 +61,10 @@ class PlayerData {
 
     var selectedPlaneName: String {
         PlaneCatalog.plane(byId: selectedPlaneId)?.name ?? "F-16 Falcon"
+    }
+
+    var gunDamageMultiplier: Double {
+        PlaneCatalog.plane(byId: selectedPlaneId)?.gunDamageMultiplier ?? 1.0
     }
 
     // MARK: - Weapons

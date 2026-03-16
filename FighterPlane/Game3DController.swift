@@ -1142,11 +1142,13 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
 
                 bullet.eulerAngles.x = (.pi / 2) - angle
 
+                let finalDamage = Int((Double(gun.damage) * PlayerData.shared.gunDamageMultiplier).rounded())
+
                 scene.rootNode.addChildNode(bullet)
                 playerBullets.append(Bullet3D(
                     node: bullet,
                     velocity: SCNVector3(0, vy, vz),
-                    damage: gun.damage
+                    damage: finalDamage
                 ))
             }
 

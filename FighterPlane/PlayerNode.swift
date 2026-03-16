@@ -198,10 +198,12 @@ class PlayerNode: SKNode {
                 // Apply burst accuracy bloom
                 angle += CGFloat.random(in: -bloom...bloom)
 
+                let finalDamage = Int((Double(gun.damage) * PlayerData.shared.gunDamageMultiplier).rounded())
+
                 bullet.userData = NSMutableDictionary()
                 bullet.userData?["speed"] = gun.projectileSpeed
                 bullet.userData?["angle"] = angle
-                bullet.userData?["damage"] = gun.damage
+                bullet.userData?["damage"] = finalDamage
 
                 bullets.append(bullet)
             }
