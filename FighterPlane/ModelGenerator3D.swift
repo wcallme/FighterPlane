@@ -1262,14 +1262,141 @@ enum ModelGenerator3D {
 
     // MARK: - Water
 
+    /// Generate a tileable wave normal map procedurally.
+    /// `frequency` controls wave density; higher = finer ripples.
+    static func generateWaterNormalMap(size: Int = 256, frequency: Float = 1.0) -> CGImage? {
+        let w = size
+        let h = size
+        var pixels = [UInt8](repeating: 0, count: w * h * 4) // RGBA
+
+        for y in 0..<h {
+            for x in 0..<w {
+                let u = Float(x) / Float(w) * .pi * 2.0 * frequency
+                let v = Float(y) / Float(h) * .pi * 2.0 * frequency
+
+                // Layered sine waves for organic wave pattern (tileable via 2*pi period)
+                var nx: Float = 0
+                var nz: Float = 0
+
+                // Primary wave
+                nx += cos(u + v * 0.5) * 0.5
+                nz += cos(v + u * 0.3) * 0.5
+
+                // Secondary wave at different angle
+                nx += cos(u * 1.7 - v * 0.8) * 0.3
+                nz += cos(v * 1.5 + u * 0.6) * 0.3
+
+                // Tertiary fine detail
+                nx += cos(u * 3.1 + v * 2.3) * 0.15
+                nz += cos(v * 2.7 - u * 1.9) * 0.15
+
+                // Normalize to unit normal (ny dominates as surface is mostly flat)
+                let ny: Float = 1.0
+                let len = sqrt(nx * nx + ny * ny + nz * nz)
+
+                // Encode normal as RGB [0,255]: 0.5 = zero, 0=min, 1=max
+                let r = UInt8(clamping: Int((nx / len * 0.5 + 0.5) * 255))
+                let g = UInt8(clamping: Int((ny / len * 0.5 + 0.5) * 255))
+                let b = UInt8(clamping: Int((nz / len * 0.5 + 0.5) * 255))
+
+                let idx = (y * w + x) * 4
+                pixels[idx + 0] = r
+                pixels[idx + 1] = g
+                pixels[idx + 2] = b
+                pixels[idx + 3] = 255
+            }
+        }
+
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        guard let context = CGContext(
+            data: &pixels,
+            width: w,
+            height: h,
+            bitsPerComponent: 8,
+            bytesPerRow: w * 4,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+        return context.makeImage()
+    }
+
+    /// Metal shader modifier for the `.surface` entry point:
+    /// blends a second normal layer and adds Fresnel-based emission.
+    private static let waterSurfaceShader = """
+    #pragma arguments
+    float time;
+
+    #pragma body
+    // Fresnel — boost reflection at grazing angles (side camera benefits greatly)
+    float NdotV = max(0.0, dot(_surface.normal, _surface.view));
+    float fresnel = pow(1.0 - NdotV, 4.0) * 0.35;
+    _surface.emission += float4(fresnel, fresnel, fresnel, 0.0);
+
+    // Subtle normal perturbation over time for extra wave complexity
+    float2 pos = _surface.diffuseTexcoord * 4.0;
+    float t = time * 0.4;
+    float wave1 = sin(pos.x * 3.1 + pos.y * 1.7 + t * 1.3) * 0.12;
+    float wave2 = cos(pos.x * 2.3 - pos.y * 2.9 + t * 0.9) * 0.08;
+    _surface.normal = normalize(_surface.normal + float3(wave1, 0.0, wave2));
+    """
+
+    /// Metal shader modifier for the `.fragment` entry point:
+    /// adds depth-based darkening and shoreline foam.
+    private static let waterFragmentShader = """
+    #pragma arguments
+    float time;
+    float3 foamColor;
+
+    #pragma body
+    // World-space position from the model transform
+    float3 worldPos = (u_inverseViewTransform * float4(_surface.position, 1.0)).xyz;
+    float absX = abs(worldPos.x);
+
+    // Depth darkening — deeper water far from shore
+    float depthFactor = smoothstep(20.0, 45.0, absX);
+    _output.color.rgb *= mix(1.0, 0.55, depthFactor);
+
+    // Shoreline foam — white specks near terrain edge (~28-35 units from center)
+    float shoreBand = smoothstep(35.0, 30.0, absX) * smoothstep(22.0, 28.0, absX);
+    // Animated hash for foam sparkle
+    float2 foamUV = worldPos.xz * 2.5 + float2(time * 0.3, time * 0.15);
+    float hash = fract(sin(dot(floor(foamUV), float2(12.9898, 78.233))) * 43758.5453);
+    float foam = step(0.62, hash) * shoreBand * 0.65;
+    _output.color.rgb = mix(_output.color.rgb, foamColor, foam);
+    """
+
     static func waterPlane(width: CGFloat, length: CGFloat) -> SCNNode {
         let plane = SCNPlane(width: width, height: length)
+        plane.widthSegmentCount = 4   // minimal segments (displacement done in shader)
+        plane.heightSegmentCount = 4
+
         let material = SCNMaterial()
         material.diffuse.contents = UIColor(red: 0.15, green: 0.45, blue: 0.7, alpha: 0.9)
-        material.specular.contents = UIColor(white: 0.8, alpha: 0.5)
-        material.transparency = 0.9
+        material.transparency = 0.88
         material.isDoubleSided = true
-        material.lightingModel = .lambert
+        material.lightingModel = .physicallyBased
+        material.roughness.contents = NSNumber(value: 0.3)
+        material.metalness.contents = NSNumber(value: 0.0)
+
+        // Primary animated normal map
+        if let normalMap = generateWaterNormalMap(size: 256, frequency: 1.0) {
+            material.normal.contents = normalMap
+            material.normal.intensity = 0.7
+            material.normal.wrapS = .repeat
+            material.normal.wrapT = .repeat
+            material.normal.contentsTransform = SCNMatrix4MakeScale(8, 8, 1) // tile across surface
+        }
+
+        // Shader modifiers for Fresnel, dual-normal perturbation, depth, and foam
+        material.shaderModifiers = [
+            .surface: waterSurfaceShader,
+            .fragment: waterFragmentShader
+        ]
+
+        // Initial uniforms
+        material.setValue(NSNumber(value: 0.0), forKey: "time")
+        material.setValue(SCNVector3(1.0, 1.0, 1.0), forKey: "foamColor") // white foam default
+
         plane.materials = [material]
         let node = SCNNode(geometry: plane)
         node.eulerAngles.x = -.pi / 2 // lay flat

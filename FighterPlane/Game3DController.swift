@@ -681,6 +681,27 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         SCNTransaction.begin()
         SCNTransaction.animationDuration = duration
         material.diffuse.contents = biome.waterColor
+
+        // Biome-specific water surface properties
+        switch biome {
+        case .temperate:
+            material.roughness.contents = NSNumber(value: 0.3)
+            material.normal.intensity = 0.7
+            material.setValue(SCNVector3(1.0, 1.0, 1.0), forKey: "foamColor")
+        case .desert:
+            material.roughness.contents = NSNumber(value: 0.45)
+            material.normal.intensity = 0.4  // calmer water
+            material.setValue(SCNVector3(0.85, 0.78, 0.55), forKey: "foamColor")
+        case .arctic:
+            material.roughness.contents = NSNumber(value: 0.25)
+            material.normal.intensity = 0.85  // choppier
+            material.setValue(SCNVector3(0.9, 0.95, 1.0), forKey: "foamColor")
+        case .volcanic:
+            material.roughness.contents = NSNumber(value: 0.55)  // viscous
+            material.normal.intensity = 0.35  // slow, heavy
+            material.setValue(SCNVector3(1.0, 0.5, 0.1), forKey: "foamColor")
+        }
+
         SCNTransaction.commit()
     }
 
@@ -767,8 +788,19 @@ class Game3DController: NSObject, SCNSceneRendererDelegate {
         // Update camera to track player from the side
         updateCamera(dt: floatDt)
 
-        // Move water to follow player along Z
+        // Move water to follow player along Z and animate surface
         waterNode.position = SCNVector3(0, -0.2, playerZ)
+        if let material = waterNode.geometry?.firstMaterial {
+            let t = Float(time)
+            // Scroll primary normal map for wave movement
+            let scrollX = t * 0.02
+            let scrollY = t * 0.014
+            var transform = SCNMatrix4MakeScale(8, 8, 1) // match tile scale from waterPlane()
+            transform = SCNMatrix4Translate(transform, scrollX, scrollY, 0)
+            material.normal.contentsTransform = transform
+            // Pass time to shader modifiers
+            material.setValue(NSNumber(value: t), forKey: "time")
+        }
 
         // Terrain management
         manageTerrain()
