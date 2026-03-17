@@ -1,0 +1,228 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Toolbar */
+#toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: #16213e;
+    border-bottom: 1px solid #0f3460;
+    flex-shrink: 0;
+}
+
+#toolbar .tool-btn {
+    padding: 6px 14px;
+    border: 1px solid #0f3460;
+    border-radius: 6px;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+}
+
+#toolbar .tool-btn:hover { background: #0f3460; }
+#toolbar .tool-btn.active { background: #e94560; border-color: #e94560; color: #fff; }
+
+#toolbar .brush-shape-btn { padding: 4px 8px; font-size: 16px; line-height: 1; min-width: 30px; text-align: center; }
+#toolbar .brush-shape-btn.active { background: #0f3460; border-color: #53a8e2; color: #53a8e2; }
+
+#toolbar .separator { width: 1px; height: 24px; background: #0f3460; margin: 0 4px; }
+
+#toolbar label { font-size: 12px; color: #aaa; margin-left: 8px; }
+#toolbar input[type="range"] { width: 80px; accent-color: #e94560; }
+#toolbar .range-val { font-size: 11px; color: #888; min-width: 24px; }
+
+/* Main layout */
+#main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Canvas area */
+#canvas-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: #111;
+    cursor: crosshair;
+}
+
+#canvas-wrap canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    image-rendering: pixelated;
+}
+
+/* Properties panel */
+#panel {
+    width: 260px;
+    background: #16213e;
+    border-left: 1px solid #0f3460;
+    overflow-y: auto;
+    flex-shrink: 0;
+    padding: 12px;
+}
+
+#panel h3 {
+    font-size: 13px;
+    color: #e94560;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #0f3460;
+}
+
+#panel .section { margin-bottom: 16px; }
+
+#panel label {
+    display: block;
+    font-size: 12px;
+    color: #aaa;
+    margin-bottom: 3px;
+}
+
+#panel input[type="text"],
+#panel input[type="number"] {
+    width: 100%;
+    padding: 5px 8px;
+    background: #1a1a2e;
+    border: 1px solid #0f3460;
+    border-radius: 4px;
+    color: #e0e0e0;
+    font-size: 13px;
+    margin-bottom: 6px;
+}
+
+#panel input[type="range"] {
+    width: 100%;
+    accent-color: #e94560;
+}
+
+#panel select {
+    width: 100%;
+    padding: 5px 8px;
+    background: #1a1a2e;
+    border: 1px solid #0f3460;
+    border-radius: 4px;
+    color: #e0e0e0;
+    font-size: 13px;
+    margin-bottom: 6px;
+}
+
+#panel button {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #0f3460;
+    border-radius: 6px;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    cursor: pointer;
+    font-size: 13px;
+    margin-bottom: 6px;
+    transition: all 0.15s;
+}
+
+#panel button:hover { background: #0f3460; }
+#panel button.primary { background: #e94560; border-color: #e94560; color: #fff; }
+#panel button.primary:hover { background: #c73652; }
+#panel button.success { background: #27ae60; border-color: #27ae60; color: #fff; }
+#panel button.success:hover { background: #1e8c4c; }
+
+.enemy-type-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.enemy-type-btn {
+    padding: 6px 4px !important;
+    font-size: 11px !important;
+    text-align: center;
+    width: auto !important;
+}
+
+.enemy-type-btn.active {
+    background: #e94560 !important;
+    border-color: #e94560 !important;
+}
+
+/* Status bar */
+#status {
+    display: flex;
+    gap: 16px;
+    padding: 4px 12px;
+    background: #16213e;
+    border-top: 1px solid #0f3460;
+    font-size: 12px;
+    color: #888;
+    flex-shrink: 0;
+}
+
+#status span { display: inline-flex; align-items: center; gap: 4px; }
+
+/* New Map Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.modal {
+    background: #16213e;
+    border: 1px solid #0f3460;
+    border-radius: 10px;
+    padding: 24px;
+    width: 340px;
+}
+
+.modal h2 {
+    font-size: 18px;
+    color: #e94560;
+    margin-bottom: 16px;
+}
+
+.modal .btn-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.modal .btn-row button { flex: 1; }
+
+/* Undo indicator */
+.undo-toast {
+    position: fixed;
+    bottom: 36px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0f3460;
+    color: #e0e0e0;
+    padding: 6px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    z-index: 50;
+}
+.undo-toast.show { opacity: 1; }

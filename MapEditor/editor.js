@@ -490,12 +490,33 @@ function proceduralHeight(x, z, seed) {
     return h;
 }
 
-// --- Gaussian brush weight ---
+// --- Brush weight functions ---
 
 function gaussianWeight(dist, radius) {
     if (dist > radius) return 0;
     const t = dist / radius;
     return Math.exp(-t * t * 3);
+}
+
+function brushWeight(dx, dz, radius, shape) {
+    switch (shape) {
+        case 'square': {
+            if (Math.abs(dx) > radius || Math.abs(dz) > radius) return 0;
+            // Slight edge falloff for smoother results
+            const ex = Math.abs(dx) / radius;
+            const ez = Math.abs(dz) / radius;
+            const edge = Math.max(ex, ez);
+            return edge > 0.8 ? 1 - (edge - 0.8) * 2.5 : 1;
+        }
+        case 'diamond': {
+            const manhattan = Math.abs(dx) + Math.abs(dz);
+            if (manhattan > radius) return 0;
+            const t = manhattan / radius;
+            return t > 0.8 ? 1 - (t - 0.8) * 5 : 1;
+        }
+        default: // circle
+            return gaussianWeight(Math.sqrt(dx * dx + dz * dz), radius);
+    }
 }
 
 // --- Enemy colors/labels ---
@@ -542,6 +563,7 @@ class Editor {
         this.tool = 'raise';
         this.brushSize = 3;
         this.brushStrength = 0.5;
+        this.brushShape = 'circle';
         this.selectedEnemy = 'tank';
         this.selectedPlane = 'fighter';
         this.planeCount = 1;
@@ -741,6 +763,15 @@ class Editor {
         planeCountEl.addEventListener('input', () => {
             this.planeCount = parseInt(planeCountEl.value);
             document.getElementById('planeCountVal').textContent = this.planeCount;
+        });
+
+        // Brush shape buttons
+        document.querySelectorAll('.brush-shape-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.brush-shape-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.brushShape = btn.dataset.shape;
+            });
         });
 
         // Brush sliders
@@ -1026,10 +1057,10 @@ class Editor {
 
     applyBrush(cx, cz, strength) {
         const r = this.brushSize;
+        const shape = this.brushShape;
         for (let dz = -r; dz <= r; dz++) {
             for (let dx = -r; dx <= r; dx++) {
-                const dist = Math.sqrt(dx * dx + dz * dz);
-                const w = gaussianWeight(dist, r);
+                const w = brushWeight(dx, dz, r, shape);
                 if (w <= 0) continue;
                 const ix = cx + dx;
                 const iz = cz + dz;
@@ -1041,11 +1072,12 @@ class Editor {
 
     applySmooth(cx, cz) {
         const r = this.brushSize;
+        const shape = this.brushShape;
         const temp = [];
         for (let dz = -r; dz <= r; dz++) {
             for (let dx = -r; dx <= r; dx++) {
-                const dist = Math.sqrt(dx * dx + dz * dz);
-                if (dist > r) continue;
+                const w = brushWeight(dx, dz, r, shape);
+                if (w <= 0) continue;
                 const ix = cx + dx;
                 const iz = cz + dz;
                 // Average neighbors
@@ -1058,8 +1090,7 @@ class Editor {
                 }
                 const avg = sum / count;
                 const cur = this.map.getHeight(ix, iz);
-                const w = gaussianWeight(dist, r) * 0.5;
-                temp.push({ ix, iz, val: cur + (avg - cur) * w });
+                temp.push({ ix, iz, val: cur + (avg - cur) * w * 0.5 });
             }
         }
         for (const t of temp) {
@@ -1842,7 +1873,7 @@ class Editor {
             }
         }
 
-        // Brush preview (isometric diamond)
+        // Brush preview (shape-aware)
         if (this.mouseGrid && ['raise', 'lower', 'smooth', 'eraser'].includes(this.tool)) {
             const mg = this.mouseGrid;
             const hHere = map.getHeight(
@@ -1853,14 +1884,28 @@ class Editor {
             ctx.strokeStyle = 'rgba(233, 69, 96, 0.7)';
             ctx.lineWidth = 1.5;
             ctx.beginPath();
-            const bTop = this.isoProject(mg.ix - r, mg.iz, hHere);
-            const bRight = this.isoProject(mg.ix, mg.iz + r, hHere);
-            const bBottom = this.isoProject(mg.ix + r, mg.iz, hHere);
-            const bLeft = this.isoProject(mg.ix, mg.iz - r, hHere);
-            ctx.moveTo(bTop.x, bTop.y);
-            ctx.lineTo(bRight.x, bRight.y);
-            ctx.lineTo(bBottom.x, bBottom.y);
-            ctx.lineTo(bLeft.x, bLeft.y);
+
+            if (this.brushShape === 'square') {
+                // Square: four corners in iso space
+                const tl = this.isoProject(mg.ix - r, mg.iz - r, hHere);
+                const tr = this.isoProject(mg.ix - r, mg.iz + r, hHere);
+                const br = this.isoProject(mg.ix + r, mg.iz + r, hHere);
+                const bl = this.isoProject(mg.ix + r, mg.iz - r, hHere);
+                ctx.moveTo(tl.x, tl.y);
+                ctx.lineTo(tr.x, tr.y);
+                ctx.lineTo(br.x, br.y);
+                ctx.lineTo(bl.x, bl.y);
+            } else {
+                // Circle and Diamond both show as iso diamond (natural iso shape)
+                const bTop = this.isoProject(mg.ix - r, mg.iz, hHere);
+                const bRight = this.isoProject(mg.ix, mg.iz + r, hHere);
+                const bBottom = this.isoProject(mg.ix + r, mg.iz, hHere);
+                const bLeft = this.isoProject(mg.ix, mg.iz - r, hHere);
+                ctx.moveTo(bTop.x, bTop.y);
+                ctx.lineTo(bRight.x, bRight.y);
+                ctx.lineTo(bBottom.x, bBottom.y);
+                ctx.lineTo(bLeft.x, bLeft.y);
+            }
             ctx.closePath();
             ctx.stroke();
         }
