@@ -221,7 +221,7 @@ class PlayerData {
 
     /// Total max health based on plane base HP + armor upgrade
     var maxHealth: Int {
-        currentPlane.baseHP + armorLevel * 15
+        currentPlane.baseHP + armorLevel * 25
     }
 
     /// Speed multiplier based on plane base speed + wings upgrade
