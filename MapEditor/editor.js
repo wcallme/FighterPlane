@@ -560,6 +560,7 @@ class Editor {
         this.maxUndo = 30;
 
         this.selectedObject = null;
+        this._renderScheduled = false;
 
         this.setupEvents();
 
@@ -601,6 +602,16 @@ class Editor {
         const mapCenterY = (midIZ + midIX) * th / 2;
         this.panX = w / 2 - mapCenterX;
         this.panY = h / 2 - mapCenterY;
+    }
+
+    requestRender() {
+        if (!this._renderScheduled) {
+            this._renderScheduled = true;
+            requestAnimationFrame(() => {
+                this._renderScheduled = false;
+                this.render();
+            });
+        }
     }
 
     // --- Isometric projection ---
@@ -751,7 +762,7 @@ class Editor {
             this._cosA = Math.cos(this.rotationAngle);
             this._sinA = Math.sin(this.rotationAngle);
             document.getElementById('rotationVal').textContent = rotSlider.value + '\u00b0';
-            this.render();
+            this.requestRender();
         });
 
         // Terrain type
@@ -766,7 +777,7 @@ class Editor {
         waterEl.addEventListener('input', () => {
             this.map.waterLevel = parseFloat(waterEl.value);
             document.getElementById('waterLevelVal').textContent = this.map.waterLevel.toFixed(1);
-            this.render();
+            this.requestRender();
         });
 
         // View toggles
@@ -814,7 +825,7 @@ class Editor {
         window.addEventListener('resize', () => {
             this.canvas.width = this.wrap.clientWidth;
             this.canvas.height = this.wrap.clientHeight;
-            this.render();
+            this.requestRender();
         });
     }
 
@@ -836,7 +847,7 @@ class Editor {
         this.isDrawing = true;
         this.saveUndo();
         this.applyTool(cx, cy);
-        this.render();
+        this.requestRender();
     }
 
     onMouseMove(e) {
@@ -856,14 +867,14 @@ class Editor {
             this.panX += e.clientX - this.lastMouse.x;
             this.panY += e.clientY - this.lastMouse.y;
             this.lastMouse = { x: e.clientX, y: e.clientY };
-            this.render();
+            this.requestRender();
             return;
         }
 
         if (this.isDrawing) {
             this.applyTool(cx, cy);
         }
-        this.render();
+        this.requestRender();
     }
 
     onMouseUp() {
@@ -890,7 +901,7 @@ class Editor {
         this.panY = cy - (cy - this.panY) * scale;
 
         document.getElementById('zoomLevel').textContent = `Zoom: ${this.zoom.toFixed(1)}x`;
-        this.render();
+        this.requestRender();
     }
 
     onKeyDown(e) {
@@ -924,13 +935,13 @@ class Editor {
             this.brushSize = Math.max(1, this.brushSize - 1);
             document.getElementById('brushSize').value = this.brushSize;
             document.getElementById('brushSizeVal').textContent = this.brushSize;
-            this.render();
+            this.requestRender();
         }
         if (e.key === ']') {
             this.brushSize = Math.min(15, this.brushSize + 1);
             document.getElementById('brushSize').value = this.brushSize;
             document.getElementById('brushSizeVal').textContent = this.brushSize;
-            this.render();
+            this.requestRender();
         }
     }
 
@@ -1266,6 +1277,10 @@ class Editor {
     // Draw a grid of window rectangles on a projected face quad
     drawIsoFaceWindows(face, cols, rows, color, margin = 0.1, winFrac = 0.6) {
         const [tl, tr, bl, br] = face;
+        // Skip if face is too small on screen to show windows
+        const faceW = Math.abs(tr.x - tl.x) + Math.abs(tr.y - tl.y);
+        const faceH = Math.abs(bl.x - tl.x) + Math.abs(bl.y - tl.y);
+        if (faceW < 8 || faceH < 8) return;
         const ctx = this.ctx;
         ctx.fillStyle = color;
         const usable = 1 - 2 * margin;
@@ -1374,106 +1389,149 @@ class Editor {
         const startIZ = Math.max(0, Math.floor(minIZ) - pad);
         const endIZ = Math.min(map.segmentsZ - 1, Math.ceil(maxIZ) + pad);
 
+        // LOD: merge cells when zoomed out for performance
+        const step = this.zoom < 1 ? 4 : this.zoom < 2 ? 2 : 1;
+        const sIX = Math.max(0, Math.floor(startIX / step) * step);
+        const eIX = Math.min(map.segmentsX - step, Math.ceil(endIX / step) * step);
+        const sIZ = Math.max(0, Math.floor(startIZ / step) * step);
+        const eIZ = Math.min(map.segmentsZ - step, Math.ceil(endIZ / step) * step);
+
         // Determine draw order and visible side faces based on rotation
         const drawSouth = (this._cosA + this._sinA) >= 0;
         const drawEast = (this._cosA - this._sinA) >= 0;
-        const ixStep = drawSouth ? 1 : -1;
-        const izStep = drawEast ? 1 : -1;
-        const ixFrom = drawSouth ? startIX : endIX;
-        const ixTo = drawSouth ? endIX : startIX;
-        const izFrom = drawEast ? startIZ : endIZ;
-        const izTo = drawEast ? endIZ : startIZ;
 
-        // Draw terrain cells from back to front (isometric painter's algorithm)
-        for (let ix = ixFrom; drawSouth ? (ix <= ixTo) : (ix >= ixTo); ix += ixStep) {
-            for (let iz = izFrom; drawEast ? (iz <= izTo) : (iz >= izTo); iz += izStep) {
-                // Get heights at 4 corners of this cell
-                const h00 = map.getHeight(ix, iz);
-                const h10 = map.getHeight(ix + 1, iz);
-                const h01 = map.getHeight(ix, iz + 1);
-                const h11 = map.getHeight(ix + 1, iz + 1);
+        // Pre-cache projection constants for inline use
+        const tw = cs;
+        const th = tw / 2;
+        const hScale = tw * 0.2;
+        const mcx = map.segmentsX / 2;
+        const mcz = map.segmentsZ / 2;
+        const cosA = this._cosA;
+        const sinA = this._sinA;
+        const twH = tw / 2;
+        const thH = th / 2;
+        const pX = this.panX;
+        const pY = this.panY;
+        const blHS = baseLevel * hScale;
+        const wl = map.waterLevel;
+
+        // Pre-compute vertex projections for visible grid
+        const vCols = Math.floor((eIX - sIX) / step) + 2;
+        const vRows = Math.floor((eIZ - sIZ) / step) + 2;
+        const vCount = vCols * vRows;
+        const vPX = new Float64Array(vCount);
+        const topPY = new Float64Array(vCount);
+        const basePY = new Float64Array(vCount);
+
+        for (let vi = 0; vi < vCols; vi++) {
+            const ix = sIX + vi * step;
+            const cix = Math.min(ix, map.segmentsX);
+            for (let vj = 0; vj < vRows; vj++) {
+                const iz = sIZ + vj * step;
+                const ciz = Math.min(iz, map.segmentsZ);
+                const ht = Math.max(map.getHeight(cix, ciz), wl);
+                const dx = ix - mcx, dz = iz - mcz;
+                const rix = dx * cosA - dz * sinA + mcx;
+                const riz = dx * sinA + dz * cosA + mcz;
+                const idx = vi * vRows + vj;
+                vPX[idx] = (riz - rix) * twH + pX;
+                const yBase = (riz + rix) * thH + pY;
+                topPY[idx] = yBase - ht * hScale;
+                basePY[idx] = yBase - blHS;
+            }
+        }
+
+        // Draw terrain cells from back to front using pre-computed vertices
+        const ixStepD = (drawSouth ? 1 : -1) * step;
+        const izStepD = (drawEast ? 1 : -1) * step;
+        const ixFrom = drawSouth ? sIX : eIX;
+        const ixTo = drawSouth ? eIX : sIX;
+        const izFrom = drawEast ? sIZ : eIZ;
+        const izTo = drawEast ? eIZ : sIZ;
+
+        for (let ix = ixFrom; drawSouth ? (ix <= ixTo) : (ix >= ixTo); ix += ixStepD) {
+            const vi = (ix - sIX) / step;
+            for (let iz = izFrom; drawEast ? (iz <= izTo) : (iz >= izTo); iz += izStepD) {
+                const vj = (iz - sIZ) / step;
+                const i00 = vi * vRows + vj;
+                const i01 = i00 + 1;
+                const i10 = (vi + 1) * vRows + vj;
+                const i11 = i10 + 1;
+
+                // Top face vertices from pre-computed grid
+                const p00x = vPX[i00], p00y = topPY[i00];
+                const p01x = vPX[i01], p01y = topPY[i01];
+                const p10x = vPX[i10], p10y = topPY[i10];
+                const p11x = vPX[i11], p11y = topPY[i11];
+
+                // Off-screen culling (generous slack for side faces below)
+                if (Math.min(p00x, p01x, p10x, p11x) > w ||
+                    Math.max(p00x, p01x, p10x, p11x) < 0 ||
+                    Math.min(p00y, p01y, p10y, p11y) > h + 200) continue;
+
+                // Color from actual height
+                const cix0 = Math.min(ix, map.segmentsX), ciz0 = Math.min(iz, map.segmentsZ);
+                const cix1 = Math.min(ix + step, map.segmentsX), ciz1 = Math.min(iz + step, map.segmentsZ);
+                const h00 = map.getHeight(cix0, ciz0);
+                const h10 = map.getHeight(cix1, ciz0);
+                const h01 = map.getHeight(cix0, ciz1);
+                const h11 = map.getHeight(cix1, ciz1);
                 const avgH = (h00 + h10 + h01 + h11) / 4;
 
-                // Display heights: clamp to water level so water is flat
-                const d00 = Math.max(h00, map.waterLevel);
-                const d10 = Math.max(h10, map.waterLevel);
-                const d01 = Math.max(h01, map.waterLevel);
-                const d11 = Math.max(h11, map.waterLevel);
-
-                // Color from actual height (so underwater = water color)
-                const [cr, cg, cb] = heightColor(avgH, map.waterLevel, terrainType);
+                const [cr, cg, cb] = heightColor(avgH, wl, terrainType);
                 const noise = cellHash(ix, iz);
                 const vary = 1.0 + (noise - 0.5) * 0.1;
                 const r = Math.min(255, Math.round(cr * vary));
                 const g = Math.min(255, Math.round(cg * vary));
                 const b = Math.min(255, Math.round(cb * vary));
 
-                // Project 4 corners with display heights
-                const p00 = this.isoProject(ix, iz, d00);
-                const p01 = this.isoProject(ix, iz + 1, d01);
-                const p11 = this.isoProject(ix + 1, iz + 1, d11);
-                const p10 = this.isoProject(ix + 1, iz, d10);
-
                 // Face perpendicular to ix axis (darkest shade)
                 ctx.fillStyle = `rgb(${Math.round(r * 0.45)},${Math.round(g * 0.45)},${Math.round(b * 0.45)})`;
                 if (drawSouth) {
-                    const pb10 = this.isoProject(ix + 1, iz, baseLevel);
-                    const pb11s = this.isoProject(ix + 1, iz + 1, baseLevel);
                     ctx.beginPath();
-                    ctx.moveTo(p10.x, p10.y);
-                    ctx.lineTo(p11.x, p11.y);
-                    ctx.lineTo(pb11s.x, pb11s.y);
-                    ctx.lineTo(pb10.x, pb10.y);
-                    ctx.closePath();
-                    ctx.fill();
+                    ctx.moveTo(p10x, p10y);
+                    ctx.lineTo(p11x, p11y);
+                    ctx.lineTo(vPX[i11], basePY[i11]);
+                    ctx.lineTo(vPX[i10], basePY[i10]);
+                    ctx.closePath(); ctx.fill();
                 } else {
-                    const pb00n = this.isoProject(ix, iz, baseLevel);
-                    const pb01n = this.isoProject(ix, iz + 1, baseLevel);
                     ctx.beginPath();
-                    ctx.moveTo(p00.x, p00.y);
-                    ctx.lineTo(p01.x, p01.y);
-                    ctx.lineTo(pb01n.x, pb01n.y);
-                    ctx.lineTo(pb00n.x, pb00n.y);
-                    ctx.closePath();
-                    ctx.fill();
+                    ctx.moveTo(p00x, p00y);
+                    ctx.lineTo(p01x, p01y);
+                    ctx.lineTo(vPX[i01], basePY[i01]);
+                    ctx.lineTo(vPX[i00], basePY[i00]);
+                    ctx.closePath(); ctx.fill();
                 }
 
                 // Face perpendicular to iz axis (medium shade)
                 ctx.fillStyle = `rgb(${Math.round(r * 0.62)},${Math.round(g * 0.62)},${Math.round(b * 0.62)})`;
                 if (drawEast) {
-                    const pb01e = this.isoProject(ix, iz + 1, baseLevel);
-                    const pb11e = this.isoProject(ix + 1, iz + 1, baseLevel);
                     ctx.beginPath();
-                    ctx.moveTo(p01.x, p01.y);
-                    ctx.lineTo(p11.x, p11.y);
-                    ctx.lineTo(pb11e.x, pb11e.y);
-                    ctx.lineTo(pb01e.x, pb01e.y);
-                    ctx.closePath();
-                    ctx.fill();
+                    ctx.moveTo(p01x, p01y);
+                    ctx.lineTo(p11x, p11y);
+                    ctx.lineTo(vPX[i11], basePY[i11]);
+                    ctx.lineTo(vPX[i01], basePY[i01]);
+                    ctx.closePath(); ctx.fill();
                 } else {
-                    const pb00w = this.isoProject(ix, iz, baseLevel);
-                    const pb10w = this.isoProject(ix + 1, iz, baseLevel);
                     ctx.beginPath();
-                    ctx.moveTo(p00.x, p00.y);
-                    ctx.lineTo(p10.x, p10.y);
-                    ctx.lineTo(pb10w.x, pb10w.y);
-                    ctx.lineTo(pb00w.x, pb00w.y);
-                    ctx.closePath();
-                    ctx.fill();
+                    ctx.moveTo(p00x, p00y);
+                    ctx.lineTo(p10x, p10y);
+                    ctx.lineTo(vPX[i10], basePY[i10]);
+                    ctx.lineTo(vPX[i00], basePY[i00]);
+                    ctx.closePath(); ctx.fill();
                 }
 
                 // Top face
                 ctx.fillStyle = `rgb(${r},${g},${b})`;
                 ctx.beginPath();
-                ctx.moveTo(p00.x, p00.y);
-                ctx.lineTo(p01.x, p01.y);
-                ctx.lineTo(p11.x, p11.y);
-                ctx.lineTo(p10.x, p10.y);
-                ctx.closePath();
-                ctx.fill();
+                ctx.moveTo(p00x, p00y);
+                ctx.lineTo(p01x, p01y);
+                ctx.lineTo(p11x, p11y);
+                ctx.lineTo(p10x, p10y);
+                ctx.closePath(); ctx.fill();
 
-                // Grid lines on top face
-                if (this.showGrid && this.zoom >= 3) {
+                // Grid lines on top face (only at full detail)
+                if (step === 1 && this.showGrid && this.zoom >= 3) {
                     ctx.strokeStyle = 'rgba(255,255,255,0.07)';
                     ctx.lineWidth = 0.5;
                     ctx.stroke();
@@ -1534,23 +1592,26 @@ class Editor {
             ctx.restore();
         }
 
-        // Draw objects sorted by isometric depth (back to front)
+        // Draw objects sorted by isometric depth (back to front, rotation-aware)
         if (this.showObjects) {
+            const dFX = cosA + sinA;
+            const dFZ = cosA - sinA;
+            const objDepth = (d) => map.indexX(d.x) * dFX + map.indexZ(d.z) * dFZ;
             const allObjs = [];
             for (const tree of map.trees) {
-                allObjs.push({ type: 'tree', data: tree, depth: map.indexX(tree.x) + map.indexZ(tree.z) });
+                allObjs.push({ type: 'tree', data: tree, depth: objDepth(tree) });
             }
             for (const rock of map.rocks) {
-                allObjs.push({ type: 'rock', data: rock, depth: map.indexX(rock.x) + map.indexZ(rock.z) });
+                allObjs.push({ type: 'rock', data: rock, depth: objDepth(rock) });
             }
             for (const bld of map.buildings) {
-                allObjs.push({ type: 'building', data: bld, depth: map.indexX(bld.x) + map.indexZ(bld.z) });
+                allObjs.push({ type: 'building', data: bld, depth: objDepth(bld) });
             }
             for (const enemy of map.enemies) {
-                allObjs.push({ type: 'enemy', data: enemy, depth: map.indexX(enemy.x) + map.indexZ(enemy.z) });
+                allObjs.push({ type: 'enemy', data: enemy, depth: objDepth(enemy) });
             }
             for (const plane of map.planes) {
-                allObjs.push({ type: 'plane', data: plane, depth: map.indexX(plane.x) + map.indexZ(plane.z) });
+                allObjs.push({ type: 'plane', data: plane, depth: objDepth(plane) });
             }
             allObjs.sort((a, b) => a.depth - b.depth);
 
