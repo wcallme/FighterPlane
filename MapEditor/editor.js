@@ -46,6 +46,7 @@ class MapData {
         this.buildings = []; // decorative buildings: { type, x, z, rotation }
         this.enemies = [];
         this.planes = [];    // air trigger points: { type, x, z, count }
+        this.roads = [];     // road paths: [ [{x, z}, ...], ... ]
         this.waterLevel = -0.2;
         this.terrainType = 'temperate';
         this.name = "Untitled Mission";
@@ -569,6 +570,7 @@ class Editor {
         this.planeCount = 1;
         this.selectedBuilding = 'house';
         this.buildingRotation = 0;
+        this.currentRoad = null; // road path being drawn
         this.showGrid = true;
         this.showObjects = true;
 
@@ -877,6 +879,15 @@ class Editor {
 
         this.isDrawing = true;
         this.saveUndo();
+
+        // Road tool: start a new road path
+        if (this.tool === 'road') {
+            const world = this.canvasToWorld(cx, cy);
+            this.currentRoad = [{ x: world.x, z: world.z }];
+            this.requestRender();
+            return;
+        }
+
         this.applyTool(cx, cy);
         this.requestRender();
     }
@@ -903,13 +914,33 @@ class Editor {
         }
 
         if (this.isDrawing) {
-            this.applyTool(cx, cy);
+            // Road tool: extend the current road path
+            if (this.tool === 'road' && this.currentRoad) {
+                const world = this.canvasToWorld(cx, cy);
+                const last = this.currentRoad[this.currentRoad.length - 1];
+                const dx = world.x - last.x;
+                const dz = world.z - last.z;
+                const dist = Math.sqrt(dx * dx + dz * dz);
+                // Add point every ~1.5 game units for smooth curves
+                if (dist >= 1.5) {
+                    this.currentRoad.push({ x: world.x, z: world.z });
+                }
+            } else {
+                this.applyTool(cx, cy);
+            }
         }
         this.requestRender();
     }
 
     onMouseUp() {
-        if (this.isDrawing) this.scheduleSave();
+        if (this.isDrawing) {
+            // Road tool: finalize road path
+            if (this.tool === 'road' && this.currentRoad && this.currentRoad.length >= 2) {
+                this.map.roads.push(this.currentRoad);
+            }
+            this.currentRoad = null;
+            this.scheduleSave();
+        }
         this.isDrawing = false;
         this.isPanning = false;
         this.lastMouse = null;
@@ -945,7 +976,7 @@ class Editor {
         }
 
         // Number keys for tools
-        const toolMap = { '1': 'raise', '2': 'lower', '3': 'smooth', '4': 'tree', '5': 'rock', '6': 'enemy', '7': 'plane', '8': 'building', '9': 'eraser' };
+        const toolMap = { '1': 'raise', '2': 'lower', '3': 'smooth', '4': 'tree', '5': 'rock', '6': 'enemy', '7': 'plane', '8': 'building', '9': 'eraser', '0': 'road' };
         if (toolMap[e.key]) {
             document.querySelectorAll('.tool-btn[data-tool]').forEach(b => b.classList.remove('active'));
             document.querySelector(`.tool-btn[data-tool="${toolMap[e.key]}"]`).classList.add('active');
@@ -995,6 +1026,7 @@ class Editor {
             buildings: JSON.parse(JSON.stringify(this.map.buildings)),
             enemies: JSON.parse(JSON.stringify(this.map.enemies)),
             planes: JSON.parse(JSON.stringify(this.map.planes)),
+            roads: JSON.parse(JSON.stringify(this.map.roads)),
         };
         this.undoStack.push(snapshot);
         if (this.undoStack.length > this.maxUndo) this.undoStack.shift();
@@ -1009,6 +1041,7 @@ class Editor {
         this.map.buildings = snapshot.buildings;
         this.map.enemies = snapshot.enemies;
         this.map.planes = snapshot.planes;
+        this.map.roads = snapshot.roads;
         this.render();
         // Show toast
         const toast = document.getElementById('undoToast');
@@ -1235,8 +1268,110 @@ class Editor {
         }
         if (minIdx >= 0) { this.map.rocks.splice(minIdx, 1); return; }
 
+        // Remove nearest road segment
+        minIdx = -1; minDist = eraseDist;
+        for (let i = 0; i < this.map.roads.length; i++) {
+            const road = this.map.roads[i];
+            for (const pt of road) {
+                const d = Math.sqrt((pt.x - world.x) ** 2 + (pt.z - world.z) ** 2);
+                if (d < minDist) { minDist = d; minIdx = i; }
+            }
+        }
+        if (minIdx >= 0) { this.map.roads.splice(minIdx, 1); return; }
+
         // No object found — flatten terrain toward 0
         this.applyBrush(gx, gz, -this.map.getHeight(gx, gz) * 0.3);
+    }
+
+    // --- Road rendering ---
+
+    // Road half-width in game units (~1.5x tank width of 1.4 = 2.1, half = 1.05)
+    static get ROAD_HALF_WIDTH() { return 1.05; }
+
+    drawRoads(ctx, map, terrainType) {
+        const allRoads = [...map.roads];
+        // Include the road currently being drawn
+        if (this.currentRoad && this.currentRoad.length >= 2) {
+            allRoads.push(this.currentRoad);
+        }
+        if (allRoads.length === 0) return;
+
+        const hw = Editor.ROAD_HALF_WIDTH;
+        const isDesert = terrainType === 'desert';
+
+        for (const road of allRoads) {
+            if (road.length < 2) continue;
+
+            // Draw each segment
+            for (let i = 0; i < road.length - 1; i++) {
+                const p0 = road[i];
+                const p1 = road[i + 1];
+
+                // Direction and perpendicular
+                const dx = p1.x - p0.x;
+                const dz = p1.z - p0.z;
+                const len = Math.sqrt(dx * dx + dz * dz);
+                if (len < 0.01) continue;
+                const nx = -dz / len * hw;
+                const nz = dx / len * hw;
+
+                // Get heights at endpoints
+                const ix0 = map.indexX(p0.x), iz0 = map.indexZ(p0.z);
+                const ix1 = map.indexX(p1.x), iz1 = map.indexZ(p1.z);
+                const h0 = map.getHeight(ix0, iz0);
+                const h1 = map.getHeight(ix1, iz1);
+
+                // Four corners in world space → iso screen
+                const { fx: fx0, fz: fz0 } = this.worldToFGrid(p0.x, p0.z);
+                const { fx: fx1, fz: fz1 } = this.worldToFGrid(p1.x, p1.z);
+                // Convert normal offset to grid-fractional space
+                const { fx: nfxA, fz: nfzA } = this.worldToFGrid(p0.x + nx, p0.z + nz);
+                const offX = nfxA - fx0;
+                const offZ = nfzA - fz0;
+
+                const c0L = this.isoProject(fx0 - offX, fz0 - offZ, h0);
+                const c0R = this.isoProject(fx0 + offX, fz0 + offZ, h0);
+                const c1L = this.isoProject(fx1 - offX, fz1 - offZ, h1);
+                const c1R = this.isoProject(fx1 + offX, fz1 + offZ, h1);
+
+                // Asphalt fill
+                ctx.save();
+                if (isDesert) {
+                    ctx.globalAlpha = 0.55; // Sand-covered effect
+                }
+                ctx.fillStyle = '#3a3a3a';
+                ctx.beginPath();
+                ctx.moveTo(c0L.x, c0L.y);
+                ctx.lineTo(c0R.x, c0R.y);
+                ctx.lineTo(c1R.x, c1R.y);
+                ctx.lineTo(c1L.x, c1L.y);
+                ctx.closePath();
+                ctx.fill();
+
+                // Yellow edge lines
+                ctx.strokeStyle = isDesert ? 'rgba(204, 170, 50, 0.5)' : '#ccaa32';
+                ctx.lineWidth = Math.max(1, this.zoom * 0.3);
+                ctx.beginPath();
+                ctx.moveTo(c0L.x, c0L.y); ctx.lineTo(c1L.x, c1L.y);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(c0R.x, c0R.y); ctx.lineTo(c1R.x, c1R.y);
+                ctx.stroke();
+
+                // White dashed center line
+                ctx.strokeStyle = isDesert ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.85)';
+                ctx.lineWidth = Math.max(1, this.zoom * 0.2);
+                ctx.setLineDash([Math.max(3, this.zoom * 2), Math.max(3, this.zoom * 2)]);
+                const ctr0 = this.isoProject(fx0, fz0, h0);
+                const ctr1 = this.isoProject(fx1, fz1, h1);
+                ctx.beginPath();
+                ctx.moveTo(ctr0.x, ctr0.y); ctx.lineTo(ctr1.x, ctr1.y);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                ctx.restore();
+            }
+        }
     }
 
     // --- Isometric 3D drawing helpers ---
@@ -1623,6 +1758,11 @@ class Editor {
             ctx.restore();
         }
 
+        // Draw roads (before objects so they appear underneath)
+        if (this.showObjects) {
+            this.drawRoads(ctx, map, terrainType);
+        }
+
         // Draw objects sorted by isometric depth (back to front, rotation-aware)
         if (this.showObjects) {
             const dFX = cosA + sinA;
@@ -1921,6 +2061,33 @@ class Editor {
             ctx.stroke();
         }
 
+        // Road tool cursor — show road width indicator
+        if (this.mouseGrid && this.tool === 'road') {
+            const mg = this.mouseGrid;
+            const hHere = map.getHeight(
+                Math.max(0, Math.min(mg.ix, map.segmentsX)),
+                Math.max(0, Math.min(mg.iz, map.segmentsZ))
+            );
+            const hw = Editor.ROAD_HALF_WIDTH;
+            const { fx, fz } = this.worldToFGrid(map.worldX(mg.ix), map.worldZ(mg.iz));
+            const { fx: fx2 } = this.worldToFGrid(map.worldX(mg.ix) + hw, map.worldZ(mg.iz));
+            const offX = fx2 - fx;
+            // Show a small road-width crossbar
+            const cL = this.isoProject(fx - offX, fz, hHere);
+            const cR = this.isoProject(fx + offX, fz, hHere);
+            const ctr = this.isoProject(fx, fz, hHere);
+            ctx.strokeStyle = 'rgba(233, 69, 96, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(cL.x, cL.y); ctx.lineTo(cR.x, cR.y);
+            ctx.stroke();
+            // Center dot
+            ctx.fillStyle = 'rgba(233, 69, 96, 0.9)';
+            ctx.beginPath();
+            ctx.arc(ctr.x, ctr.y, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
         this.updateCounts();
     }
 
@@ -1937,7 +2104,8 @@ class Editor {
             `Rocks: ${this.map.rocks.length}<br>` +
             `Buildings: ${this.map.buildings.length}<br>` +
             `Enemies: ${this.map.enemies.length}<br>` +
-            `Planes: ${this.map.planes.length}`;
+            `Planes: ${this.map.planes.length}<br>` +
+            `Roads: ${this.map.roads.length}`;
     }
 
     // --- Map Resize ---
@@ -1974,6 +2142,7 @@ class Editor {
         map.rocks = map.rocks.filter(r => r.z <= map.lengthZ);
         map.enemies = map.enemies.filter(e => e.z <= map.lengthZ);
         map.planes = map.planes.filter(p => p.z <= map.lengthZ);
+        map.roads = map.roads.map(path => path.filter(pt => pt.z <= map.lengthZ)).filter(p => p.length >= 2);
 
         this.updateDimensions();
         this.updateCounts();
@@ -2020,6 +2189,7 @@ class Editor {
         map.buildings = [];
         map.enemies = [];
         map.planes = [];
+        map.roads = [];
         this.render();
         this.scheduleSave();
     }
@@ -2089,6 +2259,10 @@ class Editor {
                     count: p.count || 1,
                 };
             }),
+            roads: map.roads.map(path => path.map(pt => ({
+                x: Math.round(pt.x * 100) / 100,
+                z: Math.round(pt.z * 100) / 100,
+            }))),
             playerStart: { z: 0, altitude: 12 },
             objectives: { type: "destroyAll", description: "Destroy all enemy installations" },
         };
@@ -2196,6 +2370,7 @@ class Editor {
             z: p.encounterZ ?? p.z,
             count: p.count || 1,
         }));
+        this.map.roads = data.roads || [];
 
         // Update UI
         document.getElementById('mapName').value = this.map.name;

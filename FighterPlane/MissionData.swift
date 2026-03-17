@@ -14,6 +14,7 @@ struct MissionData: Codable {
     let objects: ObjectsData
     let enemies: [EnemyPlacement]
     let planeTriggers: [PlaneTrigger]?
+    let roads: [[RoadPoint]]?
     let playerStart: PlayerStart
     let objectives: MissionObjective?
 }
@@ -66,6 +67,11 @@ struct PlaneTrigger: Codable {
     let x: Float          // horizontal hint (maps to spawn X position)
     let z: Float          // trigger Z — when player passes this, planes spawn
     let count: Int        // how many planes to spawn
+}
+
+struct RoadPoint: Codable {
+    let x: Float
+    let z: Float
 }
 
 struct PlayerStart: Codable {
