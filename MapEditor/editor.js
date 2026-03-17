@@ -526,6 +526,9 @@ class Editor {
         this.zoom = 4;
         this.panX = 0;
         this.panY = 0;
+        this.rotationAngle = 0;
+        this._cosA = 1;
+        this._sinA = 0;
 
         this.tool = 'raise';
         this.brushSize = 3;
@@ -597,9 +600,16 @@ class Editor {
         const tw = this.cellSize * this.zoom;
         const th = tw / 2;
         const hScale = tw * 0.2;
+        // Rotate around map center
+        const mcx = this.map.segmentsX / 2;
+        const mcz = this.map.segmentsZ / 2;
+        const dx = ix - mcx;
+        const dz = iz - mcz;
+        const rix = dx * this._cosA - dz * this._sinA + mcx;
+        const riz = dx * this._sinA + dz * this._cosA + mcz;
         return {
-            x: (iz - ix) * tw / 2 + this.panX,
-            y: (iz + ix) * th / 2 + this.panY - h * hScale,
+            x: (riz - rix) * tw / 2 + this.panX,
+            y: (riz + rix) * th / 2 + this.panY - h * hScale,
         };
     }
 
@@ -613,16 +623,27 @@ class Editor {
         const sy = cy - this.panY;
         const a = tw / 2;
         const b = th / 2;
-        // First approximation (flat, h=0)
-        let iz = (sx / a + sy / b) / 2;
-        let ix = (sy / b - sx / a) / 2;
-        // Height correction: adjust for terrain height at estimated position
+        const mcx = this.map.segmentsX / 2;
+        const mcz = this.map.segmentsZ / 2;
+        // Reverse isometric → rotated grid coordinates
+        let riz = (sx / a + sy / b) / 2;
+        let rix = (sy / b - sx / a) / 2;
+        // Inverse rotation → actual grid coordinates
+        let drx = rix - mcx;
+        let drz = riz - mcz;
+        let ix = drx * this._cosA + drz * this._sinA + mcx;
+        let iz = -drx * this._sinA + drz * this._cosA + mcz;
+        // Height correction
         const ixR = Math.max(0, Math.min(Math.round(ix), this.map.segmentsX));
         const izR = Math.max(0, Math.min(Math.round(iz), this.map.segmentsZ));
         const hAdj = this.map.getHeight(ixR, izR);
         const syAdj = sy + hAdj * hScale;
-        iz = (sx / a + syAdj / b) / 2;
-        ix = (syAdj / b - sx / a) / 2;
+        riz = (sx / a + syAdj / b) / 2;
+        rix = (syAdj / b - sx / a) / 2;
+        drx = rix - mcx;
+        drz = riz - mcz;
+        ix = drx * this._cosA + drz * this._sinA + mcx;
+        iz = -drx * this._sinA + drz * this._cosA + mcz;
         return { ix: Math.round(ix), iz: Math.round(iz) };
     }
 
@@ -712,6 +733,16 @@ class Editor {
         brushStrengthEl.addEventListener('input', () => {
             this.brushStrength = parseInt(brushStrengthEl.value) / 10;
             document.getElementById('brushStrengthVal').textContent = this.brushStrength.toFixed(1);
+        });
+
+        // Rotation slider
+        const rotSlider = document.getElementById('rotationSlider');
+        rotSlider.addEventListener('input', () => {
+            this.rotationAngle = parseFloat(rotSlider.value) * Math.PI / 180;
+            this._cosA = Math.cos(this.rotationAngle);
+            this._sinA = Math.sin(this.rotationAngle);
+            document.getElementById('rotationVal').textContent = rotSlider.value + '\u00b0';
+            this.render();
         });
 
         // Terrain type
@@ -1193,9 +1224,19 @@ class Editor {
         const startIZ = Math.max(0, Math.floor(minIZ) - pad);
         const endIZ = Math.min(map.segmentsZ - 1, Math.ceil(maxIZ) + pad);
 
+        // Determine draw order and visible side faces based on rotation
+        const drawSouth = (this._cosA + this._sinA) >= 0;
+        const drawEast = (this._cosA - this._sinA) >= 0;
+        const ixStep = drawSouth ? 1 : -1;
+        const izStep = drawEast ? 1 : -1;
+        const ixFrom = drawSouth ? startIX : endIX;
+        const ixTo = drawSouth ? endIX : startIX;
+        const izFrom = drawEast ? startIZ : endIZ;
+        const izTo = drawEast ? endIZ : startIZ;
+
         // Draw terrain cells from back to front (isometric painter's algorithm)
-        for (let ix = startIX; ix <= endIX; ix++) {
-            for (let iz = startIZ; iz <= endIZ; iz++) {
+        for (let ix = ixFrom; drawSouth ? (ix <= ixTo) : (ix >= ixTo); ix += ixStep) {
+            for (let iz = izFrom; drawEast ? (iz <= izTo) : (iz >= izTo); iz += izStep) {
                 // Get heights at 4 corners of this cell
                 const h00 = map.getHeight(ix, iz);
                 const h10 = map.getHeight(ix + 1, iz);
@@ -1223,28 +1264,53 @@ class Editor {
                 const p11 = this.isoProject(ix + 1, iz + 1, d11);
                 const p10 = this.isoProject(ix + 1, iz, d10);
 
-                // South side face (front wall — darkest shade)
-                const pb10 = this.isoProject(ix + 1, iz, baseLevel);
-                const pb11 = this.isoProject(ix + 1, iz + 1, baseLevel);
+                // Face perpendicular to ix axis (darkest shade)
                 ctx.fillStyle = `rgb(${Math.round(r * 0.45)},${Math.round(g * 0.45)},${Math.round(b * 0.45)})`;
-                ctx.beginPath();
-                ctx.moveTo(p10.x, p10.y);
-                ctx.lineTo(p11.x, p11.y);
-                ctx.lineTo(pb11.x, pb11.y);
-                ctx.lineTo(pb10.x, pb10.y);
-                ctx.closePath();
-                ctx.fill();
+                if (drawSouth) {
+                    const pb10 = this.isoProject(ix + 1, iz, baseLevel);
+                    const pb11s = this.isoProject(ix + 1, iz + 1, baseLevel);
+                    ctx.beginPath();
+                    ctx.moveTo(p10.x, p10.y);
+                    ctx.lineTo(p11.x, p11.y);
+                    ctx.lineTo(pb11s.x, pb11s.y);
+                    ctx.lineTo(pb10.x, pb10.y);
+                    ctx.closePath();
+                    ctx.fill();
+                } else {
+                    const pb00n = this.isoProject(ix, iz, baseLevel);
+                    const pb01n = this.isoProject(ix, iz + 1, baseLevel);
+                    ctx.beginPath();
+                    ctx.moveTo(p00.x, p00.y);
+                    ctx.lineTo(p01.x, p01.y);
+                    ctx.lineTo(pb01n.x, pb01n.y);
+                    ctx.lineTo(pb00n.x, pb00n.y);
+                    ctx.closePath();
+                    ctx.fill();
+                }
 
-                // East side face (right wall — medium shade)
-                const pb01 = this.isoProject(ix, iz + 1, baseLevel);
+                // Face perpendicular to iz axis (medium shade)
                 ctx.fillStyle = `rgb(${Math.round(r * 0.62)},${Math.round(g * 0.62)},${Math.round(b * 0.62)})`;
-                ctx.beginPath();
-                ctx.moveTo(p01.x, p01.y);
-                ctx.lineTo(p11.x, p11.y);
-                ctx.lineTo(pb11.x, pb11.y);
-                ctx.lineTo(pb01.x, pb01.y);
-                ctx.closePath();
-                ctx.fill();
+                if (drawEast) {
+                    const pb01e = this.isoProject(ix, iz + 1, baseLevel);
+                    const pb11e = this.isoProject(ix + 1, iz + 1, baseLevel);
+                    ctx.beginPath();
+                    ctx.moveTo(p01.x, p01.y);
+                    ctx.lineTo(p11.x, p11.y);
+                    ctx.lineTo(pb11e.x, pb11e.y);
+                    ctx.lineTo(pb01e.x, pb01e.y);
+                    ctx.closePath();
+                    ctx.fill();
+                } else {
+                    const pb00w = this.isoProject(ix, iz, baseLevel);
+                    const pb10w = this.isoProject(ix + 1, iz, baseLevel);
+                    ctx.beginPath();
+                    ctx.moveTo(p00.x, p00.y);
+                    ctx.lineTo(p10.x, p10.y);
+                    ctx.lineTo(pb10w.x, pb10w.y);
+                    ctx.lineTo(pb00w.x, pb00w.y);
+                    ctx.closePath();
+                    ctx.fill();
+                }
 
                 // Top face
                 ctx.fillStyle = `rgb(${r},${g},${b})`;
