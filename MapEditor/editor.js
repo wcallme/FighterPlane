@@ -580,39 +580,65 @@ class Editor {
         const h = this.wrap.clientHeight;
         this.canvas.width = w;
         this.canvas.height = h;
-        // Center the map (Z is horizontal, X is vertical after rotation)
-        const mapPixelW = (this.map.segmentsZ + 1) * this.cellSize * this.zoom;
-        const mapPixelH = (this.map.segmentsX + 1) * this.cellSize * this.zoom;
-        this.panX = (w - mapPixelW) / 2;
-        this.panY = (h - mapPixelH) / 2;
+        // Center the isometric map view
+        const tw = this.cellSize * this.zoom;
+        const th = tw / 2;
+        const midIX = this.map.segmentsX / 2;
+        const midIZ = this.map.segmentsZ / 2;
+        const mapCenterX = (midIZ - midIX) * tw / 2;
+        const mapCenterY = (midIZ + midIX) * th / 2;
+        this.panX = w / 2 - mapCenterX;
+        this.panY = h / 2 - mapCenterY;
+    }
+
+    // --- Isometric projection ---
+
+    isoProject(ix, iz, h = 0) {
+        const tw = this.cellSize * this.zoom;
+        const th = tw / 2;
+        const hScale = tw * 0.2;
+        return {
+            x: (iz - ix) * tw / 2 + this.panX,
+            y: (iz + ix) * th / 2 + this.panY - h * hScale,
+        };
     }
 
     // --- Coordinate conversion ---
 
     canvasToGrid(cx, cy) {
-        // Rotated: Z is horizontal (canvas X), X is vertical (canvas Y)
-        const mz = (cx - this.panX) / (this.cellSize * this.zoom);
-        const mx = (cy - this.panY) / (this.cellSize * this.zoom);
-        return { ix: Math.round(mx), iz: Math.round(mz) };
+        const tw = this.cellSize * this.zoom;
+        const th = tw / 2;
+        const hScale = tw * 0.2;
+        const sx = cx - this.panX;
+        const sy = cy - this.panY;
+        const a = tw / 2;
+        const b = th / 2;
+        // First approximation (flat, h=0)
+        let iz = (sx / a + sy / b) / 2;
+        let ix = (sy / b - sx / a) / 2;
+        // Height correction: adjust for terrain height at estimated position
+        const ixR = Math.max(0, Math.min(Math.round(ix), this.map.segmentsX));
+        const izR = Math.max(0, Math.min(Math.round(iz), this.map.segmentsZ));
+        const hAdj = this.map.getHeight(ixR, izR);
+        const syAdj = sy + hAdj * hScale;
+        iz = (sx / a + syAdj / b) / 2;
+        ix = (syAdj / b - sx / a) / 2;
+        return { ix: Math.round(ix), iz: Math.round(iz) };
     }
 
     gridToCanvas(ix, iz) {
-        // Rotated: Z maps to canvas X, X maps to canvas Y
-        return {
-            x: iz * this.cellSize * this.zoom + this.panX,
-            y: ix * this.cellSize * this.zoom + this.panY,
-        };
+        const h = this.map.getHeight(
+            Math.max(0, Math.min(ix, this.map.segmentsX)),
+            Math.max(0, Math.min(iz, this.map.segmentsZ))
+        );
+        return this.isoProject(ix, iz, h);
     }
 
     worldToCanvas(wx, wz) {
-        // Returns the CENTER of the cell (for object rendering)
         const ix = this.map.indexX(wx);
         const iz = this.map.indexZ(wz);
-        const cs = this.cellSize * this.zoom;
-        return {
-            x: iz * cs + this.panX + cs / 2,
-            y: ix * cs + this.panY + cs / 2,
-        };
+        const h = this.map.getHeight(ix, iz);
+        return this.isoProject(ix, iz, h);
     }
 
     canvasToWorld(cx, cy) {
@@ -1140,230 +1166,311 @@ class Editor {
         const cs = this.cellSize * this.zoom;
 
         ctx.clearRect(0, 0, w, h);
-        ctx.fillStyle = '#111';
+        ctx.fillStyle = '#0a0a18';
         ctx.fillRect(0, 0, w, h);
 
         const map = this.map;
-
-        // Determine visible range (rotated: Z is horizontal, X is vertical)
-        const startIZ = Math.max(0, Math.floor(-this.panX / cs) - 1);
-        const startIX = Math.max(0, Math.floor(-this.panY / cs) - 1);
-        const endIZ = Math.min(map.segmentsZ, Math.ceil((w - this.panX) / cs) + 1);
-        const endIX = Math.min(map.segmentsX, Math.ceil((h - this.panY) / cs) + 1);
-
-        // Draw terrain cells (rotated: iz → canvas X, ix → canvas Y)
         const terrainType = map.terrainType || 'temperate';
-        for (let iz = startIZ; iz <= endIZ; iz++) {
-            for (let ix = startIX; ix <= endIX; ix++) {
-                const height = map.getHeight(ix, iz);
-                const [cr, cg, cb] = heightColor(height, map.waterLevel, terrainType);
-                // Per-cell noise for organic texture
+        const baseLevel = map.waterLevel - 0.3;
+
+        // Determine visible cell range from screen corners (isometric reverse)
+        const corners = [
+            this.canvasToGrid(0, 0),
+            this.canvasToGrid(w, 0),
+            this.canvasToGrid(0, h),
+            this.canvasToGrid(w, h),
+        ];
+        let minIX = Infinity, maxIX = -Infinity, minIZ = Infinity, maxIZ = -Infinity;
+        for (const c of corners) {
+            minIX = Math.min(minIX, c.ix);
+            maxIX = Math.max(maxIX, c.ix);
+            minIZ = Math.min(minIZ, c.iz);
+            maxIZ = Math.max(maxIZ, c.iz);
+        }
+        const pad = 10;
+        const startIX = Math.max(0, Math.floor(minIX) - pad);
+        const endIX = Math.min(map.segmentsX - 1, Math.ceil(maxIX) + pad);
+        const startIZ = Math.max(0, Math.floor(minIZ) - pad);
+        const endIZ = Math.min(map.segmentsZ - 1, Math.ceil(maxIZ) + pad);
+
+        // Draw terrain cells from back to front (isometric painter's algorithm)
+        for (let ix = startIX; ix <= endIX; ix++) {
+            for (let iz = startIZ; iz <= endIZ; iz++) {
+                // Get heights at 4 corners of this cell
+                const h00 = map.getHeight(ix, iz);
+                const h10 = map.getHeight(ix + 1, iz);
+                const h01 = map.getHeight(ix, iz + 1);
+                const h11 = map.getHeight(ix + 1, iz + 1);
+                const avgH = (h00 + h10 + h01 + h11) / 4;
+
+                // Display heights: clamp to water level so water is flat
+                const d00 = Math.max(h00, map.waterLevel);
+                const d10 = Math.max(h10, map.waterLevel);
+                const d01 = Math.max(h01, map.waterLevel);
+                const d11 = Math.max(h11, map.waterLevel);
+
+                // Color from actual height (so underwater = water color)
+                const [cr, cg, cb] = heightColor(avgH, map.waterLevel, terrainType);
                 const noise = cellHash(ix, iz);
                 const vary = 1.0 + (noise - 0.5) * 0.1;
-                ctx.fillStyle = `rgb(${Math.min(255, Math.round(cr * vary))},${Math.min(255, Math.round(cg * vary))},${Math.min(255, Math.round(cb * vary))})`;
-                const px = iz * cs + this.panX;
-                const py = ix * cs + this.panY;
-                ctx.fillRect(px, py, cs + 0.5, cs + 0.5);
-            }
-        }
+                const r = Math.min(255, Math.round(cr * vary));
+                const g = Math.min(255, Math.round(cg * vary));
+                const b = Math.min(255, Math.round(cb * vary));
 
-        // Highlight the plane's middle row (X=0 → ix = segmentsX/2)
-        const midIX = Math.floor(map.segmentsX / 2);
-        const bandY = midIX * cs + this.panY;
-        const bandX0 = startIZ * cs + this.panX;
-        const bandX1 = (endIZ + 1) * cs + this.panX;
-        ctx.save();
-        ctx.strokeStyle = 'rgba(255, 255, 100, 0.5)';
-        ctx.lineWidth = Math.max(1, cs);
-        ctx.setLineDash([cs * 0.5, cs * 0.3]);
-        ctx.beginPath();
-        ctx.moveTo(bandX0, bandY + cs / 2);
-        ctx.lineTo(bandX1, bandY + cs / 2);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        // Subtle fill band for the middle row
-        ctx.fillStyle = 'rgba(255, 255, 100, 0.08)';
-        ctx.fillRect(bandX0, bandY, bandX1 - bandX0, cs);
-        ctx.restore();
+                // Project 4 corners with display heights
+                const p00 = this.isoProject(ix, iz, d00);
+                const p01 = this.isoProject(ix, iz + 1, d01);
+                const p11 = this.isoProject(ix + 1, iz + 1, d11);
+                const p10 = this.isoProject(ix + 1, iz, d10);
 
-        // Spawn arrow — placed well to the left of the map edge so it doesn't overlap
-        const mapLeftEdge = this.panX;
-        const arrowLen = Math.max(30, cs * 4);
-        const arrowHead = Math.max(8, cs * 1.2);
-        const arrowGap = Math.max(20, cs * 3);  // space between arrow tip and map edge
-        const spawnTipX = mapLeftEdge - arrowGap;
-        const spawnY = bandY + cs / 2;
-        ctx.save();
-        ctx.strokeStyle = 'rgba(255, 200, 50, 0.85)';
-        ctx.fillStyle = 'rgba(255, 200, 50, 0.85)';
-        ctx.lineWidth = Math.max(2, cs * 0.3);
-        // Arrow shaft
-        ctx.beginPath();
-        ctx.moveTo(spawnTipX - arrowLen, spawnY);
-        ctx.lineTo(spawnTipX, spawnY);
-        ctx.stroke();
-        // Arrow head
-        ctx.beginPath();
-        ctx.moveTo(spawnTipX, spawnY);
-        ctx.lineTo(spawnTipX - arrowHead, spawnY - arrowHead * 0.6);
-        ctx.lineTo(spawnTipX - arrowHead, spawnY + arrowHead * 0.6);
-        ctx.closePath();
-        ctx.fill();
-        // Label
-        ctx.font = `bold ${Math.max(10, cs * 1.2)}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
-        ctx.fillText('SPAWN', spawnTipX - arrowLen * 0.4, spawnY - arrowHead * 0.8);
-        ctx.restore();
-
-        // Grid overlay (rotated: Z lines are vertical, X lines are horizontal)
-        if (this.showGrid && this.zoom >= 2) {
-            ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-            ctx.lineWidth = 0.5;
-            // Horizontal lines (one per X index)
-            for (let ix = startIX; ix <= endIX; ix++) {
-                const py = ix * cs + this.panY;
+                // South side face (front wall — darkest shade)
+                const pb10 = this.isoProject(ix + 1, iz, baseLevel);
+                const pb11 = this.isoProject(ix + 1, iz + 1, baseLevel);
+                ctx.fillStyle = `rgb(${Math.round(r * 0.45)},${Math.round(g * 0.45)},${Math.round(b * 0.45)})`;
                 ctx.beginPath();
-                ctx.moveTo(startIZ * cs + this.panX, py);
-                ctx.lineTo(endIZ * cs + this.panX, py);
-                ctx.stroke();
-            }
-            // Vertical lines (one per Z index)
-            for (let iz = startIZ; iz <= endIZ; iz++) {
-                const px = iz * cs + this.panX;
-                ctx.beginPath();
-                ctx.moveTo(px, startIX * cs + this.panY);
-                ctx.lineTo(px, endIX * cs + this.panY);
-                ctx.stroke();
-            }
-        }
-
-        // Draw objects
-        if (this.showObjects) {
-            // Trees / Vegetation (biome-aware)
-            for (const tree of map.trees) {
-                const pos = this.worldToCanvas(tree.x, tree.z);
-                drawVegetation(ctx, pos.x, pos.y, cs, this.zoom, terrainType, tree.variation || 0);
-            }
-
-            // Rocks (biome-aware)
-            for (const rock of map.rocks) {
-                const pos = this.worldToCanvas(rock.x, rock.z);
-                drawRockAsset(ctx, pos.x, pos.y, cs, this.zoom, terrainType, rock.scale || 1);
-            }
-
-            // Decorative buildings
-            for (const bld of map.buildings) {
-                const pos = this.worldToCanvas(bld.x, bld.z);
-                const style = BUILDING_STYLES[bld.type] || BUILDING_STYLES.house;
-                const sz = Math.max(5, cs * 0.7);
-
-                // Building footprint
-                ctx.fillStyle = style.color;
-                ctx.fillRect(pos.x - sz / 2, pos.y - sz / 2, sz, sz);
-                ctx.strokeStyle = style.border;
-                ctx.lineWidth = 1.5;
-                ctx.strokeRect(pos.x - sz / 2, pos.y - sz / 2, sz, sz);
-
-                // Rotation indicator line
-                if (this.zoom >= 3) {
-                    const rad = (bld.rotation || 0) * Math.PI / 180;
-                    ctx.strokeStyle = '#fff';
-                    ctx.lineWidth = 1.5;
-                    ctx.beginPath();
-                    ctx.moveTo(pos.x, pos.y);
-                    ctx.lineTo(pos.x + Math.sin(rad) * sz * 0.5, pos.y - Math.cos(rad) * sz * 0.5);
-                    ctx.stroke();
-                }
-
-                if (this.zoom >= 3) {
-                    ctx.fillStyle = '#fff';
-                    ctx.font = `${Math.max(8, cs * 0.45)}px monospace`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'top';
-                    ctx.fillText(style.label, pos.x, pos.y + sz / 2 + 1);
-                }
-            }
-
-            // Enemies
-            for (const enemy of map.enemies) {
-                const pos = this.worldToCanvas(enemy.x, enemy.z);
-                const style = ENEMY_STYLES[enemy.type] || ENEMY_STYLES.tank;
-                const sz = Math.max(4, cs * 0.6);
-
-                ctx.fillStyle = style.color;
-                ctx.fillRect(pos.x - sz / 2, pos.y - sz / 2, sz, sz);
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(pos.x - sz / 2, pos.y - sz / 2, sz, sz);
-
-                if (this.zoom >= 3) {
-                    ctx.fillStyle = '#fff';
-                    ctx.font = `${Math.max(8, cs * 0.5)}px monospace`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'top';
-                    ctx.fillText(style.label, pos.x, pos.y + sz / 2 + 1);
-                }
-            }
-
-            // Plane triggers — drawn as triangles (airplane silhouettes) with a dashed trigger line
-            for (const plane of map.planes) {
-                const pos = this.worldToCanvas(plane.x, plane.z);
-                const style = PLANE_STYLES[plane.type] || PLANE_STYLES.fighter;
-                const sz = Math.max(6, cs * 0.8);
-
-                // Dashed horizontal trigger line across the full map width
-                ctx.save();
-                ctx.strokeStyle = style.color + '40'; // 25% opacity
-                ctx.lineWidth = 1;
-                ctx.setLineDash([4, 4]);
-                const lineY = pos.y;
-                ctx.beginPath();
-                ctx.moveTo(this.panX, lineY);
-                ctx.lineTo((map.segmentsZ + 1) * cs + this.panX, lineY);
-                ctx.stroke();
-                ctx.setLineDash([]);
-                ctx.restore();
-
-                // Triangle pointing right (direction of player travel)
-                ctx.fillStyle = style.color;
-                ctx.beginPath();
-                ctx.moveTo(pos.x + sz * 0.6, pos.y);              // nose (right)
-                ctx.lineTo(pos.x - sz * 0.5, pos.y - sz * 0.5);   // top-left
-                ctx.lineTo(pos.x - sz * 0.5, pos.y + sz * 0.5);   // bottom-left
+                ctx.moveTo(p10.x, p10.y);
+                ctx.lineTo(p11.x, p11.y);
+                ctx.lineTo(pb11.x, pb11.y);
+                ctx.lineTo(pb10.x, pb10.y);
                 ctx.closePath();
                 ctx.fill();
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 1;
-                ctx.stroke();
 
-                // Count badge if > 1
-                if (plane.count > 1) {
-                    ctx.fillStyle = '#fff';
-                    ctx.font = `bold ${Math.max(7, cs * 0.4)}px monospace`;
-                    ctx.textAlign = 'left';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('×' + plane.count, pos.x + sz * 0.7, pos.y);
-                }
+                // East side face (right wall — medium shade)
+                const pb01 = this.isoProject(ix, iz + 1, baseLevel);
+                ctx.fillStyle = `rgb(${Math.round(r * 0.62)},${Math.round(g * 0.62)},${Math.round(b * 0.62)})`;
+                ctx.beginPath();
+                ctx.moveTo(p01.x, p01.y);
+                ctx.lineTo(p11.x, p11.y);
+                ctx.lineTo(pb11.x, pb11.y);
+                ctx.lineTo(pb01.x, pb01.y);
+                ctx.closePath();
+                ctx.fill();
 
-                if (this.zoom >= 3) {
-                    ctx.fillStyle = '#fff';
-                    ctx.font = `${Math.max(8, cs * 0.5)}px monospace`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'top';
-                    ctx.fillText(style.label, pos.x, pos.y + sz * 0.6 + 1);
+                // Top face
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                ctx.beginPath();
+                ctx.moveTo(p00.x, p00.y);
+                ctx.lineTo(p01.x, p01.y);
+                ctx.lineTo(p11.x, p11.y);
+                ctx.lineTo(p10.x, p10.y);
+                ctx.closePath();
+                ctx.fill();
+
+                // Grid lines on top face
+                if (this.showGrid && this.zoom >= 3) {
+                    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+                    ctx.lineWidth = 0.5;
+                    ctx.stroke();
                 }
             }
         }
 
-        // Brush preview
+        // Highlight middle row (player flight path)
+        const midIX = Math.floor(map.segmentsX / 2);
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 255, 100, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 6]);
+        for (const rowIX of [midIX, midIX + 1]) {
+            ctx.beginPath();
+            for (let iz = startIZ; iz <= endIZ + 1; iz++) {
+                const izC = Math.min(iz, map.segmentsZ);
+                const hh = Math.max(map.getHeight(rowIX, izC), map.waterLevel);
+                const p = this.isoProject(rowIX, iz, hh);
+                if (iz === startIZ) ctx.moveTo(p.x, p.y);
+                else ctx.lineTo(p.x, p.y);
+            }
+            ctx.stroke();
+        }
+        ctx.setLineDash([]);
+        ctx.restore();
+
+        // Spawn arrow at map start (iz = 0)
+        const spawnH = Math.max(map.getHeight(midIX, 0), map.waterLevel);
+        const spawnP = this.isoProject(midIX + 0.5, 0, spawnH);
+        const spawnDir = this.isoProject(midIX + 0.5, 5, spawnH);
+        const sDx = spawnDir.x - spawnP.x;
+        const sDy = spawnDir.y - spawnP.y;
+        const sLen = Math.sqrt(sDx * sDx + sDy * sDy);
+        if (sLen > 0) {
+            const snx = sDx / sLen, sny = sDy / sLen;
+            const arrowLen = Math.max(30, cs * 4);
+            const headSize = Math.max(8, cs * 1.2);
+            const spx = -sny, spy = snx;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 200, 50, 0.85)';
+            ctx.fillStyle = 'rgba(255, 200, 50, 0.85)';
+            ctx.lineWidth = Math.max(2, cs * 0.3);
+            ctx.beginPath();
+            ctx.moveTo(spawnP.x - snx * arrowLen, spawnP.y - sny * arrowLen);
+            ctx.lineTo(spawnP.x, spawnP.y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(spawnP.x, spawnP.y);
+            ctx.lineTo(spawnP.x - snx * headSize + spx * headSize * 0.6, spawnP.y - sny * headSize + spy * headSize * 0.6);
+            ctx.lineTo(spawnP.x - snx * headSize - spx * headSize * 0.6, spawnP.y - sny * headSize - spy * headSize * 0.6);
+            ctx.closePath();
+            ctx.fill();
+            ctx.font = `bold ${Math.max(10, cs * 1.2)}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText('SPAWN', spawnP.x - snx * arrowLen * 0.5, spawnP.y - sny * arrowLen * 0.5 - headSize);
+            ctx.restore();
+        }
+
+        // Draw objects sorted by isometric depth (back to front)
+        if (this.showObjects) {
+            const allObjs = [];
+            for (const tree of map.trees) {
+                allObjs.push({ type: 'tree', data: tree, depth: map.indexX(tree.x) + map.indexZ(tree.z) });
+            }
+            for (const rock of map.rocks) {
+                allObjs.push({ type: 'rock', data: rock, depth: map.indexX(rock.x) + map.indexZ(rock.z) });
+            }
+            for (const bld of map.buildings) {
+                allObjs.push({ type: 'building', data: bld, depth: map.indexX(bld.x) + map.indexZ(bld.z) });
+            }
+            for (const enemy of map.enemies) {
+                allObjs.push({ type: 'enemy', data: enemy, depth: map.indexX(enemy.x) + map.indexZ(enemy.z) });
+            }
+            for (const plane of map.planes) {
+                allObjs.push({ type: 'plane', data: plane, depth: map.indexX(plane.x) + map.indexZ(plane.z) });
+            }
+            allObjs.sort((a, b) => a.depth - b.depth);
+
+            for (const obj of allObjs) {
+                const pos = this.worldToCanvas(obj.data.x, obj.data.z);
+
+                switch (obj.type) {
+                    case 'tree':
+                        drawVegetation(ctx, pos.x, pos.y, cs, this.zoom, terrainType, obj.data.variation || 0);
+                        break;
+
+                    case 'rock':
+                        drawRockAsset(ctx, pos.x, pos.y, cs, this.zoom, terrainType, obj.data.scale || 1);
+                        break;
+
+                    case 'building': {
+                        const style = BUILDING_STYLES[obj.data.type] || BUILDING_STYLES.house;
+                        const sz = Math.max(5, cs * 0.7);
+                        ctx.fillStyle = style.color;
+                        ctx.fillRect(pos.x - sz / 2, pos.y - sz / 2, sz, sz);
+                        ctx.strokeStyle = style.border;
+                        ctx.lineWidth = 1.5;
+                        ctx.strokeRect(pos.x - sz / 2, pos.y - sz / 2, sz, sz);
+                        if (this.zoom >= 3) {
+                            const rad = (obj.data.rotation || 0) * Math.PI / 180;
+                            ctx.strokeStyle = '#fff';
+                            ctx.lineWidth = 1.5;
+                            ctx.beginPath();
+                            ctx.moveTo(pos.x, pos.y);
+                            ctx.lineTo(pos.x + Math.sin(rad) * sz * 0.5, pos.y - Math.cos(rad) * sz * 0.5);
+                            ctx.stroke();
+                            ctx.fillStyle = '#fff';
+                            ctx.font = `${Math.max(8, cs * 0.45)}px monospace`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'top';
+                            ctx.fillText(style.label, pos.x, pos.y + sz / 2 + 1);
+                        }
+                        break;
+                    }
+
+                    case 'enemy': {
+                        const style = ENEMY_STYLES[obj.data.type] || ENEMY_STYLES.tank;
+                        const sz = Math.max(4, cs * 0.6);
+                        ctx.fillStyle = style.color;
+                        ctx.fillRect(pos.x - sz / 2, pos.y - sz / 2, sz, sz);
+                        ctx.strokeStyle = '#fff';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(pos.x - sz / 2, pos.y - sz / 2, sz, sz);
+                        if (this.zoom >= 3) {
+                            ctx.fillStyle = '#fff';
+                            ctx.font = `${Math.max(8, cs * 0.5)}px monospace`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'top';
+                            ctx.fillText(style.label, pos.x, pos.y + sz / 2 + 1);
+                        }
+                        break;
+                    }
+
+                    case 'plane': {
+                        const style = PLANE_STYLES[obj.data.type] || PLANE_STYLES.fighter;
+                        const sz = Math.max(6, cs * 0.8);
+
+                        // Dashed trigger line across map width in isometric
+                        ctx.save();
+                        ctx.strokeStyle = style.color + '40';
+                        ctx.lineWidth = 1;
+                        ctx.setLineDash([4, 4]);
+                        const pIZ = map.indexZ(obj.data.z);
+                        const tl0 = this.isoProject(0, pIZ, 0);
+                        const tl1 = this.isoProject(map.segmentsX, pIZ, 0);
+                        ctx.beginPath();
+                        ctx.moveTo(tl0.x, tl0.y);
+                        ctx.lineTo(tl1.x, tl1.y);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                        ctx.restore();
+
+                        // Triangle pointing in flight direction (along iz)
+                        const izD0 = this.isoProject(0, 0, 0);
+                        const izD1 = this.isoProject(0, 1, 0);
+                        const dxx = izD1.x - izD0.x;
+                        const dyy = izD1.y - izD0.y;
+                        const dLen = Math.sqrt(dxx * dxx + dyy * dyy);
+                        const nx = dxx / dLen, ny = dyy / dLen;
+                        const perpX = -ny, perpY = nx;
+                        ctx.fillStyle = style.color;
+                        ctx.beginPath();
+                        ctx.moveTo(pos.x + nx * sz * 0.6, pos.y + ny * sz * 0.6);
+                        ctx.lineTo(pos.x - nx * sz * 0.5 + perpX * sz * 0.5, pos.y - ny * sz * 0.5 + perpY * sz * 0.5);
+                        ctx.lineTo(pos.x - nx * sz * 0.5 - perpX * sz * 0.5, pos.y - ny * sz * 0.5 - perpY * sz * 0.5);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.strokeStyle = '#fff';
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+
+                        if (obj.data.count > 1) {
+                            ctx.fillStyle = '#fff';
+                            ctx.font = `bold ${Math.max(7, cs * 0.4)}px monospace`;
+                            ctx.textAlign = 'left';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText('\u00d7' + obj.data.count, pos.x + sz * 0.7, pos.y);
+                        }
+                        if (this.zoom >= 3) {
+                            ctx.fillStyle = '#fff';
+                            ctx.font = `${Math.max(8, cs * 0.5)}px monospace`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'top';
+                            ctx.fillText(style.label, pos.x, pos.y + sz * 0.6 + 1);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Brush preview (isometric diamond)
         if (this.mouseGrid && ['raise', 'lower', 'smooth', 'eraser'].includes(this.tool)) {
-            const pos = this.gridToCanvas(this.mouseGrid.ix, this.mouseGrid.iz);
-            const r = this.brushSize * cs;
+            const mg = this.mouseGrid;
+            const hHere = map.getHeight(
+                Math.max(0, Math.min(mg.ix, map.segmentsX)),
+                Math.max(0, Math.min(mg.iz, map.segmentsZ))
+            );
+            const r = this.brushSize;
             ctx.strokeStyle = 'rgba(233, 69, 96, 0.7)';
             ctx.lineWidth = 1.5;
             ctx.beginPath();
-            ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+            const bTop = this.isoProject(mg.ix - r, mg.iz, hHere);
+            const bRight = this.isoProject(mg.ix, mg.iz + r, hHere);
+            const bBottom = this.isoProject(mg.ix + r, mg.iz, hHere);
+            const bLeft = this.isoProject(mg.ix, mg.iz - r, hHere);
+            ctx.moveTo(bTop.x, bTop.y);
+            ctx.lineTo(bRight.x, bRight.y);
+            ctx.lineTo(bBottom.x, bBottom.y);
+            ctx.lineTo(bLeft.x, bLeft.y);
+            ctx.closePath();
             ctx.stroke();
         }
 
