@@ -1085,9 +1085,11 @@ class GameHUD3D: SKScene {
 
         // Sort by target Y and push apart overlaps
         positions.sort { $0.targetY < $1.targetY }
-        for i in 1..<positions.count {
-            if positions[i].finalY < positions[i - 1].finalY + spacing {
-                positions[i].finalY = positions[i - 1].finalY + spacing
+        if positions.count > 1 {
+            for i in 1..<positions.count {
+                if positions[i].finalY < positions[i - 1].finalY + spacing {
+                    positions[i].finalY = positions[i - 1].finalY + spacing
+                }
             }
         }
 
