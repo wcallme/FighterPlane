@@ -884,10 +884,7 @@ enum SpriteGenerator {
             case "mining_bomb": bgColor = UIColor(red: 0.55, green: 0.4, blue: 0.2, alpha: 1)
             case "heavy_bomb": bgColor = UIColor(red: 0.5, green: 0.25, blue: 0.25, alpha: 1)
             case "cluster_warhead": bgColor = UIColor(red: 0.35, green: 0.45, blue: 0.35, alpha: 1)
-            case "decoy_flare": bgColor = UIColor(red: 0.6, green: 0.5, blue: 0.2, alpha: 1)
-            case "missile_launcher": bgColor = UIColor(red: 0.4, green: 0.3, blue: 0.5, alpha: 1)
             case "aim_rockets": bgColor = UIColor(red: 0.5, green: 0.25, blue: 0.25, alpha: 1)
-            case "ecm_jammer": bgColor = UIColor(red: 0.25, green: 0.4, blue: 0.55, alpha: 1)
             default: bgColor = UIColor(white: 0.35, alpha: 1)
             }
 
@@ -1033,27 +1030,6 @@ enum SpriteGenerator {
                 miniF.closeSubpath()
                 ctx.addPath(miniF); ctx.fillPath()
             }
-
-        case "decoy_flare":
-            // Starburst
-            ctx.setFillColor(UIColor(red: 1, green: 0.8, blue: 0.2, alpha: 0.9).cgColor)
-            for i in 0..<6 {
-                let angle = CGFloat(i) * .pi / 3
-                let ex = cx + cos(angle) * 18
-                let ey = cy + sin(angle) * 18
-                ctx.fillEllipse(in: CGRect(x: ex - 3, y: ey - 3, width: 6, height: 6))
-                ctx.fill(CGRect(x: Swift.min(cx, ex), y: Swift.min(cy, ey),
-                                width: abs(ex - cx) + 2, height: abs(ey - cy) + 2))
-            }
-            ctx.fillEllipse(in: CGRect(x: cx - 6, y: cy - 6, width: 12, height: 12))
-
-        case "missile_launcher":
-            // Missile shape
-            ctx.fill(CGRect(x: cx - 4, y: cy - 14, width: 8, height: 28))
-            ctx.fillEllipse(in: CGRect(x: cx - 4, y: cy - 18, width: 8, height: 8))
-            ctx.fill(CGRect(x: cx - 10, y: cy + 10, width: 20, height: 6))
-            ctx.setFillColor(UIColor(red: 0.8, green: 0.2, blue: 0.1, alpha: 0.7).cgColor)
-            ctx.fillEllipse(in: CGRect(x: cx - 3, y: cy + 14, width: 6, height: 8))
 
         case "aim_rockets":
             // Two missiles side by side (gray body, red tip)

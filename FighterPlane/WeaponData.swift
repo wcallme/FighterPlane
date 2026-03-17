@@ -72,7 +72,7 @@ enum WeaponCatalog {
 
     static let bomb = WeaponInfo(
         id: "bomb", name: "Bomb", category: .bomb,
-        gemCost: 80, damage: 8, fireRate: 4.0,
+        gemCost: 80, damage: 8, fireRate: 2.6,
         blastRadius: 50, bulletCount: 1, bulletSpread: 0,
         projectileSpeed: 0, isHoming: false,
         description: "Standard explosive ordnance."
@@ -80,7 +80,7 @@ enum WeaponCatalog {
 
     static let miningBomb = WeaponInfo(
         id: "mining_bomb", name: "Mining Bomb", category: .bomb,
-        gemCost: 150, damage: 9, fireRate: 4.5,
+        gemCost: 150, damage: 9, fireRate: 2.925,
         blastRadius: 45, bulletCount: 1, bulletSpread: 0,
         projectileSpeed: 0, isHoming: false,
         description: "Penetrating blast, focused radius."
@@ -88,7 +88,7 @@ enum WeaponCatalog {
 
     static let heavyBomb = WeaponInfo(
         id: "heavy_bomb", name: "Heavy Bomb", category: .bomb,
-        gemCost: 280, damage: 10, fireRate: 5.0,
+        gemCost: 280, damage: 10, fireRate: 3.25,
         blastRadius: 80, bulletCount: 1, bulletSpread: 0,
         projectileSpeed: 0, isHoming: false,
         description: "Massive blast radius, heavy payload."
@@ -96,37 +96,13 @@ enum WeaponCatalog {
 
     static let clusterWarhead = WeaponInfo(
         id: "cluster_warhead", name: "Cluster Warhead", category: .bomb,
-        gemCost: 300, damage: 3, fireRate: 4.5,
+        gemCost: 300, damage: 3, fireRate: 2.925,
         blastRadius: 30, bulletCount: 7, bulletSpread: 0,
         projectileSpeed: 0, isHoming: false,
         description: "Splits mid-air into 7 scatter bomblets."
     )
 
     // --- Specials ---
-
-    static let decoyFlare = WeaponInfo(
-        id: "decoy_flare", name: "Decoy Flare", category: .special,
-        gemCost: 100, damage: 0, fireRate: 8.0,
-        blastRadius: 0, bulletCount: 3, bulletSpread: 0.5,
-        projectileSpeed: 200, isHoming: false,
-        description: "Draws enemy fire for 3 seconds."
-    )
-
-    static let missileLauncher = WeaponInfo(
-        id: "missile_launcher", name: "Missile Launcher", category: .special,
-        gemCost: 120, damage: 4, fireRate: 4.0,
-        blastRadius: 30, bulletCount: 1, bulletSpread: 0,
-        projectileSpeed: 350, isHoming: true,
-        description: "Lock-on missiles seek air targets."
-    )
-
-    static let ecmJammer = WeaponInfo(
-        id: "ecm_jammer", name: "ECM Jammer", category: .special,
-        gemCost: 200, damage: 0, fireRate: 42.5,
-        blastRadius: 0, bulletCount: 0, bulletSpread: 0,
-        projectileSpeed: 0, isHoming: false,
-        description: "Jams enemy missiles for 5.5s. 37s recharge."
-    )
 
     static let aimRockets = WeaponInfo(
         id: "aim_rockets", name: "AIM Rockets", category: .special,
@@ -141,7 +117,7 @@ enum WeaponCatalog {
     static let all: [WeaponInfo] = [
         basicGun, cannon, machineGun, autocannon,
         bomb, miningBomb, heavyBomb, clusterWarhead,
-        decoyFlare, missileLauncher, ecmJammer, aimRockets
+        aimRockets
     ]
 
     static let guns: [WeaponInfo] = all.filter { $0.isGun }
