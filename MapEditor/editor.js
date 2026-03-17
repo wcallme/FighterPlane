@@ -510,8 +510,8 @@ const ENEMY_STYLES = {
 };
 
 const PLANE_STYLES = {
-    fighter:    { color: '#f39c12', label: 'FTR' },
-    aiFighter:  { color: '#e74c3c', label: 'AI' },
+    fighter:    { color: '#f39c12', label: 'FTR', spawnOffset: 40 },
+    aiFighter:  { color: '#e74c3c', label: 'AI',  spawnOffset: 60 },
 };
 
 const BUILDING_STYLES = {
@@ -1760,7 +1760,7 @@ class Editor {
                         const style = PLANE_STYLES[d.type] || PLANE_STYLES.fighter;
                         const sz = Math.max(6, cs * 0.8);
 
-                        // Dashed trigger line across map width in isometric
+                        // Dashed encounter line across map width
                         ctx.save();
                         ctx.strokeStyle = style.color + '40';
                         ctx.lineWidth = 1;
@@ -1772,6 +1772,32 @@ class Editor {
                         ctx.moveTo(tl0.x, tl0.y);
                         ctx.lineTo(tl1.x, tl1.y);
                         ctx.stroke();
+
+                        // Spawn-ahead zone: dashed line at spawnZ (further down map)
+                        const spawnZ = d.z + style.spawnOffset;
+                        const spawnIZ = map.indexZ(spawnZ);
+                        if (spawnIZ <= map.segmentsZ) {
+                            ctx.strokeStyle = style.color + '25';
+                            ctx.setLineDash([2, 6]);
+                            const sl0 = this.isoProject(0, spawnIZ, 0);
+                            const sl1 = this.isoProject(map.segmentsX, spawnIZ, 0);
+                            ctx.beginPath();
+                            ctx.moveTo(sl0.x, sl0.y);
+                            ctx.lineTo(sl1.x, sl1.y);
+                            ctx.stroke();
+
+                            // Arrow from encounter to spawn
+                            const midX = map.segmentsX / 2;
+                            const from = this.isoProject(midX, pIZ, 0);
+                            const to = this.isoProject(midX, spawnIZ, 0);
+                            ctx.strokeStyle = style.color + '30';
+                            ctx.lineWidth = 1;
+                            ctx.setLineDash([3, 3]);
+                            ctx.beginPath();
+                            ctx.moveTo(from.x, from.y);
+                            ctx.lineTo(to.x, to.y);
+                            ctx.stroke();
+                        }
                         ctx.setLineDash([]);
                         ctx.restore();
 
@@ -1794,6 +1820,7 @@ class Editor {
                         ctx.lineWidth = 1;
                         ctx.stroke();
 
+                        // Count badge
                         if (d.count > 1) {
                             ctx.fillStyle = '#fff';
                             ctx.font = `bold ${Math.max(7, cs * 0.4)}px monospace`;
@@ -1801,7 +1828,8 @@ class Editor {
                             ctx.textBaseline = 'middle';
                             ctx.fillText('\u00d7' + d.count, pos.x + sz * 0.7, pos.y);
                         }
-                        if (this.zoom >= 3) {
+                        // Label
+                        if (this.zoom >= 2) {
                             ctx.fillStyle = '#fff';
                             ctx.font = `${Math.max(8, cs * 0.5)}px monospace`;
                             ctx.textAlign = 'center';
@@ -2005,12 +2033,17 @@ class Editor {
                 if (e.altitude !== undefined) obj.altitude = e.altitude;
                 return obj;
             }),
-            planeTriggers: map.planes.map(p => ({
-                type: p.type,
-                x: Math.round(p.x * 100) / 100,
-                z: Math.round(p.z * 100) / 100,
-                count: p.count || 1,
-            })),
+            planeTriggers: map.planes.map(p => {
+                const style = PLANE_STYLES[p.type] || PLANE_STYLES.fighter;
+                const encounterZ = Math.round(p.z * 100) / 100;
+                return {
+                    type: p.type,
+                    x: Math.round(p.x * 100) / 100,
+                    encounterZ: encounterZ,
+                    spawnZ: Math.round((encounterZ + style.spawnOffset) * 100) / 100,
+                    count: p.count || 1,
+                };
+            }),
             playerStart: { z: 0, altitude: 12 },
             objectives: { type: "destroyAll", description: "Destroy all enemy installations" },
         };
@@ -2112,7 +2145,12 @@ class Editor {
         this.map.rocks = data.objects?.rocks || [];
         this.map.buildings = data.objects?.buildings || [];
         this.map.enemies = data.enemies || [];
-        this.map.planes = data.planeTriggers || [];
+        this.map.planes = (data.planeTriggers || []).map(p => ({
+            type: p.type,
+            x: p.x,
+            z: p.encounterZ ?? p.z,
+            count: p.count || 1,
+        }));
 
         // Update UI
         document.getElementById('mapName').value = this.map.name;
