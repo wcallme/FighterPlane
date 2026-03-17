@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AA11BB22CC33DD44EE55FF66 /* AudioSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF66EE55DD44CC33BB22AA11 /* AudioSettings.swift */; };
 		009A428F139AF74FEBA8F92E /* GameHUD3D.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAD1D91FBFFB2FC910EF5FC9 /* GameHUD3D.swift */; };
 		01563731CD0B051CA7E209A3 /* WeaponData.swift in Sources */ = {isa = PBXBuildFile; fileRef = E562AFD2EC9C85FCD2D5B860 /* WeaponData.swift */; };
 		09BB12A58375DD378CA1FE76 /* BLENDER_ARTIST_SPEC.txt in Resources */ = {isa = PBXBuildFile; fileRef = 1CBA9F0571D17100B5DCA20D /* BLENDER_ARTIST_SPEC.txt */; };
@@ -69,6 +70,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		FF66EE55DD44CC33BB22AA11 /* AudioSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSettings.swift; sourceTree = "<group>"; };
 		01C3AA94438BC62934C776F6 /* HangarScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HangarScene.swift; sourceTree = "<group>"; };
 		06A1E79E9BF73040BA0C14DF /* bomb_impact2.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = bomb_impact2.wav; sourceTree = "<group>"; };
 		0826EB56CA55BF77EB539D5C /* bomb_impact3.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = bomb_impact3.wav; sourceTree = "<group>"; };
@@ -170,6 +172,7 @@
 			children = (
 				2FBD99F7179980663872AD54 /* ArmoryScene.swift */,
 				86E7EF70CD319A95E2A99854 /* Assets.xcassets */,
+				FF66EE55DD44CC33BB22AA11 /* AudioSettings.swift */,
 				886CE2257AE62EB9F3C4BD53 /* BombNode.swift */,
 				90F02FD8FDA02ADB7A80147D /* BombSoundManager.swift */,
 				DACE5E6B25234B0DEAE54CB1 /* Constants.swift */,
@@ -349,6 +352,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AA11BB22CC33DD44EE55FF66 /* AudioSettings.swift in Sources */,
 				5AC73E8AC254185E397EA2A5 /* ArmoryScene.swift in Sources */,
 				B9039D4DEA6FEB18B164EAC5 /* BombNode.swift in Sources */,
 				26117808470FAAE27F2D2061 /* BombSoundManager.swift in Sources */,

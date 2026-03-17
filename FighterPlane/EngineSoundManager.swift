@@ -36,11 +36,13 @@ final class EngineSoundManager {
     func startEngines() {
         playerEngine?.currentTime = 0
         playerEngine?.volume = 0
-        playerEngine?.play()
         fadeInRemaining = fadeInDuration
 
         enemyEngine?.currentTime = 0
         enemyEngine?.volume = 0
+
+        guard !AudioSettings.shared.isMuted else { return }
+        playerEngine?.play()
         enemyEngine?.play()
     }
 

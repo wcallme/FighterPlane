@@ -60,6 +60,7 @@ final class GunSoundManager: NSObject, AVAudioPlayerDelegate {
 
         guard !isFiringSound else { return }
         isFiringSound = true
+        guard !AudioSettings.shared.isMuted else { return }
 
         // Stop any previous playback
         loopPlayer?.stop()

@@ -38,6 +38,7 @@ final class BombSoundManager {
     /// Play a random bomb impact sound. Dispatched to a background audio queue
     /// so the main/render thread is never blocked by audio hardware calls.
     func playImpact() {
+        guard !AudioSettings.shared.isMuted else { return }
         audioQueue.async { [self] in
             guard !playerPools.isEmpty else { return }
 

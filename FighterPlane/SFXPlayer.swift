@@ -32,6 +32,7 @@ final class SFXPlayer {
     /// Play a one-shot sound. Auto-preloads on first call if needed.
     /// Automatically throttled so the same sound won't fire more than ~16x/sec.
     func play(_ name: String, ext: String = "wav", volume: Float = 1.0) {
+        guard !AudioSettings.shared.isMuted else { return }
         // Global per-sound throttle to prevent audio system overload
         let now = CACurrentMediaTime()
         if let last = lastPlayTime[name], now - last < minPlayInterval {

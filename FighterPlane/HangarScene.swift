@@ -844,6 +844,10 @@ class HangarScene: SKScene {
                 showSettingsOverlay()
                 return
             }
+            if name == "muteToggleButton" {
+                toggleMute()
+                return
+            }
             if name == "resetMissionsButton" {
                 confirmResetMissions()
                 return
@@ -1276,7 +1280,7 @@ class HangarScene: SKScene {
 
         // Panel
         let panelW: CGFloat = size.width - 60
-        let panelH: CGFloat = 200
+        let panelH: CGFloat = 260
         let panelY = size.height / 2
 
         let panel = SKShapeNode(rectOf: CGSize(width: panelW, height: panelH), cornerRadius: 16)
@@ -1292,13 +1296,41 @@ class HangarScene: SKScene {
         title.text = "SETTINGS"
         title.fontSize = 16
         title.fontColor = SKColor(white: 0.9, alpha: 1)
-        title.position = CGPoint(x: size.width / 2, y: panelY + 65)
+        title.position = CGPoint(x: size.width / 2, y: panelY + 95)
         overlay.addChild(title)
+
+        // Mute toggle button
+        let isMuted = AudioSettings.shared.isMuted
+        let muteBtn = SKNode()
+        muteBtn.name = "muteToggleButton"
+        muteBtn.position = CGPoint(x: size.width / 2, y: panelY + 40)
+
+        let muteBg = SKShapeNode(rectOf: CGSize(width: panelW - 40, height: 40), cornerRadius: 10)
+        muteBg.fillColor = isMuted
+            ? SKColor(red: 0.35, green: 0.15, blue: 0.08, alpha: 0.9)
+            : SKColor(red: 0.08, green: 0.25, blue: 0.12, alpha: 0.9)
+        muteBg.strokeColor = isMuted
+            ? SKColor(red: 0.8, green: 0.4, blue: 0.2, alpha: 0.4)
+            : SKColor(red: 0.2, green: 0.7, blue: 0.3, alpha: 0.4)
+        muteBg.lineWidth = 1
+        muteBg.name = "muteToggleButton"
+        muteBtn.addChild(muteBg)
+
+        let muteLabel = SKLabelNode(fontNamed: "Menlo-Bold")
+        muteLabel.text = isMuted ? "SOUND: OFF" : "SOUND: ON"
+        muteLabel.fontSize = 12
+        muteLabel.fontColor = isMuted
+            ? SKColor(red: 1.0, green: 0.5, blue: 0.3, alpha: 1)
+            : SKColor(red: 0.3, green: 1.0, blue: 0.5, alpha: 1)
+        muteLabel.verticalAlignmentMode = .center
+        muteLabel.name = "muteToggleButton"
+        muteBtn.addChild(muteLabel)
+        overlay.addChild(muteBtn)
 
         // Reset Missions button
         let resetBtn = SKNode()
         resetBtn.name = "resetMissionsButton"
-        resetBtn.position = CGPoint(x: size.width / 2, y: panelY + 10)
+        resetBtn.position = CGPoint(x: size.width / 2, y: panelY - 15)
 
         let resetBg = SKShapeNode(rectOf: CGSize(width: panelW - 40, height: 40), cornerRadius: 10)
         resetBg.fillColor = SKColor(red: 0.35, green: 0.08, blue: 0.08, alpha: 0.9)
@@ -1319,7 +1351,7 @@ class HangarScene: SKScene {
         // Close button
         let closeBtn = SKNode()
         closeBtn.name = "settingsOverlayBg"
-        closeBtn.position = CGPoint(x: size.width / 2, y: panelY - 55)
+        closeBtn.position = CGPoint(x: size.width / 2, y: panelY - 75)
 
         let closeBg = SKShapeNode(rectOf: CGSize(width: panelW - 40, height: 36), cornerRadius: 10)
         closeBg.fillColor = SKColor(white: 0.15, alpha: 0.8)
@@ -1429,6 +1461,36 @@ class HangarScene: SKScene {
         noLabel.name = "resetConfirmNo"
         noBtn.addChild(noLabel)
         overlay.addChild(noBtn)
+    }
+
+    private func toggleMute() {
+        let newMuted = !AudioSettings.shared.isMuted
+        AudioSettings.shared.isMuted = newMuted
+
+        // Stop first to reset internal state, then restart if unmuting
+        MenuMusicManager.shared.stop()
+        if !newMuted {
+            MenuMusicManager.shared.play()
+        }
+
+        // Update the mute button appearance in-place
+        guard let overlay = childNode(withName: "settingsOverlay") else { return }
+        overlay.enumerateChildNodes(withName: "muteToggleButton") { node, _ in
+            if let bg = node.children.first as? SKShapeNode {
+                bg.fillColor = newMuted
+                    ? SKColor(red: 0.35, green: 0.15, blue: 0.08, alpha: 0.9)
+                    : SKColor(red: 0.08, green: 0.25, blue: 0.12, alpha: 0.9)
+                bg.strokeColor = newMuted
+                    ? SKColor(red: 0.8, green: 0.4, blue: 0.2, alpha: 0.4)
+                    : SKColor(red: 0.2, green: 0.7, blue: 0.3, alpha: 0.4)
+            }
+            if let label = node.children.compactMap({ $0 as? SKLabelNode }).first {
+                label.text = newMuted ? "SOUND: OFF" : "SOUND: ON"
+                label.fontColor = newMuted
+                    ? SKColor(red: 1.0, green: 0.5, blue: 0.3, alpha: 1)
+                    : SKColor(red: 0.3, green: 1.0, blue: 0.5, alpha: 1)
+            }
+        }
     }
 
     private func dismissSettingsOverlay() {

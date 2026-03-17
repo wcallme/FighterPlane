@@ -20,6 +20,7 @@ final class MenuMusicManager {
     func play() {
         guard !isPlaying else { return }
         isPlaying = true
+        guard !AudioSettings.shared.isMuted else { return }
         player?.currentTime = 0
         player?.play()
     }
