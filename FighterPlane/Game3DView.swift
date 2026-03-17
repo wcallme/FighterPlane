@@ -64,8 +64,10 @@ private struct Game3DSceneView: UIViewRepresentable {
         scnView.preferredFramesPerSecond = 60
         #endif
 
-        // Keep strong reference
+        // Keep strong reference and enable lifecycle observers
         context.coordinator.controller = controller
+        context.coordinator.scnView = scnView
+        context.coordinator.startObserving()
 
         return scnView
     }
@@ -76,6 +78,43 @@ private struct Game3DSceneView: UIViewRepresentable {
 
     class Coordinator {
         var controller: Game3DController?
+        weak var scnView: SCNView?
+        private var resignObserver: NSObjectProtocol?
+        private var activeObserver: NSObjectProtocol?
+
+        func startObserving() {
+            guard resignObserver == nil else { return }
+            resignObserver = NotificationCenter.default.addObserver(
+                forName: UIApplication.willResignActiveNotification,
+                object: nil, queue: .main
+            ) { [weak self] _ in
+                self?.pauseRendering()
+            }
+            activeObserver = NotificationCenter.default.addObserver(
+                forName: UIApplication.didBecomeActiveNotification,
+                object: nil, queue: .main
+            ) { [weak self] _ in
+                self?.resumeRendering()
+            }
+        }
+
+        private func pauseRendering() {
+            scnView?.isPlaying = false
+            scnView?.scene?.isPaused = true
+            GunSoundManager.shared.stopFiringImmediate()
+            EngineSoundManager.shared.pause()
+        }
+
+        private func resumeRendering() {
+            scnView?.scene?.isPaused = false
+            scnView?.isPlaying = true
+            EngineSoundManager.shared.resume()
+        }
+
+        deinit {
+            if let obs = resignObserver { NotificationCenter.default.removeObserver(obs) }
+            if let obs = activeObserver { NotificationCenter.default.removeObserver(obs) }
+        }
     }
 }
 
