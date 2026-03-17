@@ -884,6 +884,7 @@ enum SpriteGenerator {
             case "mining_bomb": bgColor = UIColor(red: 0.55, green: 0.4, blue: 0.2, alpha: 1)
             case "heavy_bomb": bgColor = UIColor(red: 0.5, green: 0.25, blue: 0.25, alpha: 1)
             case "cluster_warhead": bgColor = UIColor(red: 0.35, green: 0.45, blue: 0.35, alpha: 1)
+            case "ecm_jammer": bgColor = UIColor(red: 0.25, green: 0.4, blue: 0.55, alpha: 1)
             case "aim_rockets": bgColor = UIColor(red: 0.5, green: 0.25, blue: 0.25, alpha: 1)
             default: bgColor = UIColor(white: 0.35, alpha: 1)
             }
