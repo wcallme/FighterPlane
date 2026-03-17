@@ -139,6 +139,15 @@ function heightColor(h, waterLevel, terrainType) {
     return c[6];
 }
 
+// --- Color utility ---
+
+function hexToRgb(hex) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return [r, g, b];
+}
+
 // --- Biome vegetation drawing ---
 
 function drawVegetation(ctx, x, y, cs, zoom, terrainType, variation) {
@@ -1188,6 +1197,87 @@ class Editor {
         this.applyBrush(gx, gz, -this.map.getHeight(gx, gz) * 0.3);
     }
 
+    // --- Isometric 3D drawing helpers ---
+
+    worldToFGrid(wx, wz) {
+        const upc = this.map.widthX / this.map.segmentsX; // 2.5 game units per cell
+        return {
+            fx: (wx - this.map.originX) / upc,
+            fz: (wz - this.map.originZ) / upc,
+        };
+    }
+
+    drawIsoBox(fx, fz, gameW, gameH, gameD, color, baseH) {
+        const upc = this.map.widthX / this.map.segmentsX;
+        const hw = gameW / upc / 2;
+        const hd = gameD / upc / 2;
+        const hTop = baseH + gameH;
+        const ctx = this.ctx;
+
+        const [cr, cg, cb] = hexToRgb(color);
+        const t00 = this.isoProject(fx - hw, fz - hd, hTop);
+        const t01 = this.isoProject(fx - hw, fz + hd, hTop);
+        const t10 = this.isoProject(fx + hw, fz - hd, hTop);
+        const t11 = this.isoProject(fx + hw, fz + hd, hTop);
+        const b00 = this.isoProject(fx - hw, fz - hd, baseH);
+        const b01 = this.isoProject(fx - hw, fz + hd, baseH);
+        const b10 = this.isoProject(fx + hw, fz - hd, baseH);
+        const b11 = this.isoProject(fx + hw, fz + hd, baseH);
+
+        const drawS = (this._cosA + this._sinA) >= 0;
+        const drawE = (this._cosA - this._sinA) >= 0;
+
+        // Face perpendicular to ix (darker)
+        ctx.fillStyle = `rgb(${Math.round(cr * 0.55)},${Math.round(cg * 0.55)},${Math.round(cb * 0.55)})`;
+        if (drawS) {
+            ctx.beginPath();
+            ctx.moveTo(t10.x, t10.y); ctx.lineTo(t11.x, t11.y);
+            ctx.lineTo(b11.x, b11.y); ctx.lineTo(b10.x, b10.y);
+            ctx.closePath(); ctx.fill();
+        } else {
+            ctx.beginPath();
+            ctx.moveTo(t00.x, t00.y); ctx.lineTo(t01.x, t01.y);
+            ctx.lineTo(b01.x, b01.y); ctx.lineTo(b00.x, b00.y);
+            ctx.closePath(); ctx.fill();
+        }
+
+        // Face perpendicular to iz (medium)
+        ctx.fillStyle = `rgb(${Math.round(cr * 0.72)},${Math.round(cg * 0.72)},${Math.round(cb * 0.72)})`;
+        if (drawE) {
+            ctx.beginPath();
+            ctx.moveTo(t01.x, t01.y); ctx.lineTo(t11.x, t11.y);
+            ctx.lineTo(b11.x, b11.y); ctx.lineTo(b01.x, b01.y);
+            ctx.closePath(); ctx.fill();
+        } else {
+            ctx.beginPath();
+            ctx.moveTo(t00.x, t00.y); ctx.lineTo(t10.x, t10.y);
+            ctx.lineTo(b10.x, b10.y); ctx.lineTo(b00.x, b00.y);
+            ctx.closePath(); ctx.fill();
+        }
+
+        // Top face
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(t00.x, t00.y); ctx.lineTo(t01.x, t01.y);
+        ctx.lineTo(t11.x, t11.y); ctx.lineTo(t10.x, t10.y);
+        ctx.closePath(); ctx.fill();
+    }
+
+    drawIsoLabel(wx, wz, gameH, label, color) {
+        const ix = this.map.indexX(wx);
+        const iz = this.map.indexZ(wz);
+        const bH = Math.max(this.map.getHeight(ix, iz), this.map.waterLevel);
+        const { fx, fz } = this.worldToFGrid(wx, wz);
+        const top = this.isoProject(fx, fz, bH + gameH + 0.5);
+        const cs = this.cellSize * this.zoom;
+        const ctx = this.ctx;
+        ctx.fillStyle = color;
+        ctx.font = `bold ${Math.max(7, cs * 0.45)}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(label, top.x, top.y);
+    }
+
     // --- Rendering ---
 
     render() {
@@ -1404,63 +1494,144 @@ class Editor {
             }
             allObjs.sort((a, b) => a.depth - b.depth);
 
+            // Biome-dependent tree/rock colors
+            const treeColors = {
+                temperate: { trunk: '#5D4037', canopy: '#27AE60' },
+                snow:      { trunk: '#3E2723', canopy: '#1A6B3A' },
+                desert:    { trunk: '#2D8B3E', canopy: '#2D8B3E' },
+                rocky:     { trunk: '#4E342E', canopy: '#5D4037' },
+            };
+            const rockColors = {
+                temperate: '#7f8c8d', snow: '#6B7B8D', desert: '#B8886B', rocky: '#3D3835',
+            };
+            const tc = treeColors[terrainType] || treeColors.temperate;
+            const rc = rockColors[terrainType] || rockColors.temperate;
+
             for (const obj of allObjs) {
-                const pos = this.worldToCanvas(obj.data.x, obj.data.z);
+                const d = obj.data;
+                const oix = map.indexX(d.x);
+                const oiz = map.indexZ(d.z);
+                const bH = Math.max(map.getHeight(oix, oiz), map.waterLevel);
+                const { fx, fz } = this.worldToFGrid(d.x, d.z);
 
                 switch (obj.type) {
-                    case 'tree':
-                        drawVegetation(ctx, pos.x, pos.y, cs, this.zoom, terrainType, obj.data.variation || 0);
-                        break;
-
-                    case 'rock':
-                        drawRockAsset(ctx, pos.x, pos.y, cs, this.zoom, terrainType, obj.data.scale || 1);
-                        break;
-
-                    case 'building': {
-                        const style = BUILDING_STYLES[obj.data.type] || BUILDING_STYLES.house;
-                        const sz = Math.max(5, cs * 0.7);
-                        ctx.fillStyle = style.color;
-                        ctx.fillRect(pos.x - sz / 2, pos.y - sz / 2, sz, sz);
-                        ctx.strokeStyle = style.border;
-                        ctx.lineWidth = 1.5;
-                        ctx.strokeRect(pos.x - sz / 2, pos.y - sz / 2, sz, sz);
-                        if (this.zoom >= 3) {
-                            const rad = (obj.data.rotation || 0) * Math.PI / 180;
-                            ctx.strokeStyle = '#fff';
-                            ctx.lineWidth = 1.5;
-                            ctx.beginPath();
-                            ctx.moveTo(pos.x, pos.y);
-                            ctx.lineTo(pos.x + Math.sin(rad) * sz * 0.5, pos.y - Math.cos(rad) * sz * 0.5);
-                            ctx.stroke();
-                            ctx.fillStyle = '#fff';
-                            ctx.font = `${Math.max(8, cs * 0.45)}px monospace`;
-                            ctx.textAlign = 'center';
-                            ctx.textBaseline = 'top';
-                            ctx.fillText(style.label, pos.x, pos.y + sz / 2 + 1);
+                    case 'tree': {
+                        const h = d.height || 2.5;
+                        if (terrainType === 'desert') {
+                            // Cactus — single tall column
+                            this.drawIsoBox(fx, fz, 0.4, h, 0.4, tc.trunk, bH);
+                        } else if (terrainType === 'rocky') {
+                            // Dead tree — thin trunk only
+                            this.drawIsoBox(fx, fz, 0.2, h * 0.7, 0.2, tc.trunk, bH);
+                        } else {
+                            // Trunk
+                            this.drawIsoBox(fx, fz, 0.3, h * 0.35, 0.3, tc.trunk, bH);
+                            // Canopy
+                            const cw = h * 0.55;
+                            this.drawIsoBox(fx, fz, cw, h * 0.55, cw, tc.canopy, bH + h * 0.35);
                         }
                         break;
                     }
 
+                    case 'rock': {
+                        const s = d.scale || 1.0;
+                        this.drawIsoBox(fx, fz, s * 1.0, s * 0.35, s * 0.85, rc, bH);
+                        break;
+                    }
+
+                    case 'building': {
+                        const style = BUILDING_STYLES[d.type] || BUILDING_STYLES.house;
+                        switch (d.type) {
+                            case 'house':
+                                this.drawIsoBox(fx, fz, 2.0, 1.6, 2.4, '#c4a882', bH);
+                                this.drawIsoBox(fx, fz, 2.2, 0.7, 2.6, '#8B4513', bH + 1.6);
+                                break;
+                            case 'office':
+                                this.drawIsoBox(fx, fz, 3.0, 4.0, 2.5, '#7f8fa6', bH);
+                                // Windows
+                                this.drawIsoBox(fx, fz, 3.05, 0.3, 2.55, '#4a6080', bH + 1.5);
+                                this.drawIsoBox(fx, fz, 3.05, 0.3, 2.55, '#4a6080', bH + 2.8);
+                                break;
+                            case 'skyscraper':
+                                this.drawIsoBox(fx, fz, 3.0, 2.5, 3.0, '#546e8a', bH);
+                                this.drawIsoBox(fx, fz, 2.5, 7.5, 2.5, '#6888a8', bH + 2.5);
+                                // Antenna
+                                this.drawIsoBox(fx, fz, 0.2, 1.0, 0.2, '#aaa', bH + 10.0);
+                                break;
+                            case 'warehouse':
+                                this.drawIsoBox(fx, fz, 4.0, 2.0, 3.0, '#a09080', bH);
+                                // Roof ridge
+                                this.drawIsoBox(fx, fz, 1.0, 0.5, 3.2, '#887868', bH + 2.0);
+                                break;
+                            case 'tower':
+                                this.drawIsoBox(fx, fz, 1.6, 1.2, 1.6, '#6c7a7a', bH);
+                                this.drawIsoBox(fx, fz, 1.1, 4.0, 1.1, '#5a6868', bH + 1.2);
+                                this.drawIsoBox(fx, fz, 2.0, 0.2, 2.0, '#8a9a9a', bH + 5.2);
+                                break;
+                        }
+                        if (this.zoom >= 2) this.drawIsoLabel(d.x, d.z, {
+                            house: 2.3, office: 4.0, skyscraper: 11.0, warehouse: 2.5, tower: 5.4
+                        }[d.type] || 3, style.label, '#fff');
+                        break;
+                    }
+
                     case 'enemy': {
-                        const style = ENEMY_STYLES[obj.data.type] || ENEMY_STYLES.tank;
-                        const sz = Math.max(4, cs * 0.6);
-                        ctx.fillStyle = style.color;
-                        ctx.fillRect(pos.x - sz / 2, pos.y - sz / 2, sz, sz);
-                        ctx.strokeStyle = '#fff';
-                        ctx.lineWidth = 1;
-                        ctx.strokeRect(pos.x - sz / 2, pos.y - sz / 2, sz, sz);
-                        if (this.zoom >= 3) {
-                            ctx.fillStyle = '#fff';
-                            ctx.font = `${Math.max(8, cs * 0.5)}px monospace`;
-                            ctx.textAlign = 'center';
-                            ctx.textBaseline = 'top';
-                            ctx.fillText(style.label, pos.x, pos.y + sz / 2 + 1);
+                        const style = ENEMY_STYLES[d.type] || ENEMY_STYLES.tank;
+                        switch (d.type) {
+                            case 'tank':
+                                this.drawIsoBox(fx, fz, 0.9, 0.25, 1.4, '#4a5e3a', bH);
+                                this.drawIsoBox(fx, fz, 0.55, 0.2, 0.55, '#3a4e2a', bH + 0.25);
+                                // Barrel
+                                this.drawIsoBox(fx, fz, 0.1, 0.1, 0.8, '#333', bH + 0.35);
+                                break;
+                            case 'aaGun':
+                                // Sandbag base
+                                this.drawIsoBox(fx, fz, 1.2, 0.3, 1.2, '#8a7a60', bH);
+                                // Gun mount
+                                this.drawIsoBox(fx, fz, 0.3, 0.4, 0.3, '#555', bH + 0.3);
+                                // Twin barrels pointing up
+                                this.drawIsoBox(fx, fz, 0.3, 0.6, 0.08, '#444', bH + 0.5);
+                                break;
+                            case 'samLauncher':
+                                // Truck body (2x scale)
+                                this.drawIsoBox(fx, fz, 2.4, 0.5, 4.0, '#4a5540', bH);
+                                // Launch rail
+                                this.drawIsoBox(fx, fz, 0.3, 0.15, 3.2, '#666', bH + 0.5);
+                                // Missile
+                                this.drawIsoBox(fx, fz, 0.15, 0.15, 1.4, '#ddd', bH + 0.65);
+                                break;
+                            case 'truck':
+                                // Cargo bed
+                                this.drawIsoBox(fx, fz, 1.0, 0.15, 1.4, '#3a5a3a', bH + 0.15);
+                                // Cab
+                                this.drawIsoBox(fx, fz, 0.9, 0.5, 0.7, '#3a5a8a', bH + 0.15);
+                                // Cargo tarp
+                                this.drawIsoBox(fx, fz, 0.85, 0.45, 1.2, '#5a7a4a', bH + 0.3);
+                                break;
+                            case 'radioTower':
+                                this.drawIsoBox(fx, fz, 0.15, 3.5, 0.15, '#888', bH);
+                                // Dish
+                                this.drawIsoBox(fx, fz, 0.5, 0.08, 0.5, '#bbb', bH + 3.0);
+                                // Antenna spike
+                                this.drawIsoBox(fx, fz, 0.06, 0.6, 0.06, '#999', bH + 3.5);
+                                break;
+                            case 'building':
+                                this.drawIsoBox(fx, fz, 2.0, 1.8, 2.0, '#95a5a6', bH);
+                                break;
+                            default:
+                                this.drawIsoBox(fx, fz, 1.0, 0.5, 1.0, style.color, bH);
+                                break;
+                        }
+                        if (this.zoom >= 2) {
+                            const labelH = { tank: 0.6, aaGun: 1.0, samLauncher: 1.0, truck: 0.9, radioTower: 4.2, building: 2.0 };
+                            this.drawIsoLabel(d.x, d.z, labelH[d.type] || 1.0, style.label, style.color);
                         }
                         break;
                     }
 
                     case 'plane': {
-                        const style = PLANE_STYLES[obj.data.type] || PLANE_STYLES.fighter;
+                        const pos = this.worldToCanvas(d.x, d.z);
+                        const style = PLANE_STYLES[d.type] || PLANE_STYLES.fighter;
                         const sz = Math.max(6, cs * 0.8);
 
                         // Dashed trigger line across map width in isometric
@@ -1468,7 +1639,7 @@ class Editor {
                         ctx.strokeStyle = style.color + '40';
                         ctx.lineWidth = 1;
                         ctx.setLineDash([4, 4]);
-                        const pIZ = map.indexZ(obj.data.z);
+                        const pIZ = map.indexZ(d.z);
                         const tl0 = this.isoProject(0, pIZ, 0);
                         const tl1 = this.isoProject(map.segmentsX, pIZ, 0);
                         ctx.beginPath();
@@ -1497,12 +1668,12 @@ class Editor {
                         ctx.lineWidth = 1;
                         ctx.stroke();
 
-                        if (obj.data.count > 1) {
+                        if (d.count > 1) {
                             ctx.fillStyle = '#fff';
                             ctx.font = `bold ${Math.max(7, cs * 0.4)}px monospace`;
                             ctx.textAlign = 'left';
                             ctx.textBaseline = 'middle';
-                            ctx.fillText('\u00d7' + obj.data.count, pos.x + sz * 0.7, pos.y);
+                            ctx.fillText('\u00d7' + d.count, pos.x + sz * 0.7, pos.y);
                         }
                         if (this.zoom >= 3) {
                             ctx.fillStyle = '#fff';
