@@ -517,13 +517,13 @@ enum ModelGenerator3D {
         let bodyNode = SCNNode(geometry: body)
         root.addChildNode(bodyNode)
 
-        // Nose cone (red)
+        // Nose cone (red) — tip at +Y, base flush with capsule cylinder-hemisphere junction
         let nose = SCNCone(topRadius: 0, bottomRadius: 0.08, height: 0.2)
+        nose.radialSegmentCount = 48
         nose.firstMaterial?.diffuse.contents = UIColor(red: 0.9, green: 0.15, blue: 0.1, alpha: 1)
         nose.firstMaterial?.emission.contents = UIColor(red: 0.5, green: 0.1, blue: 0.05, alpha: 0.3)
         let noseNode = SCNNode(geometry: nose)
-        noseNode.eulerAngles.x = -.pi / 2
-        noseNode.position = SCNVector3(0, 0.45, 0)
+        noseNode.position = SCNVector3(0, 0.42, 0)
         root.addChildNode(noseNode)
 
         // Fins
@@ -580,13 +580,13 @@ enum ModelGenerator3D {
         let bodyNode = SCNNode(geometry: body)
         root.addChildNode(bodyNode)
 
-        // Nose cone (red)
+        // Nose cone (red) — tip at +Y, base flush with capsule cylinder-hemisphere junction
         let nose = SCNCone(topRadius: 0, bottomRadius: 0.08, height: 0.2)
+        nose.radialSegmentCount = 48
         nose.firstMaterial?.diffuse.contents = UIColor(red: 0.9, green: 0.15, blue: 0.1, alpha: 1)
         nose.firstMaterial?.emission.contents = UIColor(red: 0.5, green: 0.1, blue: 0.05, alpha: 0.3)
         let noseNode = SCNNode(geometry: nose)
-        noseNode.eulerAngles.x = -.pi / 2
-        noseNode.position = SCNVector3(0, 0.45, 0)
+        noseNode.position = SCNVector3(0, 0.42, 0)
         root.addChildNode(noseNode)
 
         // Fins
