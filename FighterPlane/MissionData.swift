@@ -89,19 +89,31 @@ enum MissionLoader {
         return try? JSONDecoder().decode(MissionData.self, from: data)
     }
 
-    /// Load all missions from bundle, sorted by filename (mission1, mission2, ...)
+    /// Load all missions from bundle — tries combined file first, then individual files
     static func loadAll() -> [MissionData] {
-        // Search both Missions subdirectory and root bundle
+        // Try combined missions file first (fighterplane_missions.json)
+        if let missions = loadCombinedFile("fighterplane_missions"), !missions.isEmpty {
+            return missions
+        }
+
+        // Fallback: load individual mission files
         let subdirURLs = Bundle.main.urls(forResourcesWithExtension: "json", subdirectory: "Missions") ?? []
         let rootURLs = Bundle.main.urls(forResourcesWithExtension: "json", subdirectory: nil) ?? []
         let allURLs = subdirURLs + rootURLs
-        // Filter to mission files only, deduplicate, sort by name for level ordering
         let missionURLs = Array(Set(allURLs.filter { $0.lastPathComponent.hasPrefix("mission") }))
             .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
         return missionURLs.compactMap { url in
             guard let data = try? Data(contentsOf: url) else { return nil }
             return try? JSONDecoder().decode(MissionData.self, from: data)
         }
+    }
+
+    /// Load missions from a combined JSON array file (preserves array order)
+    private static func loadCombinedFile(_ filename: String) -> [MissionData]? {
+        let url = Bundle.main.url(forResource: filename, withExtension: "json", subdirectory: "Missions")
+            ?? Bundle.main.url(forResource: filename, withExtension: "json")
+        guard let url, let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode([MissionData].self, from: data)
     }
 }
 
