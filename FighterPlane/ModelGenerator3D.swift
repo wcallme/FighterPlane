@@ -52,6 +52,51 @@ enum TerrainBiome: Int, CaseIterable {
         }
     }
 
+    // MARK: Night Mode Colors
+
+    /// Night sky color (very dark, biome-tinted)
+    var nightSkyColor: UIColor {
+        switch self {
+        case .temperate: return UIColor(red: 0.04, green: 0.04, blue: 0.10, alpha: 1.0)
+        case .desert:    return UIColor(red: 0.10, green: 0.07, blue: 0.03, alpha: 1.0)
+        case .arctic:    return UIColor(red: 0.03, green: 0.05, blue: 0.14, alpha: 1.0)
+        case .volcanic:  return UIColor(red: 0.10, green: 0.03, blue: 0.02, alpha: 1.0)
+        }
+    }
+
+    /// Night fog color (matches night sky for seamless horizon)
+    var nightFogColor: UIColor { nightSkyColor }
+
+    /// Night ambient light (very dim, biome-tinted)
+    var nightAmbientColor: UIColor {
+        switch self {
+        case .temperate: return UIColor(red: 0.08, green: 0.08, blue: 0.15, alpha: 1.0)
+        case .desert:    return UIColor(red: 0.12, green: 0.10, blue: 0.06, alpha: 1.0)
+        case .arctic:    return UIColor(red: 0.08, green: 0.10, blue: 0.18, alpha: 1.0)
+        case .volcanic:  return UIColor(red: 0.12, green: 0.06, blue: 0.04, alpha: 1.0)
+        }
+    }
+
+    /// Moonlight color (cool silver with biome tint)
+    var nightMoonColor: UIColor {
+        switch self {
+        case .temperate: return UIColor(red: 0.60, green: 0.65, blue: 0.80, alpha: 1.0)
+        case .desert:    return UIColor(red: 0.70, green: 0.65, blue: 0.55, alpha: 1.0)
+        case .arctic:    return UIColor(red: 0.55, green: 0.60, blue: 0.80, alpha: 1.0)
+        case .volcanic:  return UIColor(red: 0.70, green: 0.45, blue: 0.35, alpha: 1.0)
+        }
+    }
+
+    /// Night water color (dark reflective tint)
+    var nightWaterColor: UIColor {
+        switch self {
+        case .temperate: return UIColor(red: 0.05, green: 0.15, blue: 0.25, alpha: 0.92)
+        case .desert:    return UIColor(red: 0.18, green: 0.14, blue: 0.08, alpha: 0.88)
+        case .arctic:    return UIColor(red: 0.08, green: 0.12, blue: 0.22, alpha: 0.94)
+        case .volcanic:  return UIColor(red: 0.25, green: 0.06, blue: 0.02, alpha: 0.95)
+        }
+    }
+
     /// Tree/vegetation density (count per chunk)
     var vegetationCount: Int {
         switch self {
