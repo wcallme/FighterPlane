@@ -10,6 +10,7 @@ struct MissionData: Codable {
 
     let terrain: TerrainData
     let terrainType: String?
+    let isNightMission: Bool?
     let waterLevel: Float
     let objects: ObjectsData
     let enemies: [EnemyPlacement]
