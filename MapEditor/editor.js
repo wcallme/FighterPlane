@@ -1263,6 +1263,66 @@ class Editor {
         ctx.closePath(); ctx.fill();
     }
 
+    // Draw a grid of window rectangles on a projected face quad
+    drawIsoFaceWindows(face, cols, rows, color, margin = 0.1, winFrac = 0.6) {
+        const [tl, tr, bl, br] = face;
+        const ctx = this.ctx;
+        ctx.fillStyle = color;
+        const usable = 1 - 2 * margin;
+        const cellW = usable / cols;
+        const cellH = usable / rows;
+        const whW = cellW * winFrac / 2;
+        const whH = cellH * winFrac / 2;
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const cu = margin + (c + 0.5) * cellW;
+                const cv = margin + (r + 0.5) * cellH;
+                const pts = [];
+                for (const [du, dv] of [[-whW, -whH], [whW, -whH], [whW, whH], [-whW, whH]]) {
+                    const u = cu + du, v = cv + dv;
+                    pts.push({
+                        x: tl.x * (1 - u) * (1 - v) + tr.x * u * (1 - v) + bl.x * (1 - u) * v + br.x * u * v,
+                        y: tl.y * (1 - u) * (1 - v) + tr.y * u * (1 - v) + bl.y * (1 - u) * v + br.y * u * v,
+                    });
+                }
+                ctx.beginPath();
+                ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[1].x, pts[1].y);
+                ctx.lineTo(pts[2].x, pts[2].y); ctx.lineTo(pts[3].x, pts[3].y);
+                ctx.closePath(); ctx.fill();
+            }
+        }
+    }
+
+    // Draw windows on both visible faces of a box
+    drawIsoBoxWindows(fx, fz, gameW, gameH, gameD, baseH, cols, rows, winColor, margin, winFrac) {
+        const upc = this.map.widthX / this.map.segmentsX;
+        const hw = gameW / upc / 2;
+        const hd = gameD / upc / 2;
+        const hTop = baseH + gameH;
+        const drawS = (this._cosA + this._sinA) >= 0;
+        const drawE = (this._cosA - this._sinA) >= 0;
+
+        // ix-perpendicular face
+        const faceIX = drawS ? [
+            this.isoProject(fx + hw, fz - hd, hTop), this.isoProject(fx + hw, fz + hd, hTop),
+            this.isoProject(fx + hw, fz - hd, baseH), this.isoProject(fx + hw, fz + hd, baseH),
+        ] : [
+            this.isoProject(fx - hw, fz + hd, hTop), this.isoProject(fx - hw, fz - hd, hTop),
+            this.isoProject(fx - hw, fz + hd, baseH), this.isoProject(fx - hw, fz - hd, baseH),
+        ];
+        this.drawIsoFaceWindows(faceIX, cols, rows, winColor, margin, winFrac);
+
+        // iz-perpendicular face
+        const faceIZ = drawE ? [
+            this.isoProject(fx - hw, fz + hd, hTop), this.isoProject(fx + hw, fz + hd, hTop),
+            this.isoProject(fx - hw, fz + hd, baseH), this.isoProject(fx + hw, fz + hd, baseH),
+        ] : [
+            this.isoProject(fx + hw, fz - hd, hTop), this.isoProject(fx - hw, fz - hd, hTop),
+            this.isoProject(fx + hw, fz - hd, baseH), this.isoProject(fx - hw, fz - hd, baseH),
+        ];
+        this.drawIsoFaceWindows(faceIZ, cols, rows, winColor, margin, winFrac);
+    }
+
     drawIsoLabel(wx, wz, gameH, label, color) {
         const ix = this.map.indexX(wx);
         const iz = this.map.indexZ(wz);
@@ -1555,22 +1615,27 @@ class Editor {
                             case 'skyscraper':
                                 this.drawIsoBox(fx, fz, 3.0, 2.5, 3.0, '#546e8a', bH);
                                 this.drawIsoBox(fx, fz, 2.5, 7.5, 2.5, '#6888a8', bH + 2.5);
+                                // 6×20 window grid on tower
+                                this.drawIsoBoxWindows(fx, fz, 2.5, 7.5, 2.5, bH + 2.5, 6, 20, '#111', 0.06, 0.55);
                                 // Antenna
                                 this.drawIsoBox(fx, fz, 0.2, 1.0, 0.2, '#aaa', bH + 10.0);
                                 break;
                             case 'warehouse':
                                 this.drawIsoBox(fx, fz, 4.0, 2.0, 3.0, '#a09080', bH);
+                                // Large dark blue panels
+                                this.drawIsoBoxWindows(fx, fz, 4.0, 2.0, 3.0, bH, 3, 2, '#2a3a5a', 0.08, 0.75);
                                 // Roof ridge
                                 this.drawIsoBox(fx, fz, 1.0, 0.5, 3.2, '#887868', bH + 2.0);
                                 break;
                             case 'tower':
                                 this.drawIsoBox(fx, fz, 1.6, 1.2, 1.6, '#6c7a7a', bH);
                                 this.drawIsoBox(fx, fz, 1.1, 4.0, 1.1, '#5a6868', bH + 1.2);
-                                this.drawIsoBox(fx, fz, 2.0, 0.2, 2.0, '#8a9a9a', bH + 5.2);
+                                // 2×5 window grid on shaft
+                                this.drawIsoBoxWindows(fx, fz, 1.1, 4.0, 1.1, bH + 1.2, 2, 5, '#111', 0.1, 0.6);
                                 break;
                         }
                         if (this.zoom >= 2) this.drawIsoLabel(d.x, d.z, {
-                            house: 2.3, office: 4.0, skyscraper: 11.0, warehouse: 2.5, tower: 5.4
+                            house: 2.3, office: 4.0, skyscraper: 11.0, warehouse: 2.5, tower: 5.2
                         }[d.type] || 3, style.label, '#fff');
                         break;
                     }
